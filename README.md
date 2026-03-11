@@ -63,10 +63,11 @@ cd sada-mia-hosting-panel
 
 ### 2. Run the Installer
 
-Run the installation script. It will automatically detect your server's public IP address:
+Run the installation script. It will automatically detect your server's public IP address. By default, it runs on port `80`, but you can pass an optional port parameter (e.g. `8080`) if you prefer:
 
 ```bash
-sudo ./install.sh
+chmod +x install.sh
+sudo ./install.sh 8080
 ```
 
 The script will automatically:
@@ -75,11 +76,11 @@ The script will automatically:
 2. Install Node.js 20 and PM2 globally.
 3. Configure `sudoers` rules to allow the panel to safely reload Nginx and manage PM2 without a password.
 4. Scaffold the Laravel API and React frontend.
-5. Setup the Nginx configuration to serve the panel on your server's default IP address.
+5. Setup the Nginx configuration to serve the panel on your server's default IP address at the port you specified.
 
 ### 3. Log In
 
-Once finished, go to `http://<YOUR_SERVER_IP>` in your browser.
+Once finished, go to `http://<YOUR_SERVER_IP>:<YOUR_PORT>` in your browser.
 
 - **Default Email:** `admin@panel.local`
 - **Default Password:** `admin`

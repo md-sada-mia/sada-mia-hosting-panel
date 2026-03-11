@@ -6,9 +6,11 @@ echo "    Sada Mia Hosting Panel - Installer Script      "
 echo "==================================================="
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root (sudo ./install.sh)"
+  echo "Please run as root (sudo ./install.sh [port])"
   exit 1
 fi
+
+PORT=${1:-80}
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -28,7 +30,7 @@ else
     echo "==> Nginx already installed, skipping."
 fi
 
-echo "==> 2. Installing PHP 8.4"
+echo "==> 2. Installing PHP 8.4 and Extensions"
 if ! command -v php8.4 >/dev/null 2>&1; then
     if ! dpkg -s software-properties-common >/dev/null 2>&1; then
         apt-get install -y software-properties-common
@@ -37,7 +39,14 @@ if ! command -v php8.4 >/dev/null 2>&1; then
     apt-get update
     apt-get install -y php8.4 php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip php8.4-pgsql
 else
-    echo "==> PHP 8.4 already installed, skipping."
+    echo "==> PHP 8.4 already installed."
+    # Ensure all extensions are definitely installed even if PHP core is there
+    for ext in fpm cli sqlite3 curl mbstring xml zip pgsql; do
+        if ! dpkg -s php8.4-$ext >/dev/null 2>&1; then
+            echo "==> Installing missing PHP extension: php8.4-$ext"
+            apt-get install -y php8.4-$ext
+        fi
+    done
 fi
 
 echo "==> 3. Installing Composer"
@@ -107,8 +116,8 @@ chown -R www-data:www-data dist
 echo "==> 10. Configuring Nginx for the Panel"
 cat > /etc/nginx/sites-available/sada-mia-panel <<EOF
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen $PORT default_server;
+    listen [::]:$PORT default_server;
     server_name _;
 
     root $(pwd)/dist;
@@ -147,7 +156,11 @@ IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
 
 echo "==================================================="
 echo "  Installation Complete!                           "
-echo "  Access panel at: http://$IP_ADDRESS              "
+if [ "$PORT" -eq 80 ]; then
+    echo "  Access panel at: http://$IP_ADDRESS              "
+else
+    echo "  Access panel at: http://$IP_ADDRESS:$PORT              "
+fi
 echo "  Default Login:   admin@panel.local               "
 echo "  Default Pass:    admin                           "
 echo "  Note: Configure domains inside the panel later.  "
