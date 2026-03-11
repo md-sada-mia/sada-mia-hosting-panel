@@ -11,6 +11,7 @@ use App\Services\NginxConfigService;
 use App\Services\GitHubService;
 use App\Models\Setting;
 use App\Jobs\DeployApp;
+use App\Jobs\DeleteApp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -103,16 +104,14 @@ class AppController extends Controller
 
     public function destroy(AppModel $app)
     {
-        // Stop if running
-        if ($app->type === 'nextjs') {
-            $this->pm2Service->delete($app);
-        }
+        // Snapshot data for background job
+        $appData = $app->toArray();
+        $appData['id'] = $app->id;
 
-        // Remove Nginx config
-        $this->nginxService->remove($app);
+        DeleteApp::dispatch($appData);
 
         $app->delete();
-        return response()->json(['message' => 'App deleted']);
+        return response()->json(['message' => 'App scheduled for deletion and cleanup']);
     }
 
     public function deploy(AppModel $app)

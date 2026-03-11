@@ -122,6 +122,7 @@ chown -R www-data:www-data $APPS_DIR
 chmod -R 775 $APPS_DIR
 
 echo "==> 7. Configuring Sudoers for www-data"
+sudo_user_name=${SUDO_USER:-$(whoami)}
 cat > /etc/sudoers.d/sadamiapanel <<EOF
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
@@ -132,6 +133,14 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/n
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
 EOF
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
@@ -169,6 +178,7 @@ chown -R www-data:www-data dist
 
 echo "==> 9.1 Starting Laravel Queue Worker"
 cd ../backend
+sudo -u www-data pm2 delete "sada-mia-queue" > /dev/null 2>&1 || true
 sudo -u www-data pm2 start php --name "sada-mia-queue" -- artisan queue:work --timeout=600 --tries=3
 sudo -u www-data pm2 save
 cd ../frontend
