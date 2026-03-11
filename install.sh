@@ -10,14 +10,42 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Detect IP if not provided
-if [ -z "$1" ]; then
-    IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
-else
-    IP_ADDRESS=$1
+# Ensure we have an .env file for the installer
+if [ ! -f .env ]; then
+    echo "APP_ENV=production" > .env
+    echo "PANEL_PORT=8083" >> .env
+    echo "PANEL_IP=" >> .env
+    echo "==> Created default .env file."
 fi
 
-PORT=${2:-8083}
+# Load .env variables
+export $(grep -v '^#' .env | xargs)
+
+# Command-line arguments override .env
+if [ -n "$1" ]; then
+    PANEL_IP=$1
+    sed -i "s/^PANEL_IP=.*/PANEL_IP=$1/" .env
+fi
+
+if [ -n "$2" ]; then
+    PANEL_PORT=$2
+    sed -i "s/^PANEL_PORT=.*/PANEL_PORT=$2/" .env
+fi
+
+# Determine IP if not provided
+if [ -z "$PANEL_IP" ]; then
+    if [ "$APP_ENV" = "local" ]; then
+        # Get local network IP (usually starts with 192, 172, or 10)
+        IP_ADDRESS=$(hostname -I | awk '{print $1}')
+    else
+        # Get public IP
+        IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
+    fi
+else
+    IP_ADDRESS=$PANEL_IP
+fi
+
+PORT=${PANEL_PORT:-8083}
 
 export DEBIAN_FRONTEND=noninteractive
 

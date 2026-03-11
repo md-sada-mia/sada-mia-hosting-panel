@@ -31,3 +31,5 @@ backend/storage/logs/
 
 # Frontend dependencies
 frontend/package-lock.json
+
+/.env

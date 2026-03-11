@@ -61,16 +61,29 @@ git clone https://github.com/your-username/sada-mia-hosting-panel.git
 cd sada-mia-hosting-panel
 ```
 
-### 2. Run the Installer
+### 2. Configure Environment (Optional)
+
+The installer will automatically generate an `.env` file in the root directory if one doesn't exist. You can pre-create this file to customize the installation behavior:
+
+```env
+# panel root .env
+APP_ENV=production    # Use "local" to bind to the LAN IP automatically
+PANEL_PORT=8083       # Default Nginx port
+PANEL_IP=             # Explicit IP to bind to
+```
+
+### 3. Run the Installer
 
 Run the installation script. By default, it will auto-detect your server's public IP and run on port `8083`.
 
-You can also explicitly pass an IP address and a Port:
+_(If you set `APP_ENV=local` in the `.env` file, it will automatically use your local network IP (e.g. `192.168.x.x`) instead of fetching your public IP)._
+
+You can also explicitly pass an IP address and a Port via the command line (which overrides the `.env`):
 
 ```bash
 chmod +x install.sh
 
-# Option A: Auto-detect IP and use default port (8083)
+# Option A: Read from .env, or auto-detect public IP and use default port (8083)
 sudo ./install.sh
 
 # Option B: Specify IP, use default port (8083)
