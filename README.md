@@ -63,11 +63,21 @@ cd sada-mia-hosting-panel
 
 ### 2. Run the Installer
 
-Run the installation script. It will automatically detect your server's public IP address. By default, it runs on port `8083`, but you can pass an optional port parameter (e.g. `8080`) if you prefer:
+Run the installation script. By default, it will auto-detect your server's public IP and run on port `8083`.
+
+You can also explicitly pass an IP address and a Port:
 
 ```bash
 chmod +x install.sh
+
+# Option A: Auto-detect IP and use default port (8083)
 sudo ./install.sh
+
+# Option B: Specify IP, use default port (8083)
+sudo ./install.sh 192.168.1.100
+
+# Option C: Specify IP and custom port
+sudo ./install.sh 192.168.1.100 8080
 ```
 
 The script will automatically:

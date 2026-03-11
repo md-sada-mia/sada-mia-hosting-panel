@@ -6,11 +6,18 @@ echo "    Sada Mia Hosting Panel - Installer Script      "
 echo "==================================================="
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root (sudo ./install.sh [port])"
+  echo "Please run as root (sudo ./install.sh [ip] [port])"
   exit 1
 fi
 
-PORT=${1:-8083}
+# Detect IP if not provided
+if [ -z "$1" ]; then
+    IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
+else
+    IP_ADDRESS=$1
+fi
+
+PORT=${2:-8083}
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -151,8 +158,6 @@ EOF
 ln -sf /etc/nginx/sites-available/sada-mia-panel /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && nginx -s reload
-
-IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
 
 echo "==================================================="
 echo "  Installation Complete!                           "
