@@ -130,8 +130,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
 www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
 \$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 \$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
@@ -141,6 +141,7 @@ www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
 \$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 \$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
 \$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
+\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
 EOF
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
@@ -163,7 +164,7 @@ fi
 if [ -z "$(ls database/migrations/*_create_personal_access_tokens_table.php 2>/dev/null)" ]; then
     php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
 fi
-php artisan migrate:fresh
+php artisan migrate
 php artisan db:seed --class=DatabaseSeeder --force
 php artisan storage:link || true
 php artisan optimize:clear
