@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ServerController;
 use App\Http\Controllers\Api\GitHubAuthController;
 use App\Http\Controllers\Api\GitHubWebhookController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\CronJobController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -55,6 +56,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
+
+    // Cron Jobs
+    Route::get('/cron-jobs', [CronJobController::class, 'index']);
+    Route::post('/cron-jobs', [CronJobController::class, 'store']);
+    Route::put('/cron-jobs/{cronJob}', [CronJobController::class, 'update']);
+    Route::delete('/cron-jobs/{cronJob}', [CronJobController::class, 'destroy']);
+    Route::post('/cron-jobs/{cronJob}/toggle', [CronJobController::class, 'toggle']);
 });
 
 // GitHub Webhook (Public)
