@@ -148,6 +148,7 @@ $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/ww
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
+$sudo_user_name ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
 EOF
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
