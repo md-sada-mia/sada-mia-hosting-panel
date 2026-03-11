@@ -14,28 +14,30 @@ class DeploymentService
         private PM2Service $pm2Service,
     ) {}
 
-    public function deploy(App $app): Deployment
+    public function createDeploymentRecord(App $app): Deployment
     {
-        $deployment = Deployment::create([
+        return Deployment::create([
             'app_id'     => $app->id,
             'status'     => 'running',
             'started_at' => now(),
         ]);
+    }
 
+    public function runDeployment(App $app, Deployment $deployment): void
+    {
         try {
-            $this->runDeployment($app, $deployment);
+            $this->executeDeployment($app, $deployment);
             $deployment->update(['status' => 'success', 'finished_at' => now()]);
             $app->update(['status' => 'running']);
         } catch (\Throwable $e) {
             $deployment->appendLog("\n[ERROR] " . $e->getMessage());
             $deployment->update(['status' => 'failed', 'finished_at' => now()]);
             $app->update(['status' => 'error']);
+            throw $e;
         }
-
-        return $deployment->fresh();
     }
 
-    private function runDeployment(App $app, Deployment $deployment): void
+    private function executeDeployment(App $app, Deployment $deployment): void
     {
         $basePath = config('hosting.apps_base_path', '/var/www/hosting-apps');
         $deployPath = "{$basePath}/{$app->name}";

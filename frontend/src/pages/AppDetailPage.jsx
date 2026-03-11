@@ -18,6 +18,8 @@ export default function AppDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const logEndRef = useRef(null);
+
   const fetchApp = async () => {
     try {
       const { data } = await api.get(`/apps/${id}`);
@@ -31,12 +33,22 @@ export default function AppDetailPage() {
 
   useEffect(() => {
     fetchApp();
-    loadDeployments(); // Load deployments on mount since it's the default tab
+    loadDeployments();
     const interval = setInterval(() => {
-      if (app?.status === 'deploying') fetchApp();
+      // Refresh app data and deployments during deployment
+      if (app?.status === 'deploying') {
+        fetchApp();
+        loadDeployments();
+      }
     }, 3000);
     return () => clearInterval(interval);
   }, [id, app?.status]);
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [deployments]);
 
   const handleAction = async (action) => {
     if (!confirm(`Are you sure you want to ${action} this app?`)) return;
@@ -255,6 +267,7 @@ export default function AppDetailPage() {
                       </div>
                       <div className="bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto max-h-64 whitespace-pre-wrap">
                         {dep.log_output || 'No output recorded'}
+                        <div ref={logEndRef} />
                       </div>
                     </div>
                   ))}

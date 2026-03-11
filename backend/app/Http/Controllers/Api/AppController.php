@@ -10,6 +10,7 @@ use App\Services\PM2Service;
 use App\Services\NginxConfigService;
 use App\Services\GitHubService;
 use App\Models\Setting;
+use App\Jobs\DeployApp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -121,7 +122,10 @@ class AppController extends Controller
         }
 
         $app->update(['status' => 'deploying']);
-        $deployment = $this->deploymentService->deploy($app);
+
+        $deployment = $this->deploymentService->createDeploymentRecord($app);
+
+        DeployApp::dispatch($app, $deployment);
 
         return response()->json($deployment);
     }
