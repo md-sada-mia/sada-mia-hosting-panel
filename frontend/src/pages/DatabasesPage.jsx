@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Database, Plus, Trash2, Copy, CheckCircle2 } from 'lucide-react';
+import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
 
 export default function DatabasesPage() {
   const [databases, setDatabases] = useState([]);
@@ -66,9 +66,14 @@ export default function DatabasesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">PostgreSQL Databases</h2>
-        <p className="text-muted-foreground mt-1">Manage local PostgreSQL databases and users.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">PostgreSQL Databases</h2>
+          <p className="text-muted-foreground mt-1">Manage local PostgreSQL databases and users.</p>
+        </div>
+        <Button variant="outline" onClick={() => window.open('/adminer', '_blank')}>
+          <ExternalLink className="mr-2 h-4 w-4" /> Open Adminer
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">

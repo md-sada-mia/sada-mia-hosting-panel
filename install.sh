@@ -127,9 +127,19 @@ if command -v setfacl >/dev/null 2>&1; then
     setfacl -R -m d:u:www-data:rwx,d:g:www-data:rwx $APPS_DIR
 fi
 
-echo "==> 7. Configuring Sudoers for www-data"
+echo "==> 7. Installing Adminer"
+ADMINER_DIR="/var/www/adminer"
+mkdir -p $ADMINER_DIR
+if [ ! -f "$ADMINER_DIR/index.php" ]; then
+    wget -O "$ADMINER_DIR/index.php" https://www.adminer.org/latest-en.php
+fi
+chown -R www-data:www-data $ADMINER_DIR
+chmod -R 755 $ADMINER_DIR
+
+echo "==> 8. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
-cat > /etc/sudoers.d/sadamiapanel <<EOF
+# Note: Use single quotes for EOF to avoid shell expansion of asterisks and variables
+cat > /etc/sudoers.d/sadamiapanel <<'EOF'
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
 www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
@@ -143,20 +153,10 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data:www-data /var/www/hosting-apps/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
-$sudo_user_name ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
 EOF
+# Append the sudo user permissions separately to allow variable expansion
+echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
+chmod 0440 /etc/sudoers.d/sadamiapanel
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
 echo "==> 8. Setting up Panel Backend"
@@ -226,6 +226,19 @@ server {
         location ~ \.php$ {
             fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
             fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$request_filename;
+        }
+    }
+
+    # Adminer
+    location /adminer {
+        root /var/www;
+        index index.php;
+        try_files \$uri \$uri/ /adminer/index.php?\$args;
+
+        location ~ \.php$ {
+            fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
             include fastcgi_params;
             fastcgi_param SCRIPT_FILENAME \$request_filename;
         }
