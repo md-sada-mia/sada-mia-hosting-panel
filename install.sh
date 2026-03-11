@@ -167,6 +167,12 @@ npm install
 npm run build
 chown -R www-data:www-data dist
 
+echo "==> 9.1 Starting Laravel Queue Worker"
+cd ../backend
+sudo -u www-data pm2 start php --name "sada-mia-queue" -- artisan queue:work --timeout=600 --tries=3
+sudo -u www-data pm2 save
+cd ../frontend
+
 echo "==> 10. Configuring Nginx for the Panel"
 
 FRONTEND_DIR="$(pwd)/dist"
@@ -224,4 +230,5 @@ fi
 echo "  Default Login:   admin@panel.local               "
 echo "  Default Pass:    admin                           "
 echo "  Note: Configure domains inside the panel later.  "
+echo "  Queue worker is running via PM2: 'pm2 status sada-mia-queue'"
 echo "==================================================="

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\App;
+use App\Models\App as AppModel;
 use App\Models\Deployment;
 use App\Services\DeploymentService;
 use App\Services\PM2Service;
@@ -25,7 +25,7 @@ class AppController extends Controller
 
     public function index()
     {
-        $apps = App::with('latestDeployment')->get();
+        $apps = AppModel::with('latestDeployment')->get();
         return response()->json($apps);
     }
 
@@ -47,7 +47,7 @@ class AppController extends Controller
             $webhookSecret = Str::random(32);
         }
 
-        $app = App::create([
+        $app = AppModel::create([
             'name'             => $validated['name'],
             'type'             => $validated['type'],
             'domain'           => $validated['domain'],
@@ -71,7 +71,7 @@ class AppController extends Controller
         return response()->json($app, 201);
     }
 
-    public function toggleAutoDeploy(App $app)
+    public function toggleAutoDeploy(AppModel $app)
     {
         if (!$app->github_full_name) {
             return response()->json(['error' => 'Automatic deployment requires a GitHub repository.'], 422);
@@ -95,13 +95,13 @@ class AppController extends Controller
         return response()->json($app);
     }
 
-    public function show(App $app)
+    public function show(AppModel $app)
     {
         $app->load(['latestDeployment', 'databases', 'envVariables']);
         return response()->json($app);
     }
 
-    public function destroy(App $app)
+    public function destroy(AppModel $app)
     {
         // Stop if running
         if ($app->type === 'nextjs') {
@@ -115,7 +115,7 @@ class AppController extends Controller
         return response()->json(['message' => 'App deleted']);
     }
 
-    public function deploy(App $app)
+    public function deploy(AppModel $app)
     {
         if ($app->status === 'deploying') {
             return response()->json(['error' => 'A deployment is already running'], 422);
@@ -130,7 +130,7 @@ class AppController extends Controller
         return response()->json($deployment);
     }
 
-    public function start(App $app)
+    public function start(AppModel $app)
     {
         if ($app->type !== 'nextjs') {
             return response()->json(['message' => 'Start only applies to Next.js apps. Laravel/static are served by Nginx/PHP-FPM.']);
@@ -141,7 +141,7 @@ class AppController extends Controller
         return response()->json(['exit_code' => $result['exit_code'], 'output' => $result['output']]);
     }
 
-    public function stop(App $app)
+    public function stop(AppModel $app)
     {
         if ($app->type !== 'nextjs') {
             return response()->json(['message' => 'Stop only applies to Next.js apps.']);
@@ -152,7 +152,7 @@ class AppController extends Controller
         return response()->json(['exit_code' => $result['exit_code'], 'output' => $result['output']]);
     }
 
-    public function restart(App $app)
+    public function restart(AppModel $app)
     {
         if ($app->type !== 'nextjs') {
             return response()->json(['message' => 'Restart only applies to Next.js apps.']);
@@ -163,7 +163,7 @@ class AppController extends Controller
         return response()->json(['exit_code' => $result['exit_code'], 'output' => $result['output']]);
     }
 
-    public function logs(App $app)
+    public function logs(AppModel $app)
     {
         if ($app->type === 'nextjs') {
             $logs = $this->pm2Service->logs($app, 200);
@@ -177,7 +177,7 @@ class AppController extends Controller
         return response()->json(['logs' => $logs]);
     }
 
-    public function deployments(App $app)
+    public function deployments(AppModel $app)
     {
         return response()->json($app->deployments()->orderByDesc('created_at')->get());
     }
