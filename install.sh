@@ -136,18 +136,18 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
-\$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 EOF
 chmod 0440 /etc/sudoers.d/sadamiapanel
 

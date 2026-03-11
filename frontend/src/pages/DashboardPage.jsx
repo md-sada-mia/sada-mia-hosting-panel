@@ -8,13 +8,19 @@ import { toast } from 'sonner';
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [restarting, setRestarting] = useState({});
 
   const handleRestart = async (type) => {
+    console.log(`Restart requested for: ${type}`);
+    setRestarting(prev => ({ ...prev, [type]: true }));
     try {
       const { data } = await api.post('/server/restart', { type });
       toast.success(data.message);
     } catch (err) {
+      console.error(`Restart failed for ${type}:`, err);
       toast.error(err.response?.data?.error || 'Failed to restart service');
+    } finally {
+      setRestarting(prev => ({ ...prev, [type]: false }));
     }
   };
 
@@ -137,39 +143,43 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
               variant="outline" 
-              className="w-full justify-start"
+              className="w-full justify-start cursor-pointer"
               onClick={() => handleRestart('nginx')}
+              disabled={restarting['nginx']}
             >
-              <Layers className="mr-2 h-4 w-4" />
-              Restart Nginx
+              <Layers className={`mr-2 h-4 w-4 ${restarting['nginx'] ? 'animate-spin' : ''}`} />
+              {restarting['nginx'] ? 'Restarting...' : 'Restart Nginx'}
             </Button>
             <Button 
               variant="outline" 
-              className="w-full justify-start"
+              className="w-full justify-start cursor-pointer"
               onClick={() => handleRestart('php')}
+              disabled={restarting['php']}
             >
-              <Database className="mr-2 h-4 w-4" />
-              Restart PHP-FPM
+              <Database className={`mr-2 h-4 w-4 ${restarting['php'] ? 'animate-spin' : ''}`} />
+              {restarting['php'] ? 'Restarting...' : 'Restart PHP-FPM'}
             </Button>
             <Button 
               variant="outline" 
-              className="w-full justify-start"
+              className="w-full justify-start cursor-pointer"
               onClick={() => handleRestart('pm2')}
+              disabled={restarting['pm2']}
             >
-              <Activity className="mr-2 h-4 w-4" />
-              Restart All Apps
+              <Activity className={`mr-2 h-4 w-4 ${restarting['pm2'] ? 'animate-spin' : ''}`} />
+              {restarting['pm2'] ? 'Restarting...' : 'Restart All Apps'}
             </Button>
             <Button 
               variant="destructive" 
-              className="w-full justify-start"
+              className="w-full justify-start cursor-pointer"
+              disabled={restarting['reboot']}
               onClick={() => {
                 if (confirm('Are you sure you want to reboot the entire system? This will take it offline for several minutes.')) {
                   handleRestart('reboot');
                 }
               }}
             >
-              <Activity className="mr-2 h-4 w-4" />
-              System Reboot
+              <Activity className={`mr-2 h-4 w-4 ${restarting['reboot'] ? 'animate-spin' : ''}`} />
+              {restarting['reboot'] ? 'Rebooting...' : 'System Reboot'}
             </Button>
           </div>
         </CardContent>

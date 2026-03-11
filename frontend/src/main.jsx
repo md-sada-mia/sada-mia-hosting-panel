@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './lib/AuthContext';
+import { Toaster } from 'sonner';
 import './index.css';
 
 // Layout & Pages
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <Toaster richColors closeButton position="top-right" />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
