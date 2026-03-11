@@ -115,6 +115,16 @@ else
     echo "==> PostgreSQL already installed, skipping."
 fi
 
+# Configure PostgreSQL to allow password authentication for local users
+PG_VERSION=$(psql --version | grep -oE '[0-9]+' | head -1)
+PG_HBA="/etc/postgresql/$PG_VERSION/main/pg_hba.conf"
+if [ -f "$PG_HBA" ]; then
+    echo "==> Configuring PostgreSQL authentication in $PG_HBA"
+    # Replace 'local all all peer' with 'local all all md5'
+    sed -i "s/^local\s\+all\s\+all\s\+peer/local   all             all                                     md5/" "$PG_HBA"
+    systemctl restart postgresql
+fi
+
 echo "==> 6. Creating Apps Directory"
 APPS_DIR="/var/www/hosting-apps"
 mkdir -p $APPS_DIR
@@ -138,8 +148,8 @@ chmod -R 755 $ADMINER_DIR
 
 echo "==> 8. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
-# Note: Use single quotes for EOF to avoid shell expansion of asterisks and variables
-cat > /etc/sudoers.d/sadamiapanel <<'EOF'
+# Create sudoers file with expanded variables. Heredoc without quotes expands variables but NOT wildcards like *.
+cat > /etc/sudoers.d/sadamiapanel <<EOF
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
 www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
@@ -153,10 +163,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
+$sudo_user_name ALL=(ALL) NOPASSWD: ALL
 EOF
-# Append the sudo user permissions separately to allow variable expansion
-echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
-chmod 0440 /etc/sudoers.d/sadamiapanel
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
 echo "==> 8. Setting up Panel Backend"
