@@ -2,10 +2,21 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, Server, Database, Layers, MemoryStick, Cpu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const handleRestart = async (type) => {
+    try {
+      const { data } = await api.post('/server/restart', { type });
+      toast.success(data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to restart service');
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -117,6 +128,52 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Server Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => handleRestart('nginx')}
+            >
+              <Layers className="mr-2 h-4 w-4" />
+              Restart Nginx
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => handleRestart('php')}
+            >
+              <Database className="mr-2 h-4 w-4" />
+              Restart PHP-FPM
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => handleRestart('pm2')}
+            >
+              <Activity className="mr-2 h-4 w-4" />
+              Restart All Apps
+            </Button>
+            <Button 
+              variant="destructive" 
+              className="w-full justify-start"
+              onClick={() => {
+                if (confirm('Are you sure you want to reboot the entire system? This will take it offline for several minutes.')) {
+                  handleRestart('reboot');
+                }
+              }}
+            >
+              <Activity className="mr-2 h-4 w-4" />
+              System Reboot
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Server stats
     Route::get('/server/stats', [ServerController::class, 'stats']);
+    Route::post('/server/restart', [ServerController::class, 'restart']);
 
     // GitHub OAuth
     Route::get('/github/redirect', [GitHubAuthController::class, 'redirect']);
