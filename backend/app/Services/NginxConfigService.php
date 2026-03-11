@@ -57,7 +57,7 @@ class NginxConfigService
                 $app->domain,
                 $app->port,
                 $app->deploy_path,
-                config('hosting.php_fpm_sock', '/var/run/php/php8.3-fpm.sock'),
+                config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
             ],
             $stub
         );

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('deploy_path')->nullable();
             $table->unsignedSmallInteger('port')->nullable();
             $table->enum('status', ['idle', 'deploying', 'running', 'stopped', 'error'])->default('idle');
-            $table->string('php_version')->default('8.3');
+            $table->string('php_version')->default('8.4');
             $table->timestamps();
         });
     }

@@ -7,7 +7,7 @@ A lightweight, self-hosted server management panel designed for Ubuntu Linux. Th
 - **Native Deployment:** Apps run directly on the host OS for maximum performance and lowest RAM overhead.
 - **Three App Types Supported:**
   - **Next.js:** Automatic PM2 process management and dynamic port assignment.
-  - **Laravel:** PHP 8.3 + PHP-FPM configuration.
+  - **Laravel:** PHP 8.4 + PHP-FPM configuration.
   - **Static Sites:** Plain HTML/SPA fallback serving.
 - **Automated Builds:** The panel automatically pulls from your Git repository, installs dependencies (`npm` or `composer`), generates a `.env` file, builds the project, and restarts the app.
 - **Automatic Nginx Routing:** Generates and activates Nginx server block configurations for each domain automatically.
@@ -29,7 +29,7 @@ A lightweight, self-hosted server management panel designed for Ubuntu Linux. Th
 
 **Backend (API & Orchestrator):**
 
-- Laravel 11 (PHP 8.3)
+- Laravel 11 (PHP 8.4)
 - SQLite (for panel metadata)
 - Laravel Sanctum (Token Auth)
 - Direct shell execution (`proc_open`) for system operations.
@@ -71,7 +71,7 @@ sudo ./install.sh
 
 The script will automatically:
 
-1. Install PHP 8.3, Nginx, SQLite, and PostgreSQL.
+1. Install PHP 8.4, Nginx, SQLite, and PostgreSQL.
 2. Install Node.js 20 and PM2 globally.
 3. Configure `sudoers` rules to allow the panel to safely reload Nginx and manage PM2 without a password.
 4. Scaffold the Laravel API and React frontend.

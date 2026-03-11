@@ -14,28 +14,59 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "==> 1. Updating packages"
 apt-get update
-apt-get install -y curl wget git unzip sqlite3 libsqlite3-dev nginx
+# Install basic utilities if missing
+for pkg in curl wget git unzip sqlite3 libsqlite3-dev; do
+    if ! dpkg -s $pkg >/dev/null 2>&1; then
+        apt-get install -y $pkg
+    fi
+done
 
-echo "==> 2. Installing PHP 8.3"
-apt-get install -y software-properties-common
-add-apt-repository ppa:ondrej/php -y
-apt-get update
-apt-get install -y php8.3 php8.3-fpm php8.3-cli php8.3-sqlite3 php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-pgsql
+if ! command -v nginx >/dev/null 2>&1; then
+    echo "==> Installing Nginx"
+    apt-get install -y nginx
+else
+    echo "==> Nginx already installed, skipping."
+fi
+
+echo "==> 2. Installing PHP 8.4"
+if ! command -v php8.4 >/dev/null 2>&1; then
+    if ! dpkg -s software-properties-common >/dev/null 2>&1; then
+        apt-get install -y software-properties-common
+    fi
+    add-apt-repository ppa:ondrej/php -y
+    apt-get update
+    apt-get install -y php8.4 php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip php8.4-pgsql
+else
+    echo "==> PHP 8.4 already installed, skipping."
+fi
 
 echo "==> 3. Installing Composer"
-if ! command -v composer &> /dev/null; then
+if ! command -v composer >/dev/null 2>&1; then
     curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+else
+    echo "==> Composer already installed, skipping."
 fi
 
 echo "==> 4. Installing Node.js 20 LTS & PM2"
-if ! command -v node &> /dev/null; then
+if ! command -v node >/dev/null 2>&1; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
+else
+    echo "==> Node.js already installed, skipping."
 fi
-npm install -g pm2
+
+if ! command -v pm2 >/dev/null 2>&1; then
+    npm install -g pm2
+else
+    echo "==> PM2 already installed, skipping."
+fi
 
 echo "==> 5. Installing PostgreSQL"
-apt-get install -y postgresql postgresql-contrib
+if ! command -v psql >/dev/null 2>&1; then
+    apt-get install -y postgresql postgresql-contrib
+else
+    echo "==> PostgreSQL already installed, skipping."
+fi
 
 echo "==> 6. Creating Apps Directory"
 APPS_DIR="/var/www/hosting-apps"
@@ -100,7 +131,7 @@ server {
 
     location ~ \.php$ {
         root $(pwd)/../backend/public;
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
