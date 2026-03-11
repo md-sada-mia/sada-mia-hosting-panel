@@ -10,7 +10,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-PORT=${1:-80}
+PORT=${1:-8083}
 
 export DEBIAN_FRONTEND=noninteractive
 
