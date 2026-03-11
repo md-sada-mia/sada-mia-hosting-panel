@@ -10,12 +10,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-DOMAIN=$1
-if [ -z "$DOMAIN" ]; then
-  echo "Usage: sudo ./install.sh panel.example.com"
-  exit 1
-fi
-
 export DEBIAN_FRONTEND=noninteractive
 
 echo "==> 1. Updating packages"
@@ -82,8 +76,9 @@ chown -R www-data:www-data dist
 echo "==> 10. Configuring Nginx for the Panel"
 cat > /etc/nginx/sites-available/sada-mia-panel <<EOF
 server {
-    listen 80;
-    server_name $DOMAIN;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
 
     root $(pwd)/dist;
     index index.html;
@@ -117,9 +112,12 @@ ln -sf /etc/nginx/sites-available/sada-mia-panel /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && nginx -s reload
 
+IP_ADDRESS=$(curl -s ifconfig.me || echo "YOUR_SERVER_IP")
+
 echo "==================================================="
 echo "  Installation Complete!                           "
-echo "  Access panel at: http://$DOMAIN                  "
+echo "  Access panel at: http://$IP_ADDRESS              "
 echo "  Default Login:   admin@panel.local               "
 echo "  Default Pass:    admin                           "
+echo "  Note: Configure domains inside the panel later.  "
 echo "==================================================="
