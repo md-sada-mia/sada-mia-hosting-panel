@@ -120,8 +120,18 @@ PG_VERSION=$(psql --version | grep -oE '[0-9]+' | head -1)
 PG_HBA="/etc/postgresql/$PG_VERSION/main/pg_hba.conf"
 if [ -f "$PG_HBA" ]; then
     echo "==> Configuring PostgreSQL authentication in $PG_HBA"
-    # Replace 'local all all peer' with 'local all all md5'
+    # Allow md5 for all local and loopback connections
     sed -i "s/^local\s\+all\s\+all\s\+peer/local   all             all                                     md5/" "$PG_HBA"
+    sed -i "s/^host\s\+all\s\+all\s\+127.0.0.1\/32\s\+scram-sha-256/host    all             all             127.0.0.1\/32            md5/" "$PG_HBA"
+    sed -i "s/^host\s\+all\s\+all\s\+::1\/128\/32\s\+scram-sha-256/host    all             all             ::1\/128                 md5/" "$PG_HBA"
+    
+    # Also ensure password_encryption is md5 for compatibility with older clients/Adminer if needed
+    PG_CONF="/etc/postgresql/$PG_VERSION/main/postgresql.conf"
+    if [ -f "$PG_CONF" ]; then
+        sed -i "s/#password_encryption = scram-sha-256/password_encryption = md5/" "$PG_CONF"
+        sed -i "s/password_encryption = scram-sha-256/password_encryption = md5/" "$PG_CONF"
+    fi
+    
     systemctl restart postgresql
 fi
 

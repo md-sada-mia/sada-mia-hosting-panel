@@ -47,6 +47,39 @@ export default function DatabasesPage() {
     }
   };
 
+  const handleManage = async (dbId) => {
+    try {
+      const { data } = await api.get(`/databases/${dbId}/credentials`);
+      
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/adminer/';
+      form.target = '_blank';
+
+      const fields = {
+        'auth[driver]': 'pgsql',
+        'auth[server]': '127.0.0.1',
+        'auth[username]': data.db_user,
+        'auth[password]': data.db_password,
+        'auth[db]': data.db_name,
+      };
+
+      for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch (err) {
+      alert('Failed to retrieve credentials for autologin');
+    }
+  };
+
   const handleDelete = async (id, name) => {
     if (!confirm(`WARNING: This will permanently delete the database "${name}" and all its data. Continue?`)) return;
     try {
@@ -162,6 +195,14 @@ export default function DatabasesPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <Badge variant={db.status === 'active' ? 'success' : 'destructive'}>{db.status}</Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-primary border-primary/20 hover:bg-primary/5"
+                      onClick={() => handleManage(db.id)}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" /> Manage
+                    </Button>
                     <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db.id, db.db_name)}>
                       <Trash2 className="h-5 w-5" />
                     </Button>

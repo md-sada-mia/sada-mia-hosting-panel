@@ -37,6 +37,11 @@ class DatabaseController extends Controller
         }
     }
 
+    public function credentials(Database $database)
+    {
+        return response()->json($database->makeVisible(['db_password']));
+    }
+
     public function destroy(Database $database)
     {
         try {

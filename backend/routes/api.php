@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Databases
     Route::get('/databases', [DatabaseController::class, 'index']);
+    Route::get('/databases/{database}/credentials', [DatabaseController::class, 'credentials']);
     Route::post('/databases', [DatabaseController::class, 'store']);
     Route::delete('/databases/{database}', [DatabaseController::class, 'destroy']);
 
