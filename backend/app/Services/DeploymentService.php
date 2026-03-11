@@ -48,6 +48,10 @@ class DeploymentService
 
         // === Step 1: Clone or pull ===
         $log("[1/6] Cloning / pulling repository...");
+
+        // Fix: Mark directory as safe for git to avoid "dubious ownership" errors
+        $this->shell->run("git config --global --add safe.directory " . escapeshellarg($deployPath));
+
         if (is_dir("{$deployPath}/.git")) {
             $exitCode = $this->shell->stream("git pull origin {$app->branch}", $deployPath, $log);
         } else {
