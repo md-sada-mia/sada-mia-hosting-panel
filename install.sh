@@ -140,16 +140,43 @@ fi
 echo "==> 7. Installing Adminer"
 ADMINER_DIR="/var/www/adminer"
 mkdir -p $ADMINER_DIR
-if [ ! -f "$ADMINER_DIR/index.php" ]; then
-    wget -O "$ADMINER_DIR/index.php" https://www.adminer.org/latest-en.php
+if [ ! -f "$ADMINER_DIR/adminer.php" ]; then
+    wget -O "$ADMINER_DIR/adminer.php" https://www.adminer.org/latest-en.php
 fi
+
+# Create wrapper index.php
+cat > "$ADMINER_DIR/index.php" <<'EOF'
+<?php
+function adminer_object() {
+    return new class extends Adminer\Adminer {
+        function login($login, $password) { return true; }
+        function name() { return "Sada Mia Panel - Adminer"; }
+    };
+}
+
+if (isset($_POST["auth"])) {
+    $_POST["driver"] = $_POST["auth"]["driver"] ?? "pgsql";
+    $_POST["server"] = $_POST["auth"]["server"] ?? "127.0.0.1";
+    $_POST["username"] = $_POST["auth"]["username"];
+    $_POST["password"] = $_POST["auth"]["password"];
+    $_POST["db"] = $_POST["auth"]["db"];
+}
+
+if (file_exists("./adminer.php")) {
+    include "./adminer.php";
+} else {
+    header("HTTP/1.1 500 Internal Server Error");
+    echo "adminer.php not found. Please run install.sh again.";
+}
+EOF
+
 chown -R www-data:www-data $ADMINER_DIR
 chmod -R 755 $ADMINER_DIR
 
 echo "==> 8. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
-# Create sudoers file with expanded variables. Heredoc without quotes expands variables but NOT wildcards like *.
-cat > /etc/sudoers.d/sadamiapanel <<EOF
+# Create sudoers file with expanded variables. Heredoc with quotes 'EOF' prevents shell expansion.
+cat > /etc/sudoers.d/sadamiapanel <<'EOF'
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
 www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
@@ -157,14 +184,15 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data:www-data /var/www/hosting-apps/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data.www-data /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
-$sudo_user_name ALL=(ALL) NOPASSWD: ALL
 EOF
+# Append the installer user entry separately as it needs variable expansion
+echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
 chmod 0440 /etc/sudoers.d/sadamiapanel
 
 echo "==> 8. Setting up Panel Backend"
