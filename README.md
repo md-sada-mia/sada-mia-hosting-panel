@@ -112,6 +112,35 @@ _(You can change these in the Settings tab immediately after logging in)._
 
 ---
 
+## 🐙 GitHub Integration
+
+Sada Mia Panel supports seamless GitHub integration, allowing you to pick repositories from your account and enable **Auto-Deploy on Push** (via Webhooks).
+
+### 1. Create a GitHub OAuth App
+
+To enable this, you need to create a GitHub OAuth application:
+
+1.  Go to your GitHub **Settings** > **Developer Settings** > **OAuth Apps**.
+2.  Click **New OAuth App**.
+3.  **Application Name:** `Sada Mia Hosting Panel` (or anything you like).
+4.  **Homepage URL:** `http://<YOUR_SERVER_IP>:<PORT>`
+5.  **Authorization callback URL:** `http://<YOUR_SERVER_IP>:<PORT>/github/callback` (Required)
+6.  Click **Register application**.
+7.  Generate a **Client Secret** and copy both the **Client ID** and **Client Secret**.
+
+### 2. Configure in Panel
+
+1.  Log into your Sada Mia Panel.
+2.  Go to the **Settings** tab.
+3.  Enter your **GitHub Client ID** and **GitHub Client Secret**.
+4.  Enter a **Global Webhook Secret** (a random string of your choice). This is used by GitHub to sign push events so the panel knows they are legitimate.
+5.  Click **Save Settings**.
+6.  Click **Connect GitHub** to authorize the panel.
+
+Once connected, you will see a repository picker when creating new apps, and you can toggle "Auto Deploy on Push" for any GitHub-linked application!
+
+---
+
 ## 💻 Local Development
 
 If you are modifying the panel itself on your local machine, you can use the provided development script.

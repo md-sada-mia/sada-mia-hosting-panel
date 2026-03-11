@@ -144,7 +144,7 @@ php artisan key:generate
 if [ -z "$(ls database/migrations/*_create_personal_access_tokens_table.php 2>/dev/null)" ]; then
     php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
 fi
-php artisan migrate --force
+php artisan migrate:fresh
 php artisan db:seed --class=DatabaseSeeder --force
 php artisan storage:link || true
 php artisan optimize:clear

@@ -8,14 +8,18 @@ use App\Models\Deployment;
 use App\Services\DeploymentService;
 use App\Services\PM2Service;
 use App\Services\NginxConfigService;
+use App\Services\GitHubService;
+use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AppController extends Controller
 {
     public function __construct(
         private DeploymentService $deploymentService,
         private PM2Service $pm2Service,
-        private NginxConfigService $nginxService
+        private NginxConfigService $nginxService,
+        private GitHubService $github
     ) {}
 
     public function index()
@@ -27,23 +31,67 @@ class AppController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'    => 'required|string|regex:/^[a-zA-Z0-9_-]+$/|unique:apps,name',
-            'type'    => 'required|in:nextjs,laravel,static',
-            'domain'  => 'required|string|unique:apps,domain',
-            'git_url' => 'required|string',
-            'branch'  => 'nullable|string',
+            'name'             => 'required|string|regex:/^[a-zA-Z0-9_-]+$/|unique:apps,name',
+            'type'             => 'required|in:nextjs,laravel,static',
+            'domain'           => 'required|string|unique:apps,domain',
+            'git_url'          => 'required|string',
+            'branch'           => 'nullable|string',
+            'github_full_name' => 'nullable|string',
+            'github_id'        => 'nullable|integer',
+            'auto_deploy'      => 'nullable|boolean',
         ]);
+
+        $webhookSecret = null;
+        if (!empty($validated['auto_deploy']) && !empty($validated['github_full_name'])) {
+            $webhookSecret = Str::random(32);
+        }
 
         $app = App::create([
-            'name'    => $validated['name'],
-            'type'    => $validated['type'],
-            'domain'  => $validated['domain'],
-            'git_url' => $validated['git_url'],
-            'branch'  => $validated['branch'] ?? 'main',
-            'status'  => 'idle',
+            'name'             => $validated['name'],
+            'type'             => $validated['type'],
+            'domain'           => $validated['domain'],
+            'git_url'          => $validated['git_url'],
+            'branch'           => $validated['branch'] ?? 'main',
+            'status'           => 'idle',
+            'github_full_name' => $validated['github_full_name'] ?? null,
+            'github_id'        => $validated['github_id'] ?? null,
+            'webhook_secret'   => $webhookSecret,
+            'auto_deploy'      => $validated['auto_deploy'] ?? false,
         ]);
 
+        // If auto-deploy is enabled, create GitHub webhook
+        if ($app->webhook_secret && $app->github_full_name) {
+            $token = Setting::get('github_access_token');
+            if ($token) {
+                $this->github->createWebhook($token, $app->github_full_name, $app->webhook_secret);
+            }
+        }
+
         return response()->json($app, 201);
+    }
+
+    public function toggleAutoDeploy(App $app)
+    {
+        if (!$app->github_full_name) {
+            return response()->json(['error' => 'Automatic deployment requires a GitHub repository.'], 422);
+        }
+
+        if (!$app->auto_deploy) {
+            // Enabling
+            $app->webhook_secret = Str::random(32);
+            $token = Setting::get('github_access_token');
+            if ($token) {
+                $this->github->createWebhook($token, $app->github_full_name, $app->webhook_secret);
+            }
+        } else {
+            // Disabling
+            $app->webhook_secret = null;
+        }
+
+        $app->auto_deploy = !$app->auto_deploy;
+        $app->save();
+
+        return response()->json($app);
     }
 
     public function show(App $app)

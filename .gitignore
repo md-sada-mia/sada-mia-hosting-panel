@@ -33,3 +33,5 @@ backend/storage/logs/
 frontend/package-lock.json
 
 /.env
+/credentials.txt
+/requirement.txt

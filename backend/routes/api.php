@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\AppController;
 use App\Http\Controllers\Api\EnvController;
 use App\Http\Controllers\Api\DatabaseController;
 use App\Http\Controllers\Api\ServerController;
+use App\Http\Controllers\Api\GitHubAuthController;
+use App\Http\Controllers\Api\GitHubWebhookController;
+use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -28,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/restart', [AppController::class, 'restart']);
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
+    Route::post('/apps/{app}/toggle-auto-deploy', [AppController::class, 'toggleAutoDeploy']);
 
     // Environment variables
     Route::get('/apps/{app}/env', [EnvController::class, 'index']);
@@ -40,4 +44,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Server stats
     Route::get('/server/stats', [ServerController::class, 'stats']);
+
+    // GitHub OAuth
+    Route::get('/github/redirect', [GitHubAuthController::class, 'redirect']);
+    Route::get('/github/callback', [GitHubAuthController::class, 'callback']);
+    Route::get('/github/repositories', [GitHubAuthController::class, 'repositories']);
+
+    // Settings
+    Route::get('/settings', [SettingsController::class, 'index']);
+    Route::post('/settings', [SettingsController::class, 'update']);
 });
+
+// GitHub Webhook (Public)
+Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);

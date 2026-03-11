@@ -17,10 +17,15 @@ class App extends Model
         'port',
         'status',
         'php_version',
+        'github_full_name',
+        'github_id',
+        'webhook_secret',
+        'auto_deploy',
     ];
 
     protected $casts = [
         'port' => 'integer',
+        'auto_deploy' => 'boolean',
     ];
 
     public function deployments(): HasMany

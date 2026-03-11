@@ -58,6 +58,18 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleToggleAutoDeploy = async () => {
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/toggle-auto-deploy`);
+      setApp(data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to toggle auto-deploy');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const loadDeployments = async () => {
     const { data } = await api.get(`/apps/${id}/deployments`);
     setDeployments(data);
@@ -172,6 +184,32 @@ export default function AppDetailPage() {
                   <span className="text-muted-foreground block mb-1">Branch</span>
                   <div className="font-mono bg-muted/50 p-2 rounded">{app.branch}</div>
                 </div>
+                {app.github_full_name && (
+                  <div className="col-span-2 p-4 border rounded-md bg-muted/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-background rounded-full border">
+                        <Github className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">GitHub Repository</p>
+                        <p className="text-xs text-muted-foreground">{app.github_full_name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs font-medium text-muted-foreground mr-2">
+                        {app.auto_deploy ? 'Auto-deploy active' : 'Auto-deploy disabled'}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant={app.auto_deploy ? "outline" : "default"}
+                        onClick={handleToggleAutoDeploy}
+                        disabled={actionLoading}
+                      >
+                        {app.auto_deploy ? 'Disable' : 'Enable'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <span className="text-muted-foreground block mb-1">Deploy Path</span>
                   <div className="font-mono bg-muted/50 p-2 rounded text-xs">{app.deploy_path || 'Not deployed yet'}</div>
