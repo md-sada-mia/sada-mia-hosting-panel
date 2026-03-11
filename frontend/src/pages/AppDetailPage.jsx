@@ -8,6 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+const stripAnsi = (str) => {
+  if (!str) return '';
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+};
+
 export default function AppDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -266,7 +271,7 @@ export default function AppDetailPage() {
                         </div>
                       </div>
                       <div className="bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto max-h-64 whitespace-pre-wrap">
-                        {dep.log_output || 'No output recorded'}
+                        {stripAnsi(dep.log_output) || 'No output recorded'}
                         <div ref={logEndRef} />
                       </div>
                     </div>

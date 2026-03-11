@@ -6,6 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+const stripAnsi = (str) => {
+  if (!str) return '';
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+};
+
 export default function CreateAppPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -76,13 +81,16 @@ export default function CreateAppPage() {
   const fetchLogs = async () => {
     if (!createdApp) return;
     try {
-      const { data } = await api.get(`/apps/${createdApp.id}/logs`);
-      const logLines = data.logs.split('\n');
-      setLogs(logLines);
+      // Fetch fresh app data which includes latestDeployment
+      const { data } = await api.get(`/apps/${createdApp.id}`);
+      
+      if (data.latest_deployment) {
+        const rawLogs = data.latest_deployment.log_output || '';
+        const cleanLogs = stripAnsi(rawLogs);
+        setLogs(cleanLogs.split('\n'));
+      }
 
-      // Also check app status
-      const appRes = await api.get(`/apps/${createdApp.id}`);
-      if (appRes.data.status !== 'deploying') {
+      if (data.status !== 'deploying') {
         setIsDeploying(false);
       }
     } catch (err) {
