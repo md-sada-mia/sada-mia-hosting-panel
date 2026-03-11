@@ -1,0 +1,17 @@
+# Project Root Ignores
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Ignore actual app hosting folder (if testing locally inside the same dir)
+hosting-apps/
+/backend/database/database.sqlite
+/backend/database/database.sqlite-journal
+
+# Backend and frontend envs
+backend/.env
+backend/.env.backup
+backend/.env.production
+frontend/.env
+frontend/.env.local

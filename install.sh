@@ -1,0 +1,125 @@
+#!/bin/bash
+set -e
+
+echo "==================================================="
+echo "    Sada Mia Hosting Panel - Installer Script      "
+echo "==================================================="
+
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root (sudo ./install.sh)"
+  exit 1
+fi
+
+DOMAIN=$1
+if [ -z "$DOMAIN" ]; then
+  echo "Usage: sudo ./install.sh panel.example.com"
+  exit 1
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+
+echo "==> 1. Updating packages"
+apt-get update
+apt-get install -y curl wget git unzip sqlite3 libsqlite3-dev nginx
+
+echo "==> 2. Installing PHP 8.3"
+apt-get install -y software-properties-common
+add-apt-repository ppa:ondrej/php -y
+apt-get update
+apt-get install -y php8.3 php8.3-fpm php8.3-cli php8.3-sqlite3 php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-pgsql
+
+echo "==> 3. Installing Composer"
+if ! command -v composer &> /dev/null; then
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+fi
+
+echo "==> 4. Installing Node.js 20 LTS & PM2"
+if ! command -v node &> /dev/null; then
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+fi
+npm install -g pm2
+
+echo "==> 5. Installing PostgreSQL"
+apt-get install -y postgresql postgresql-contrib
+
+echo "==> 6. Creating Apps Directory"
+APPS_DIR="/var/www/hosting-apps"
+mkdir -p $APPS_DIR
+chown -R www-data:www-data $APPS_DIR
+chmod -R 775 $APPS_DIR
+
+echo "==> 7. Configuring Sudoers for www-data"
+cat > /etc/sudoers.d/sadamiapanel <<EOF
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
+www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
+www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
+www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
+EOF
+chmod 0440 /etc/sudoers.d/sadamiapanel
+
+echo "==> 8. Setting up Panel Backend"
+cd backend
+composer install --no-interaction --optimize-autoloader
+cp .env.example .env || true
+php artisan key:generate
+php artisan migrate --force
+php artisan db:seed --class=DatabaseSeeder --force
+chown -R www-data:www-data storage bootstrap/cache database
+chmod -R 775 storage bootstrap/cache
+
+echo "==> 9. Setting up Panel Frontend"
+cd ../frontend
+npm install
+npm run build
+chown -R www-data:www-data dist
+
+echo "==> 10. Configuring Nginx for the Panel"
+cat > /etc/nginx/sites-available/sada-mia-panel <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+
+    root $(pwd)/dist;
+    index index.html;
+
+    # Frontend SPA routing
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # API Proxy to Laravel
+    location /api {
+        alias $(pwd)/../backend/public;
+        try_files \$uri \$uri/ @laravel;
+    }
+
+    location @laravel {
+        rewrite /api/(.*)$ /api/index.php?/\$1 last;
+    }
+
+    location ~ \.php$ {
+        root $(pwd)/../backend/public;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/sada-mia-panel /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && nginx -s reload
+
+echo "==================================================="
+echo "  Installation Complete!                           "
+echo "  Access panel at: http://$DOMAIN                  "
+echo "  Default Login:   admin@panel.local               "
+echo "  Default Pass:    admin                           "
+echo "==================================================="

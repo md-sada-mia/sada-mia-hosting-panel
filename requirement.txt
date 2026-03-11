@@ -1,0 +1,61 @@
+Create a lightweight self-hosted web hosting platform that runs on Linux (Ubuntu) and can manage deployments of Next.js, Laravel, and PostgreSQL applications.
+
+The system should be designed to run efficiently without Docker for the hosted apps. Each application should run directly on the host system using its native runtime (Node.js for Next.js, PHP-FPM for Laravel). Process management for Node apps should use PM2.
+
+The hosting platform architecture should include:
+
+Frontend (Admin Panel UI)
+
+* React SPA
+* Tailwind CSS for styling
+* shadcn/ui component library
+* React Router for routing
+* The frontend should be compiled into static files and served by Nginx.
+
+Backend API
+
+* Laravel API backend
+* Handles authentication, project management, deployments, and server operations
+* Uses SQLite to store app metadata
+* Executes system commands safely for deployments.
+
+Server Infrastructure
+
+* Nginx as reverse proxy and domain router
+* PHP-FPM for Laravel runtime
+* Node.js for Next.js apps
+* PM2 for managing Node processes
+* PostgreSQL for databases
+
+Core Hosting Features
+
+* Create new application projects
+* Support three application types: Next.js, Laravel, static sites
+* Git repository deployment
+* Automatic build and install (npm install, composer install)
+* Automatic port assignment for Node apps
+* Automatic Nginx configuration generation per domain
+* Domain management
+* App start / stop / restart
+* Log viewing
+* Environment variable management
+
+Deployment Workflow
+
+1. User creates an app in the panel
+2. System clones Git repository
+3. System installs dependencies
+4. System builds the project
+5. System assigns a port (for Node apps)
+6. System generates Nginx config
+7. System starts the app (PM2 or PHP-FPM)
+8. Domain routes to the app
+
+Optimization Goals
+
+* Low RAM usage
+* Ability to run many applications on one server
+* Minimal background processes
+* Efficient idle resource usage
+
+The admin panel should remain lightweight, secure, and optimized for managing many apps on a single Linux server.

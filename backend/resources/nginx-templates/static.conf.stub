@@ -1,0 +1,19 @@
+server {
+    listen 80;
+    server_name {{domain}};
+
+    root {{deploy_path}}/public;
+    index index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    access_log /var/log/nginx/{{domain}}-access.log;
+    error_log  /var/log/nginx/{{domain}}-error.log;
+}
