@@ -15,11 +15,20 @@ class ShellService
         $process = Process::fromShellCommandline($command, $cwd);
         $process->setTimeout($timeout);
 
-        // Ensure HOME and PATH are passed to the subprocess
+        // Detect current system user to provide a better default HOME
+        $currentUser = posix_getpwuid(posix_geteuid())['name'] ?? 'www-data';
+        $homeDir = ($currentUser === 'www-data') ? '/var/www' : (getenv('HOME') ?: '/tmp');
+
+        // Ensure HOME, PATH, and build variables are passed to the subprocess
         $process->setEnv([
-            'HOME' => getenv('HOME') ?: '/tmp',
+            'HOME' => $homeDir,
             'PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin',
-            'PM2_HOME' => (getenv('HOME') ?: '/tmp') . '/.pm2',
+            'PM2_HOME' => $homeDir . '/.pm2',
+            'NODE_ENV' => 'production',
+            'NEXT_TELEMETRY_DISABLED' => '1',
+            'NODE_OPTIONS' => '--dns-result-order=ipv4first',
+            'XDG_CACHE_HOME' => $homeDir . '/.cache',
+            'NPM_CONFIG_CACHE' => $homeDir . '/.npm',
         ]);
 
         $output = '';
@@ -41,11 +50,20 @@ class ShellService
         $process = Process::fromShellCommandline($command, $cwd);
         $process->setTimeout($timeout);
 
-        // Ensure HOME and PATH are passed to the subprocess
+        // Detect current system user to provide a better default HOME
+        $currentUser = posix_getpwuid(posix_geteuid())['name'] ?? 'www-data';
+        $homeDir = ($currentUser === 'www-data') ? '/var/www' : (getenv('HOME') ?: '/tmp');
+
+        // Ensure HOME, PATH, and build variables are passed to the subprocess
         $process->setEnv([
-            'HOME' => getenv('HOME') ?: '/tmp',
+            'HOME' => $homeDir,
             'PATH' => getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin',
-            'PM2_HOME' => (getenv('HOME') ?: '/tmp') . '/.pm2',
+            'PM2_HOME' => $homeDir . '/.pm2',
+            'NODE_ENV' => 'production',
+            'NEXT_TELEMETRY_DISABLED' => '1',
+            'NODE_OPTIONS' => '--dns-result-order=ipv4first',
+            'XDG_CACHE_HOME' => $homeDir . '/.cache',
+            'NPM_CONFIG_CACHE' => $homeDir . '/.npm',
         ]);
 
         $process->run(function ($type, $buffer) use ($onLine) {
