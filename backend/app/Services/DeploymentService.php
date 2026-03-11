@@ -49,9 +49,6 @@ class DeploymentService
         // === Step 1: Clone or pull ===
         $log("[1/6] Cloning / pulling repository...");
 
-        // Fix: Ensure directory is owned by www-data to avoid permission issues
-        $this->shell->run("sudo chown -R www-data:www-data " . escapeshellarg($deployPath));
-
         // Fix: Mark directory as safe for git to avoid "dubious ownership" errors
         $this->shell->run("git config --global --add safe.directory " . escapeshellarg($deployPath));
 
@@ -92,14 +89,15 @@ class DeploymentService
             throw new \RuntimeException("Dependency installation failed");
         }
 
-        // === Step 4: Build ===
-        $log("[4/6] Building project...");
+        // === Step 4: Build & Bootstrap ===
+        $log("[4/6] Building project and bootstrapping...");
         if ($app->type === 'nextjs') {
             $exitCode = $this->shell->stream("npm run build", $deployPath, $log, 600);
             if ($exitCode !== 0) {
                 throw new \RuntimeException("Next.js build failed");
             }
         } elseif ($app->type === 'laravel') {
+            $this->bootstrapLaravel($app, $deployPath, $log);
             $this->shell->stream("php artisan migrate --force", $deployPath, $log);
             $this->shell->stream("php artisan optimize", $deployPath, $log);
         }
@@ -117,8 +115,15 @@ class DeploymentService
         // === Step 6: Nginx config ===
         $this->nginxService->generate($app);
 
-        // === Step 7: Start app ===
-        $log("[6/6] Starting application...");
+        // === Step 7: Finalize Permissions & Start ===
+        $log("[6/6] Finalizing permissions and starting...");
+
+        // Final recursive chown and permission fix to ensure www-data can write to everything
+        $this->shell->run("sudo chown -R www-data:www-data " . escapeshellarg($deployPath));
+        if ($app->type === 'laravel') {
+            $this->shell->run("sudo chmod -R 775 {$deployPath}/storage {$deployPath}/bootstrap/cache");
+        }
+
         if ($app->type === 'nextjs') {
             // Stop existing PM2 process if any
             $this->pm2Service->delete($app);
@@ -128,9 +133,39 @@ class DeploymentService
             }
             $this->pm2Service->save();
         }
-        // For Laravel/static — PHP-FPM handles requests via Nginx, no extra process needed
 
         $log("✅ Deployment complete! Domain: {$app->domain}");
+    }
+
+    private function bootstrapLaravel(App $app, string $deployPath, \Closure $log): void
+    {
+        $log("Bootstrapping Laravel filesystem and environment...");
+
+        // Ensure critical storage subdirectories exist
+        $directories = [
+            "{$deployPath}/storage/app/public",
+            "{$deployPath}/storage/framework/cache",
+            "{$deployPath}/storage/framework/sessions",
+            "{$deployPath}/storage/framework/views",
+            "{$deployPath}/storage/logs",
+            "{$deployPath}/bootstrap/cache",
+        ];
+
+        foreach ($directories as $dir) {
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+        }
+
+        // Generate APP_KEY if it's not already in the .env or if it's the default
+        $envContent = file_get_contents("{$deployPath}/.env");
+        if (!str_contains($envContent, 'APP_KEY=base64:')) {
+            $log("Generating new application key...");
+            $this->shell->run("php artisan key:generate --force", $deployPath);
+        }
+
+        // Link storage
+        $this->shell->run("php artisan storage:link", $deployPath);
     }
 
     public function writeEnvFile(App $app): void
