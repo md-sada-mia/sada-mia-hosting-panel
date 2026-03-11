@@ -119,9 +119,15 @@ class DeploymentService
         $log("[6/6] Finalizing permissions and starting...");
 
         // Final recursive chown and permission fix to ensure www-data can write to everything
-        $this->shell->run("sudo chown -R www-data:www-data " . escapeshellarg($deployPath));
+        // Optimization: Skip recursive chown if we are already running as www-data
+        $currentUser = trim(shell_exec('whoami'));
+        if ($currentUser !== 'www-data') {
+            $this->shell->run("sudo chown -R www-data:www-data " . escapeshellarg($deployPath));
+        }
+
         if ($app->type === 'laravel') {
-            $this->shell->run("sudo chmod -R 775 {$deployPath}/storage {$deployPath}/bootstrap/cache");
+            // Only chmod the directories that actually need it, faster than the whole tree
+            $this->shell->run("sudo chmod -R 775 " . escapeshellarg("{$deployPath}/storage") . " " . escapeshellarg("{$deployPath}/bootstrap/cache"));
         }
 
         if ($app->type === 'nextjs') {

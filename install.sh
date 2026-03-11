@@ -120,6 +120,12 @@ APPS_DIR="/var/www/hosting-apps"
 mkdir -p $APPS_DIR
 chown -R www-data:www-data $APPS_DIR
 chmod -R 775 $APPS_DIR
+# Set setgid bit so new files inherit the group (www-data)
+chmod g+s $APPS_DIR
+# Use ACLs if available for better permission inheritance
+if command -v setfacl >/dev/null 2>&1; then
+    setfacl -R -m d:u:www-data:rwx,d:g:www-data:rwx $APPS_DIR
+fi
 
 echo "==> 7. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
@@ -131,7 +137,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data:www-data /var/www/hosting-apps/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
@@ -142,9 +149,9 @@ $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data:www-data /var/www/hosting-apps/*
+$sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 $sudo_user_name ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
