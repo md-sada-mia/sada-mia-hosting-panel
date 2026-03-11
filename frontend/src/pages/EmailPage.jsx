@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Mail, Plus, Trash2, User, ArrowRightLeft, KeyRound, Loader2,
   Eye, EyeOff, Globe, Shield, Zap, Search, X, CheckCircle2,
-  AlertTriangle, Copy, Check, MoreVertical, HardDrive, Users
+  AlertTriangle, Copy, Check, MoreVertical, HardDrive, Users, Info
 } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -306,19 +306,40 @@ export default function EmailPage() {
                     </div>
                   </div>
 
-                  {/* SMTP hint */}
+                  {/* SMTP hint & Connection Guide */}
                   {isActive && (
-                    <div className="mt-3 grid grid-cols-2 gap-1.5">
-                      {[
-                        { label: 'IMAP', val: `imap.${domainName}:993` },
-                        { label: 'SMTP', val: `smtp.${domainName}:587` },
-                      ].map(h => (
-                        <div key={h.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-white/[0.03] rounded px-2 py-1 border border-white/5">
-                          <span className="text-primary font-semibold">{h.label}</span>
-                          <span className="font-mono truncate flex-1">{h.val}</span>
-                          <CopyBtn text={h.val} />
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Setup Guide</span>
+                        <div className="group relative">
+                          <Info className="h-3 w-3 text-primary opacity-60 hover:opacity-100 cursor-help" />
+                          <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-white/10 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            <p className="text-[11px] leading-relaxed text-white">
+                              Use these settings to connect your email to apps like <strong>Outlook</strong>, <strong>Gmail</strong>, or your <strong>Phone</strong>.
+                            </p>
+                          </div>
                         </div>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2">
+                        {[
+                          { label: 'IMAP (Incoming)', val: `imap.${domainName}`, port: '993 (SSL)' },
+                          { label: 'SMTP (Outgoing)', val: `smtp.${domainName}`, port: '587 (TLS)' },
+                        ].map(h => (
+                          <div key={h.label} className="group/item flex items-center justify-between text-[11px] bg-white/[0.03] rounded-lg px-3 py-2 border border-white/5 hover:border-primary/20 transition-colors">
+                            <div className="flex flex-col">
+                              <span className="text-primary font-bold text-[9px] uppercase tracking-tighter">{h.label}</span>
+                              <span className="font-mono text-white/80">{h.val}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] text-muted-foreground font-mono">{h.port}</span>
+                              <CopyBtn text={h.val} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-muted-foreground italic px-1">
+                        * Username is your full email address. Use SSL/TLS for security.
+                      </p>
                     </div>
                   )}
                 </button>
@@ -339,21 +360,27 @@ export default function EmailPage() {
                 <div className="flex items-center justify-between border-b border-white/8 px-1 bg-white/[0.02]">
                   <div className="flex">
                     {[
-                      { key: 'accounts', label: 'Mailboxes', icon: User, count: accounts.length },
-                      { key: 'aliases', label: 'Aliases', icon: ArrowRightLeft, count: aliases.length },
+                      { key: 'accounts', label: 'Mailboxes', icon: User, count: accounts.length, hint: 'Real email accounts where messages are stored.' },
+                      { key: 'aliases', label: 'Aliases', icon: ArrowRightLeft, count: aliases.length, hint: 'Addresses that just forward mail to another person.' },
                     ].map(t => (
-                      <button key={t.key} onClick={() => setActiveTab(t.key)}
-                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-all ${
-                          activeTab === t.key
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}>
-                        <t.icon className="h-3.5 w-3.5" />
-                        {t.label}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                          activeTab === t.key ? 'bg-primary/20 text-primary' : 'bg-white/10 text-muted-foreground'
-                        }`}>{t.count}</span>
-                      </button>
+                      <div key={t.key} className="group relative">
+                        <button onClick={() => setActiveTab(t.key)}
+                          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium border-b-2 transition-all ${
+                            activeTab === t.key
+                              ? 'border-primary text-primary'
+                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                          }`}>
+                          <t.icon className="h-3.5 w-3.5" />
+                          {t.label}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                            activeTab === t.key ? 'bg-primary/20 text-primary' : 'bg-white/10 text-muted-foreground'
+                          }`}>{t.count}</span>
+                        </button>
+                        {/* Tab Hint */}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-48 p-2 bg-slate-900 border border-white/10 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-[10px] text-white/80 text-center leading-tight">
+                          {t.hint}
+                        </div>
+                      </div>
                     ))}
                   </div>
                   <div className="pr-4">
@@ -554,14 +581,22 @@ export default function EmailPage() {
               </div>
               <div className="grid gap-1.5">
                 <label className="text-sm font-medium flex items-center justify-between">
-                  Quota <span className="text-muted-foreground font-normal text-xs">{accountForm.quota_mb} MB</span>
+                  <span>Storage Quota</span>
+                  <span className="text-primary font-bold text-xs bg-primary/10 px-2 py-0.5 rounded-full">
+                    {accountForm.quota_mb >= 1024 ? `${(accountForm.quota_mb / 1024).toFixed(1)} GB` : `${accountForm.quota_mb} MB`}
+                  </span>
                 </label>
-                <input type="range" min="50" max="10240" step="50" value={accountForm.quota_mb}
-                  onChange={e => setAccountForm(f => ({...f, quota_mb: parseInt(e.target.value)}))}
-                  className="w-full h-2 rounded-lg appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer" />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>50 MB</span><span>5 GB</span><span>10 GB</span>
+                <div className="p-3 bg-white/[0.02] border border-white/5 rounded-lg space-y-3">
+                  <input type="range" min="50" max="10240" step="50" value={accountForm.quota_mb}
+                    onChange={e => setAccountForm(f => ({...f, quota_mb: parseInt(e.target.value)}))}
+                    className="w-full h-2 rounded-lg appearance-none bg-white/10 accent-primary cursor-pointer transition-all hover:bg-white/20" />
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>50MB</span><span>5GB</span><span>10GB</span>
+                  </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                  Small (500MB) is usually enough for normal users. Choose more for heavy business use.
+                </p>
               </div>
             </div>
             <DialogFooter>
