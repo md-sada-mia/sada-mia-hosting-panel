@@ -140,6 +140,16 @@ cd backend
 composer install --no-interaction --optimize-autoloader
 cp .env.example .env || true
 php artisan key:generate
+# Update APP_URL in backend .env
+if [ "$PORT" -eq 80 ]; then
+    sed -i "s|^APP_URL=.*|APP_URL=http://$IP_ADDRESS|" .env
+    # Add FRONTEND_URL if missing
+    grep -q "FRONTEND_URL=" .env || echo "FRONTEND_URL=http://$IP_ADDRESS" >> .env
+else
+    sed -i "s|^APP_URL=.*|APP_URL=http://$IP_ADDRESS:$PORT|" .env
+    # Add FRONTEND_URL if missing
+    grep -q "FRONTEND_URL=" .env || echo "FRONTEND_URL=http://$IP_ADDRESS:$PORT" >> .env
+fi
 # Only publish sanctum migrations if not already present to avoid duplicate errors
 if [ -z "$(ls database/migrations/*_create_personal_access_tokens_table.php 2>/dev/null)" ]; then
     php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"

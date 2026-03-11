@@ -4,6 +4,8 @@
 echo "Starting Sada Mia Hosting Panel locally..."
 
 cd backend
+export FRONTEND_URL="http://localhost:5173"
+export APP_URL="http://localhost:8000"
 php artisan serve --port=8000 &
 BACKEND_PID=$!
 
