@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class DatabaseController extends Controller
 {
-    public function __construct(private ShellService $shell) {}
+    public function __construct(private \App\Services\DatabaseService $dbService) {}
 
     public function index()
     {
@@ -24,54 +24,26 @@ class DatabaseController extends Controller
             'app_id'  => 'nullable|exists:apps,id',
         ]);
 
-        $dbName   = $validated['db_name'];
-        $dbUser   = $dbName . '_user';
-        $dbPass   = Str::random(24);
+        try {
+            $db = $this->dbService->createRaw($validated['db_name'], $validated['app_id'] ?? null);
 
-        // Create PostgreSQL role + database
-        $cmds = [
-            "sudo -u postgres psql -c \"CREATE USER \\\"{$dbUser}\\\" WITH ENCRYPTED PASSWORD '{$dbPass}';\"",
-            "sudo -u postgres psql -c \"CREATE DATABASE \\\"{$dbName}\\\" OWNER \\\"{$dbUser}\\\";\"",
-            "sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE \\\"{$dbName}\\\" TO \\\"{$dbUser}\\\";\"",
-        ];
+            // Return with password specifically for the UI on create
+            $data = $db->toArray();
+            $data['db_password'] = $db->db_password;
 
-        $error = null;
-        foreach ($cmds as $cmd) {
-            $result = $this->shell->run($cmd);
-            if ($result['exit_code'] !== 0) {
-                $error = $result['output'];
-                break;
-            }
+            return response()->json($data, 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        if ($error) {
-            return response()->json(['error' => 'Failed to create database: ' . $error], 500);
-        }
-
-        $db = Database::create([
-            'app_id'      => $validated['app_id'] ?? null,
-            'db_name'     => $dbName,
-            'db_user'     => $dbUser,
-            'db_password' => $dbPass,
-            'status'      => 'active',
-        ]);
-
-        // Return the password only on creation
-        return response()->json(array_merge($db->toArray(), ['db_password' => $dbPass]), 201);
     }
 
     public function destroy(Database $database)
     {
-        $cmds = [
-            "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS \\\"{$database->db_name}\\\";\"",
-            "sudo -u postgres psql -c \"DROP ROLE IF EXISTS \\\"{$database->db_user}\\\";\"",
-        ];
-
-        foreach ($cmds as $cmd) {
-            $this->shell->run($cmd);
+        try {
+            $this->dbService->delete($database);
+            return response()->json(['message' => 'Database deleted']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $database->delete();
-        return response()->json(['message' => 'Database deleted']);
     }
 }

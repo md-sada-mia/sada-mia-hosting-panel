@@ -31,10 +31,10 @@ export default function CreateAppPage() {
     domain: '',
     git_url: '',
     branch: 'main',
-    github_full_name: '',
     github_id: '',
     auto_deploy: false,
     env_vars: '',
+    auto_db_create: true,
   });
 
   useEffect(() => {
@@ -269,6 +269,22 @@ export default function CreateAppPage() {
                   />
                   <label htmlFor="auto_deploy" className="text-sm font-medium cursor-pointer">
                     Enable automatic deployment on push
+                  </label>
+                </div>
+              )}
+
+              {form.type === 'laravel' && !createdApp && (
+                <div className="flex items-center gap-2 bg-blue-500/5 p-3 rounded-md border border-blue-500/10">
+                  <input 
+                    type="checkbox" 
+                    id="auto_db_create" 
+                    name="auto_db_create" 
+                    checked={form.auto_db_create} 
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="auto_db_create" className="text-sm font-medium cursor-pointer">
+                    Auto-create PostgreSQL database and user
                   </label>
                 </div>
               )}

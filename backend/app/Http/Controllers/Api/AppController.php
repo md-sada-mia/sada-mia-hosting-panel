@@ -21,7 +21,8 @@ class AppController extends Controller
         private DeploymentService $deploymentService,
         private PM2Service $pm2Service,
         private NginxConfigService $nginxService,
-        private GitHubService $github
+        private GitHubService $github,
+        private \App\Services\DatabaseService $dbService
     ) {}
 
     public function index()
@@ -42,6 +43,7 @@ class AppController extends Controller
             'github_id'        => 'nullable|integer',
             'auto_deploy'      => 'nullable|boolean',
             'env_vars'         => 'nullable|string',
+            'auto_db_create'   => 'nullable|boolean',
         ]);
 
         $webhookSecret = null;
@@ -73,6 +75,30 @@ class AppController extends Controller
                         'value' => trim($value),
                     ]);
                 }
+            }
+        }
+
+        // Auto Database Creation for Laravel
+        if ($app->type === 'laravel' && !empty($validated['auto_db_create'])) {
+            try {
+                $db = $this->dbService->createForApp($app);
+
+                // Inject credentials into environment variables
+                $envs = [
+                    'DB_CONNECTION' => 'pgsql',
+                    'DB_HOST'       => '127.0.0.1',
+                    'DB_PORT'       => '5432',
+                    'DB_DATABASE'   => $db->db_name,
+                    'DB_USERNAME'   => $db->db_user,
+                    'DB_PASSWORD'   => $db->db_password,
+                ];
+
+                foreach ($envs as $key => $value) {
+                    $app->envVariables()->updateOrCreate(['key' => $key], ['value' => $value]);
+                }
+            } catch (\Exception $e) {
+                // We log the error but don't fail the whole app creation
+                \Illuminate\Support\Facades\Log::error("Auto DB creation failed for app {$app->id}: " . $e->getMessage());
             }
         }
 
