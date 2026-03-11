@@ -13,8 +13,8 @@ class NginxConfigService
 
         $sitesAvailable = '/etc/nginx/sites-available';
         $sitesEnabled   = '/etc/nginx/sites-enabled';
-        $configFile     = "{$sitesAvailable}/{$app->name}";
-        $symlinkFile    = "{$sitesEnabled}/{$app->name}";
+        $configFile     = "{$sitesAvailable}/{$app->domain}";
+        $symlinkFile    = "{$sitesEnabled}/{$app->domain}";
 
         // Write config via shell (needs sudo)
         $shell = app(ShellService::class);
@@ -35,8 +35,8 @@ class NginxConfigService
     public function remove(App $app): void
     {
         $shell = app(ShellService::class);
-        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$app->name}");
-        $shell->run("sudo rm -f /etc/nginx/sites-available/{$app->name}");
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$app->domain}");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/{$app->domain}");
         $shell->run("sudo nginx -s reload");
     }
 

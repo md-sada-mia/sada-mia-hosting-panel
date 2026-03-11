@@ -33,7 +33,7 @@ class AppController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'             => 'required|string|regex:/^[a-zA-Z0-9_-]+$/|unique:apps,name',
+            'name'             => 'required|string|unique:apps,name',
             'type'             => 'required|in:nextjs,laravel,static',
             'domain'           => 'required|string|unique:apps,domain',
             'git_url'          => 'required|string',

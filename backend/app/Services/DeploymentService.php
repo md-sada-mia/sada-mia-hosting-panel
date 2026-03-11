@@ -40,7 +40,7 @@ class DeploymentService
     private function executeDeployment(App $app, Deployment $deployment): void
     {
         $basePath = config('hosting.apps_base_path', '/var/www/hosting-apps');
-        $deployPath = "{$basePath}/{$app->name}";
+        $deployPath = "{$basePath}/{$app->domain}";
 
         $log = function (string $line) use ($deployment) {
             $deployment->appendLog($line);
