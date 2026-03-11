@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\GitHubAuthController;
 use App\Http\Controllers\Api\GitHubWebhookController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\CronJobController;
+use App\Http\Controllers\Api\DomainController;
+use App\Http\Controllers\Api\DnsRecordController;
+use App\Http\Controllers\Api\EmailController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -63,7 +66,35 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cron-jobs/{cronJob}', [CronJobController::class, 'update']);
     Route::delete('/cron-jobs/{cronJob}', [CronJobController::class, 'destroy']);
     Route::post('/cron-jobs/{cronJob}/toggle', [CronJobController::class, 'toggle']);
+
+    // DNS Domains
+    Route::get('/domains', [DomainController::class, 'index']);
+    Route::post('/domains', [DomainController::class, 'store']);
+    Route::get('/domains/{domain}', [DomainController::class, 'show']);
+    Route::put('/domains/{domain}', [DomainController::class, 'update']);
+    Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
+
+    // DNS Records (nested under domain)
+    Route::get('/domains/{domain}/records', [DnsRecordController::class, 'index']);
+    Route::post('/domains/{domain}/records', [DnsRecordController::class, 'store']);
+    Route::put('/domains/{domain}/records/{record}', [DnsRecordController::class, 'update']);
+    Route::delete('/domains/{domain}/records/{record}', [DnsRecordController::class, 'destroy']);
+
+    // Email Management
+    Route::get('/email/domains', [EmailController::class, 'indexDomains']);
+    Route::post('/email/domains', [EmailController::class, 'storeDomain']);
+    Route::delete('/email/domains/{emailDomain}', [EmailController::class, 'destroyDomain']);
+
+    Route::get('/email/domains/{emailDomain}/accounts', [EmailController::class, 'indexAccounts']);
+    Route::post('/email/domains/{emailDomain}/accounts', [EmailController::class, 'storeAccount']);
+    Route::put('/email/domains/{emailDomain}/accounts/{account}', [EmailController::class, 'updateAccount']);
+    Route::delete('/email/domains/{emailDomain}/accounts/{account}', [EmailController::class, 'destroyAccount']);
+
+    Route::get('/email/domains/{emailDomain}/aliases', [EmailController::class, 'indexAliases']);
+    Route::post('/email/domains/{emailDomain}/aliases', [EmailController::class, 'storeAlias']);
+    Route::delete('/email/domains/{emailDomain}/aliases/{alias}', [EmailController::class, 'destroyAlias']);
 });
+
 
 // GitHub Webhook (Public)
 Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);

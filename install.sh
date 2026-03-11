@@ -135,6 +135,137 @@ if [ -f "$PG_HBA" ]; then
     systemctl restart postgresql
 fi
 
+echo "==> 5a. Installing BIND9 (DNS Server)"
+if ! command -v named >/dev/null 2>&1; then
+    apt-get install -y bind9 bind9utils bind9-doc
+    echo "==> BIND9 installed."
+else
+    echo "==> BIND9 already installed, skipping."
+fi
+
+# Create zones directory
+mkdir -p /etc/bind/zones
+chown -R bind:bind /etc/bind/zones
+chmod 755 /etc/bind/zones
+
+# Ensure named.conf.local exists and is writable by bind
+touch /etc/bind/named.conf.local
+chown bind:bind /etc/bind/named.conf.local
+chmod 644 /etc/bind/named.conf.local
+
+# Add basic BIND9 options if named.conf.options doesn't already have dnssec-validation off
+if [ -f /etc/bind/named.conf.options ]; then
+    if ! grep -q 'dnssec-validation' /etc/bind/named.conf.options; then
+        sed -i '/options {/a\\tdnssec-validation auto;\n\tallow-recursion { 127.0.0.1; ::1; };' /etc/bind/named.conf.options
+    fi
+fi
+
+systemctl enable bind9 2>/dev/null || true
+systemctl restart bind9 2>/dev/null || true
+echo "==> BIND9 configured. Zone files will be stored in /etc/bind/zones/"
+
+echo "==> 5b. Installing Postfix + Dovecot (Email Server)"
+# Create vmail system user/group for mailbox ownership
+if ! id vmail >/dev/null 2>&1; then
+    groupadd -g 5000 vmail 2>/dev/null || true
+    useradd -g vmail -u 5000 vmail -d /var/mail/vhosts -m -s /sbin/nologin 2>/dev/null || true
+    echo "==> vmail user/group created (uid/gid 5000)"
+fi
+
+# Create mailbox base directory
+mkdir -p /var/mail/vhosts
+chown vmail:vmail /var/mail/vhosts
+chmod 770 /var/mail/vhosts
+
+if ! command -v postfix >/dev/null 2>&1; then
+    # Pre-answer debconf so postfix installs non-interactively
+    echo "postfix postfix/mailname string $(hostname -f)" | debconf-set-selections
+    echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
+    apt-get install -y postfix postfix-pcre
+    echo "==> Postfix installed."
+else
+    echo "==> Postfix already installed, skipping."
+fi
+
+if ! command -v dovecot >/dev/null 2>&1 && ! systemctl is-active --quiet dovecot 2>/dev/null; then
+    apt-get install -y dovecot-core dovecot-imapd dovecot-pop3d
+    echo "==> Dovecot installed."
+else
+    echo "==> Dovecot already installed, skipping."
+fi
+
+# Configure Postfix for virtual mailboxes (only if not already configured)
+POSTFIX_CF=/etc/postfix/main.cf
+if [ -f "$POSTFIX_CF" ]; then
+    echo "==> Configuring Postfix for virtual mailboxes"
+
+    # Create empty virtual map files if missing
+    touch /etc/postfix/virtual_mailbox_domains
+    touch /etc/postfix/virtual_mailbox_maps
+    touch /etc/postfix/virtual_alias_maps
+    chown root:postfix /etc/postfix/virtual_mailbox_domains /etc/postfix/virtual_mailbox_maps /etc/postfix/virtual_alias_maps
+    chmod 640 /etc/postfix/virtual_mailbox_domains /etc/postfix/virtual_mailbox_maps /etc/postfix/virtual_alias_maps
+
+    # Run postmap to initialize .db files
+    postmap /etc/postfix/virtual_mailbox_domains 2>/dev/null || true
+    postmap /etc/postfix/virtual_mailbox_maps    2>/dev/null || true
+    postmap /etc/postfix/virtual_alias_maps      2>/dev/null || true
+
+    # Inject virtual mailbox config into main.cf (idempotent)
+    grep -q 'virtual_mailbox_base' "$POSTFIX_CF" || cat >> "$POSTFIX_CF" <<'POSTFIXEOF'
+
+# --- Virtual Mailbox Configuration (Added by Sada Mia Panel) ---
+virtual_mailbox_base = /var/mail/vhosts
+virtual_mailbox_domains = hash:/etc/postfix/virtual_mailbox_domains
+virtual_mailbox_maps = hash:/etc/postfix/virtual_mailbox_maps
+virtual_alias_maps = hash:/etc/postfix/virtual_alias_maps
+virtual_minimum_uid = 100
+virtual_uid_maps = static:5000
+virtual_gid_maps = static:5000
+POSTFIXEOF
+
+    systemctl enable postfix 2>/dev/null || true
+    systemctl restart postfix 2>/dev/null || true
+fi
+
+# Configure Dovecot for flat-file users
+DOVECOT_USERS=/etc/dovecot/users
+touch "$DOVECOT_USERS"
+chown root:dovecot "$DOVECOT_USERS"
+chmod 640 "$DOVECOT_USERS"
+
+# Write Dovecot passwd-file auth config (idempotent)
+DOVECOT_AUTH=/etc/dovecot/conf.d/10-auth.conf
+if [ -f "$DOVECOT_AUTH" ]; then
+    # Disable default system auth and enable passwd-file
+    sed -i 's/^!include auth-system.conf.ext/!#include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    grep -q 'auth-passwdfile.conf.ext' "$DOVECOT_AUTH" || echo '!include auth-passwdfile.conf.ext' >> "$DOVECOT_AUTH"
+fi
+
+# Write Dovecot passwd-file auth backend
+cat > /etc/dovecot/conf.d/auth-passwdfile.conf.ext <<'DOVECOTEOF'
+passdb {
+  driver = passwd-file
+  args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/users
+}
+userdb {
+  driver = passwd-file
+  args = username_format=%u /etc/dovecot/users
+  default_fields = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n
+}
+DOVECOTEOF
+
+# Configure Dovecot mail location
+DOVECOT_MAIL=/etc/dovecot/conf.d/10-mail.conf
+if [ -f "$DOVECOT_MAIL" ]; then
+    sed -i 's|^mail_location.*|mail_location = maildir:/var/mail/vhosts/%d/%n|' "$DOVECOT_MAIL" 2>/dev/null || true
+    grep -q 'mail_location = maildir' "$DOVECOT_MAIL" || echo 'mail_location = maildir:/var/mail/vhosts/%d/%n' >> "$DOVECOT_MAIL"
+fi
+
+systemctl enable dovecot 2>/dev/null || true
+systemctl restart dovecot 2>/dev/null || true
+echo "==> Postfix + Dovecot configured. Virtual mailboxes at /var/mail/vhosts/"
+
 echo "==> 6. Creating Apps Directory"
 APPS_DIR="/var/www/hosting-apps"
 mkdir -p $APPS_DIR
@@ -187,21 +318,58 @@ echo "==> 8. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
 # Create sudoers file with expanded variables. Heredoc with quotes 'EOF' prevents shell expansion.
 cat > /etc/sudoers.d/sadamiapanel <<'EOF'
+# Nginx
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s reload
-www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
-www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-available/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/nginx/sites-enabled/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data.www-data /var/www/hosting-apps/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload nginx
+# PM2
+www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
+www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
+# PHP & Queue
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sada-mia-queue
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sada-mia-queue
+# App directory permissions
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data.www-data /var/www/hosting-apps/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
+# Server control
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
+# PostgreSQL
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
+# BIND9 / DNS management
+www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /etc/bind/zones
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/bind/zones/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/bind/named.conf.local
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/bind/named.conf.local
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/bind/zones/*
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/named-checkconf
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/named-checkzone *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload bind9
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bind9
+www-data ALL=(ALL) NOPASSWD: /usr/bin/grep -q *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/perl -i *
+# Postfix / Email management
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/postmap *
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/postfix reload
+www-data ALL=(ALL) NOPASSWD: /usr/bin/touch /etc/postfix/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_mailbox_domains
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_mailbox_maps
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_alias_maps
+www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/postfix/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/mail/vhosts/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail:vmail /var/mail/vhosts/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/mail/vhosts/*
+# Dovecot / Email account management
+www-data ALL=(ALL) NOPASSWD: /usr/bin/touch /etc/dovecot/users
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/dovecot/users
+www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/dovecot/users
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload dovecot
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart dovecot
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
@@ -339,6 +507,8 @@ else
 fi
 echo "  Default Login:   admin@panel.local               "
 echo "  Default Pass:    admin                           "
-echo "  Note: Configure domains inside the panel later.  "
-echo "  Queue worker is running via systemd: 'systemctl status sada-mia-queue'"
+echo "  ---------------------------------------------------"
+echo "  DNS (BIND9):     /etc/bind/zones/              "
+echo "  Email (Postfix): /var/mail/vhosts/              "
+echo "  Queue worker:    systemctl status sada-mia-queue"
 echo "==================================================="
