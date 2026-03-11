@@ -4,6 +4,8 @@ import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Github, Lock, Settings } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -84,103 +86,142 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground mt-1">Manage your panel account.</p>
+        <p className="text-muted-foreground mt-1">Manage your account settings and integrations.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Profile</CardTitle>
-          <CardDescription>Your current panel administrator details.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Name</label>
-            <Input disabled value={user?.name || ''} />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Email Address</label>
-            <Input disabled value={user?.email || ''} />
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="profile" className="flex flex-col md:flex-row gap-8" orientation="vertical">
+        <aside className="md:w-64">
+          <TabsList className="flex md:flex-col h-auto bg-transparent p-0 gap-1 overflow-x-auto md:overflow-x-visible">
+            <TabsTrigger 
+              value="profile" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <User className="w-4 h-4 mr-2" />
+              Account Profile
+            </TabsTrigger>
+            <TabsTrigger 
+              value="github" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Github className="w-4 h-4 mr-2" />
+              GitHub Integration
+            </TabsTrigger>
+            <TabsTrigger 
+              value="password" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Change Password
+            </TabsTrigger>
+          </TabsList>
+        </aside>
 
-      <Card>
-        <form onSubmit={handleGithubSettingsUpdate}>
-          <CardHeader>
-            <CardTitle>GitHub Integration</CardTitle>
-            <CardDescription>Configure your GitHub App credentials for automatic deployments.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Client ID</label>
-              <Input name="github_client_id" value={githubSettings.github_client_id || ''} onChange={handleGithubChange} placeholder="ov2..." />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Client Secret</label>
-              <Input type="password" name="github_client_secret" value={githubSettings.github_client_secret || ''} onChange={handleGithubChange} placeholder="********" />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Global Webhook Secret</label>
-              <Input type="password" name="github_webhook_secret" value={githubSettings.github_webhook_secret || ''} onChange={handleGithubChange} placeholder="********" />
-              <p className="text-xs text-muted-foreground italic">Used as default secret for new apps.</p>
-            </div>
+        <div className="flex-1">
+          <TabsContent value="profile" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Profile</CardTitle>
+                <CardDescription>Your current panel administrator details.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Name</label>
+                  <Input disabled value={user?.name || ''} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Email Address</label>
+                  <Input disabled value={user?.email || ''} />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <div className="pt-4 flex items-center justify-between border-t mt-4">
-              <div>
-                <p className="text-sm font-medium">GitHub Connection</p>
-                <p className="text-xs text-muted-foreground">
-                  {githubSettings.github_connected ? 'Connected to GitHub account.' : 'Not connected yet.'}
-                </p>
-              </div>
-              <Button type="button" variant={githubSettings.github_connected ? "outline" : "default"} onClick={handleConnectGithub}>
-                {githubSettings.github_connected ? 'Reconnect GitHub' : 'Connect GitHub'}
-              </Button>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end border-t pt-6 mt-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Settings'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+          <TabsContent value="github" className="mt-0">
+            <Card>
+              <form onSubmit={handleGithubSettingsUpdate}>
+                <CardHeader>
+                  <CardTitle>GitHub Integration</CardTitle>
+                  <CardDescription>Configure your GitHub App credentials for automatic deployments.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
+                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Client ID</label>
+                    <Input name="github_client_id" value={githubSettings.github_client_id || ''} onChange={handleGithubChange} placeholder="ov2..." />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Client Secret</label>
+                    <Input type="password" name="github_client_secret" value={githubSettings.github_client_secret || ''} onChange={handleGithubChange} placeholder="********" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Global Webhook Secret</label>
+                    <Input type="password" name="github_webhook_secret" value={githubSettings.github_webhook_secret || ''} onChange={handleGithubChange} placeholder="********" />
+                    <p className="text-xs text-muted-foreground italic">Used as default secret for new apps.</p>
+                  </div>
 
-      <Card>
-        <form onSubmit={handlePasswordChange}>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>Update your panel login password.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {message && <div className="text-sm font-medium text-success bg-success/10 p-3 rounded-md">{message}</div>}
-            {error && <div className="text-sm font-medium text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
-            
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Current Password</label>
-              <Input type="password" name="current_password" required value={passwords.current_password} onChange={handleChange} />
-            </div>
-            
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">New Password</label>
-                <Input type="password" name="password" required minLength={8} value={passwords.password} onChange={handleChange} />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Confirm New Password</label>
-                <Input type="password" name="password_confirmation" required minLength={8} value={passwords.password_confirmation} onChange={handleChange} />
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end border-t pt-6 mt-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Password'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+                  <div className="pt-4 flex items-center justify-between border-t mt-4">
+                    <div>
+                      <p className="text-sm font-medium">GitHub Connection</p>
+                      <p className="text-xs text-muted-foreground">
+                        {githubSettings.github_connected ? 'Connected to GitHub account.' : 'Not connected yet.'}
+                      </p>
+                    </div>
+                    <Button type="button" variant={githubSettings.github_connected ? "outline" : "default"} onClick={handleConnectGithub}>
+                      {githubSettings.github_connected ? 'Reconnect GitHub' : 'Connect GitHub'}
+                    </Button>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save Settings'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="password" className="mt-0">
+            <Card>
+              <form onSubmit={handlePasswordChange}>
+                <CardHeader>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>Update your panel login password.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
+                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
+                  
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Current Password</label>
+                    <Input type="password" name="current_password" required value={passwords.current_password} onChange={handleChange} />
+                  </div>
+                  
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">New Password</label>
+                      <Input type="password" name="password" required minLength={8} value={passwords.password} onChange={handleChange} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-sm font-medium">Confirm New Password</label>
+                      <Input type="password" name="password_confirmation" required minLength={8} value={passwords.password_confirmation} onChange={handleChange} />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
