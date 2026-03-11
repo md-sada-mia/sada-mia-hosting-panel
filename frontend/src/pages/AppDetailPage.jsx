@@ -163,9 +163,18 @@ export default function AppDetailPage() {
               </Button>
             </>
           )}
-          <Button size="sm" onClick={() => handleAction('deploy')} disabled={actionLoading || app.status === 'deploying'}>
-            <Rocket className={`mr-2 h-4 w-4 ${app.status === 'deploying' ? 'animate-bounce' : ''}`} /> 
-            {app.status === 'deploying' ? 'Deploying...' : 'Deploy'}
+          <Button 
+            size="sm" 
+            variant={app.status === 'error' ? 'destructive' : 'default'}
+            onClick={() => handleAction('deploy')} 
+            disabled={actionLoading || app.status === 'deploying'}
+          >
+            {app.status === 'error' ? (
+              <RotateCcw className="mr-2 h-4 w-4" />
+            ) : (
+              <Rocket className={`mr-2 h-4 w-4 ${app.status === 'deploying' ? 'animate-bounce' : ''}`} />
+            )}
+            {app.status === 'deploying' ? 'Deploying...' : app.status === 'error' ? 'Retry Deploy' : 'Deploy'}
           </Button>
           <Button size="sm" variant="destructive" onClick={() => handleAction('delete')} disabled={actionLoading}>
              <Trash2 className="h-4 w-4" />

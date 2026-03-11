@@ -34,6 +34,7 @@ export default function CreateAppPage() {
     github_full_name: '',
     github_id: '',
     auto_deploy: false,
+    env_vars: '',
   });
 
   useEffect(() => {
@@ -271,6 +272,19 @@ export default function CreateAppPage() {
                   </label>
                 </div>
               )}
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Environment Variables (Bulk)</label>
+                <textarea 
+                  name="env_vars"
+                  placeholder={"APP_KEY=secret\nDB_PASS=password"}
+                  value={form.env_vars}
+                  onChange={handleChange}
+                  disabled={loading || createdApp}
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary outline-none font-mono"
+                />
+                <p className="text-xs text-muted-foreground">Standard .env format KEY=VALUE (one per line).</p>
+              </div>
             </CardContent>
             <CardFooter className="flex justify-end gap-3 border-t pt-6 mt-2">
               {!createdApp && (
@@ -296,6 +310,24 @@ export default function CreateAppPage() {
                   <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
                   <span className="text-[10px] uppercase tracking-wider text-primary font-bold">Live</span>
                 </div>
+              )}
+              {!isDeploying && createdApp && (logs.some(l => l.includes('ERROR') || l.includes('failed'))) && (
+                <Button 
+                  size="xs" 
+                  variant="outline" 
+                  className="h-7 text-[10px] bg-red-950/30 border-red-900/50 hover:bg-red-900/50 text-red-400"
+                  onClick={async () => {
+                    setIsDeploying(true);
+                    setError('');
+                    try {
+                      await api.post(`/apps/${createdApp.id}/deploy`);
+                    } catch (err) {
+                      setError('Retry failed');
+                    }
+                  }}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" /> Retry Deployment
+                </Button>
               )}
             </CardHeader>
             <CardContent className="p-0">

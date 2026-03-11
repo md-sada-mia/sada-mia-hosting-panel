@@ -41,6 +41,7 @@ class AppController extends Controller
             'github_full_name' => 'nullable|string',
             'github_id'        => 'nullable|integer',
             'auto_deploy'      => 'nullable|boolean',
+            'env_vars'         => 'nullable|string',
         ]);
 
         $webhookSecret = null;
@@ -60,6 +61,20 @@ class AppController extends Controller
             'webhook_secret'   => $webhookSecret,
             'auto_deploy'      => $validated['auto_deploy'] ?? false,
         ]);
+
+        // Parse and save bulk environment variables
+        if (!empty($validated['env_vars'])) {
+            $lines = explode("\n", $validated['env_vars']);
+            foreach ($lines as $line) {
+                if (trim($line) && str_contains($line, '=')) {
+                    [$key, $value] = explode('=', $line, 2);
+                    $app->envVariables()->create([
+                        'key' => trim($key),
+                        'value' => trim($value),
+                    ]);
+                }
+            }
+        }
 
         // If auto-deploy is enabled, create GitHub webhook
         if ($app->webhook_secret && $app->github_full_name) {
