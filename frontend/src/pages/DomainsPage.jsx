@@ -106,12 +106,8 @@ export default function DomainsPage() {
   const [search, setSearch] = useState('');
 
   // Dialogs
-  const [showDomainDlg, setShowDomainDlg] = useState(false);
   const [showRecordDlg, setShowRecordDlg] = useState(false);
 
-  const [domainForm, setDomainForm] = useState({
-    domain: '', dns_managed: false,
-  });
   const [recordForm, setRecordForm] = useState({
     type: 'A', name: '@', value: '', ttl: 3600, priority: '',
   });
@@ -145,22 +141,6 @@ export default function DomainsPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleAddDomain = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const { data } = await api.post('/domains', domainForm);
-      setDomains(prev => [data, ...prev]);
-      setSelected(data);
-      setShowDomainDlg(false);
-      setDomainForm({ domain: '', dns_managed: false });
-      toast.success(`Domain ${data.domain} added!`);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add domain');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDeleteDomain = async (d) => {
     setDeletingDom(d.id);
@@ -231,10 +211,6 @@ export default function DomainsPage() {
             Manage nameservers, zone files, and DNS records.
           </p>
         </div>
-        <Button onClick={() => setShowDomainDlg(true)}
-          className="gap-2 bg-primary/90 hover:bg-primary shadow-lg shadow-primary/25 transition-all hover:shadow-primary/40 hover:scale-[1.02]">
-          <Plus className="h-4 w-4" /> Add Domain
-        </Button>
       </div>
 
       {/* Stats strip */}
@@ -294,9 +270,9 @@ export default function DomainsPage() {
                 <Globe className="h-8 w-8 opacity-20" />
                 <p className="text-sm">{search ? 'No matching domains' : 'No domains yet'}</p>
                 {!search && (
-                  <Button variant="ghost" size="sm" onClick={() => setShowDomainDlg(true)} className="gap-1.5 text-primary hover:text-primary">
-                    <Plus className="h-3.5 w-3.5" /> Add your first domain
-                  </Button>
+                  <p className="text-xs text-muted-foreground text-center max-w-[200px]">
+                    Domains are automatically created when you create an app.
+                  </p>
                 )}
               </div>
             ) : (
@@ -481,91 +457,6 @@ export default function DomainsPage() {
         </div>
       </div>
 
-      {/* ── Add Domain Dialog ─────────────────────────────────────────────── */}
-      <Dialog open={showDomainDlg} onOpenChange={setShowDomainDlg}>
-        <DialogContent className="sm:max-w-lg border-white/10 bg-[#0f1017]">
-          <form onSubmit={handleAddDomain}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" /> Add Domain
-              </DialogTitle>
-              <DialogDescription>Register a domain and configure its nameservers.</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-5">
-              <div className="grid gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Domain Name <span className="text-rose-400">*</span></label>
-                  <span className="text-[10px] text-muted-foreground italic">Example: example.com</span>
-                </div>
-                <Input required placeholder="example.com" value={domainForm.domain}
-                  onChange={e => setDomainForm(f => ({...f, domain: e.target.value}))}
-                  className="bg-white/[0.04] border-white/10" />
-              </div>
-
-              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-4">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Shield className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-primary">Pre-configured Nameservers</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    This domain will be automatically configured with your panel's default nameservers. 
-                    You can view and copy them from the domain list after creation.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="flex items-center justify-between p-4 rounded-xl border border-white/8 bg-white/[0.02] cursor-pointer group hover:border-primary/30 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <input type="checkbox" className="sr-only peer" checked={domainForm.dns_managed}
-                        onChange={e => setDomainForm(f => ({...f, dns_managed: e.target.checked}))} />
-                      <div className="h-5 w-9 rounded-full bg-white/10 peer-checked:bg-primary transition-colors" />
-                      <div className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-all peer-checked:translate-x-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Enable BIND9 DNS Management</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Manage all DNS records directly from this panel.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="group/info relative">
-                    <Info className="h-4 w-4 text-primary opacity-60 hover:opacity-100 cursor-help" />
-                    <div className="absolute bottom-full right-0 mb-2 w-72 p-4 bg-primary/10 backdrop-blur-md border border-primary/20 rounded-xl shadow-2xl opacity-0 group-hover/info:opacity-100 transition-all pointer-events-none z-50 scale-95 group-hover/info:scale-100 origin-bottom-right">
-                      <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
-                        <Zap className="h-3 w-3" /> How it works:
-                      </p>
-                      <p className="text-[11px] leading-relaxed text-white/90">
-                        When enabled, we create a "Zone File" on your server. To use it, you <strong>must</strong> point your domain's nameservers (at your registrar) to the nameservers you enter above.
-                      </p>
-                    </div>
-                  </div>
-                </label>
-
-                {domainForm.dns_managed && (
-                  <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                    <p className="text-[10px] text-blue-300 leading-relaxed flex gap-2">
-                      <Shield className="h-3 w-3 shrink-0" />
-                      Tip: If you use BIND9, your server becomes the "Source of Truth" for your domain's A, MX, and TXT records.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setShowDomainDlg(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Add Domain
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* ── Add Record Dialog ─────────────────────────────────────────────── */}
       <Dialog open={showRecordDlg} onOpenChange={setShowRecordDlg}>
