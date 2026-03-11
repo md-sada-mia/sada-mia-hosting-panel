@@ -137,8 +137,11 @@ cd backend
 composer install --no-interaction --optimize-autoloader
 cp .env.example .env || true
 php artisan key:generate
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider" --force
 php artisan migrate --force
 php artisan db:seed --class=DatabaseSeeder --force
+php artisan storage:link || true
+php artisan optimize:clear
 chown -R www-data:www-data storage bootstrap/cache database
 chmod -R 775 storage bootstrap/cache
 
@@ -149,13 +152,18 @@ npm run build
 chown -R www-data:www-data dist
 
 echo "==> 10. Configuring Nginx for the Panel"
+
+FRONTEND_DIR="$(pwd)/dist"
+cd ../backend
+BACKEND_DIR="$(pwd)/public"
+
 cat > /etc/nginx/sites-available/sada-mia-panel <<EOF
 server {
     listen $PORT default_server;
     listen [::]:$PORT default_server;
     server_name _;
 
-    root $(pwd)/dist;
+    root $FRONTEND_DIR;
     index index.html;
 
     # Frontend SPA routing
@@ -164,21 +172,24 @@ server {
     }
 
     # API Proxy to Laravel
-    location /api {
-        alias $(pwd)/../backend/public;
+    location ^~ /api {
+        alias $BACKEND_DIR;
         try_files \$uri \$uri/ @laravel;
+        
+        location ~ \.php$ {
+            fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$request_filename;
+        }
     }
 
     location @laravel {
-        rewrite /api/(.*)$ /api/index.php?/\$1 last;
-    }
-
-    location ~ \.php$ {
-        root $(pwd)/../backend/public;
         fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $BACKEND_DIR/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param REQUEST_URI \$request_uri;
     }
 }
 EOF
