@@ -77,6 +77,8 @@ export default function AppDetailPage() {
     }
   };
 
+  const [settingUpDefaults, setSettingUpDefaults] = useState(false);
+
   const fetchDomain = async () => {
     setDnsLoading(true);
     try {
@@ -84,6 +86,20 @@ export default function AppDetailPage() {
       setDomainData(data);
     } catch { /* domain may not exist yet */ }
     finally { setDnsLoading(false); }
+  };
+
+  const handleSetupDefaults = async () => {
+    setSettingUpDefaults(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/domain/setup-defaults`);
+      setDomainData(data);
+      fetchApp();
+      toast.success('Default DNS records created!');
+    } catch {
+      toast.error('Failed to set up default records');
+    } finally {
+      setSettingUpDefaults(false);
+    }
   };
 
   useEffect(() => {
@@ -573,7 +589,12 @@ export default function AppDetailPage() {
                   {(!(effectiveDomain.dns_records || effectiveDomain.dnsRecords) || (effectiveDomain.dns_records || effectiveDomain.dnsRecords).length === 0) ? (
                     <div className="text-center py-10 text-muted-foreground">
                       <Server className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm">No DNS records yet. Add your first record above.</p>
+                      <p className="text-sm font-medium mb-1">No DNS records yet</p>
+                      <p className="text-xs mb-4">Auto-create the essential records (A, CNAME, MX, SPF) for this domain</p>
+                      <Button size="sm" onClick={handleSetupDefaults} disabled={settingUpDefaults} className="gap-1.5">
+                        {settingUpDefaults ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Setup Default Records
+                      </Button>
                     </div>
                   ) : (
                     <div className="divide-y divide-white/5">

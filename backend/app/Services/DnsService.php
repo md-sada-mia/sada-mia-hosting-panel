@@ -69,6 +69,38 @@ class DnsService
     }
 
     /**
+     * Auto-create essential DNS records for a newly created domain.
+     * Creates: A record (@), CNAME (www), MX (mail).
+     */
+    public function createDefaultRecords(Domain $domain): void
+    {
+        // Detect server IP
+        $serverIp = trim(shell_exec("hostname -I 2>/dev/null | awk '{print $1}'") ?? '');
+        if (empty($serverIp)) {
+            $serverIp = '127.0.0.1';
+        }
+
+        $defaults = [
+            ['type' => 'A',     'name' => '@',    'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'www',  'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'CNAME', 'name' => 'mail', 'value' => $domain->domain . '.', 'ttl' => 3600, 'priority' => null],
+            ['type' => 'MX',    'name' => '@',    'value' => 'mail.' . $domain->domain . '.', 'ttl' => 3600, 'priority' => 10],
+            ['type' => 'TXT',   'name' => '@',    'value' => 'v=spf1 a mx ~all', 'ttl' => 3600, 'priority' => null],
+        ];
+
+        foreach ($defaults as $rec) {
+            // Only create if not already present (idempotent)
+            $exists = DnsRecord::where('domain_id', $domain->id)
+                ->where('type', $rec['type'])
+                ->where('name', $rec['name'])
+                ->exists();
+            if (!$exists) {
+                DnsRecord::create(array_merge($rec, ['domain_id' => $domain->id]));
+            }
+        }
+    }
+
+    /**
      * Check if BIND9 is installed.
      */
     public function isBindInstalled(): bool

@@ -128,7 +128,10 @@ class AppController extends Controller
                 'dns_managed' => true,
             ], array_filter($ns)));
 
-            // Generate BIND9 zone file
+            // Auto-create essential DNS records (A, CNAME www, MX, SPF TXT)
+            $this->dnsService->createDefaultRecords($domain);
+
+            // Generate BIND9 zone file (now includes the records)
             $this->dnsService->generateZone($domain->fresh()->load('dnsRecords'));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("Auto-domain creation failed for app {$app->id}: " . $e->getMessage());

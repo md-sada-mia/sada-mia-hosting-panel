@@ -112,6 +112,16 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json(['message' => 'DNS zone synced']);
     });
 
+    // Backfill default DNS records for existing domains
+    Route::post('/apps/{app}/domain/setup-defaults', function (\App\Models\App $app) {
+        $domain = $app->domainRecord;
+        if (!$domain) return response()->json(['message' => 'No domain linked'], 404);
+        $dnsService = app(\App\Services\DnsService::class);
+        $dnsService->createDefaultRecords($domain);
+        $dnsService->generateZone($domain->fresh()->load('dnsRecords'));
+        return response()->json($domain->fresh()->load('dnsRecords'));
+    });
+
     // Email Management
     Route::get('/email/domains', [EmailController::class, 'indexDomains']);
     Route::post('/email/domains', [EmailController::class, 'storeDomain']);
