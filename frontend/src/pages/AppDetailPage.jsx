@@ -31,6 +31,7 @@ export default function AppDetailPage() {
 
   useEffect(() => {
     fetchApp();
+    loadDeployments(); // Load deployments on mount since it's the default tab
     const interval = setInterval(() => {
       if (app?.status === 'deploying') fetchApp();
     }, 3000);
@@ -155,14 +156,15 @@ export default function AppDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" onValueChange={(v) => {
+      <Tabs defaultValue="deployments" onValueChange={(v) => {
         if (v === 'deployments') loadDeployments();
+        if (v === 'overview') fetchApp();
         if (v === 'logs') loadLogs();
         if (v === 'env') loadEnv();
       }}>
         <TabsList className="grid w-full grid-cols-4 md:w-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="env">Environment</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
