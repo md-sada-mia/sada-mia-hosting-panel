@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\App as AppModel;
+use App\Models\Domain;
 use App\Models\Deployment;
 use App\Services\DeploymentService;
 use App\Services\PM2Service;
 use App\Services\NginxConfigService;
 use App\Services\GitHubService;
+use App\Services\DnsService;
 use App\Models\Setting;
 use App\Jobs\DeployApp;
 use App\Jobs\DeleteApp;
@@ -22,7 +24,8 @@ class AppController extends Controller
         private PM2Service $pm2Service,
         private NginxConfigService $nginxService,
         private GitHubService $github,
-        private \App\Services\DatabaseService $dbService
+        private \App\Services\DatabaseService $dbService,
+        private DnsService $dnsService
     ) {}
 
     public function index()
@@ -110,6 +113,27 @@ class AppController extends Controller
             }
         }
 
+        // Auto-create Domain record with default nameservers
+        try {
+            $ns = [
+                'nameserver_1' => Setting::get('dns_default_ns1'),
+                'nameserver_2' => Setting::get('dns_default_ns2'),
+                'nameserver_3' => Setting::get('dns_default_ns3'),
+                'nameserver_4' => Setting::get('dns_default_ns4'),
+            ];
+            $domain = Domain::create(array_merge([
+                'app_id'      => $app->id,
+                'domain'      => $app->domain,
+                'status'      => 'pending',
+                'dns_managed' => true,
+            ], array_filter($ns)));
+
+            // Generate BIND9 zone file
+            $this->dnsService->generateZone($domain->fresh()->load('dnsRecords'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Auto-domain creation failed for app {$app->id}: " . $e->getMessage());
+        }
+
         return response()->json($app, 201);
     }
 
@@ -139,7 +163,7 @@ class AppController extends Controller
 
     public function show(AppModel $app)
     {
-        $app->load(['latestDeployment', 'databases', 'envVariables']);
+        $app->load(['latestDeployment', 'databases', 'envVariables', 'domainRecord.dnsRecords']);
         return response()->json($app);
     }
 

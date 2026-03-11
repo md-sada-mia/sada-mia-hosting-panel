@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class App extends Model
 {
@@ -41,6 +42,11 @@ class App extends Model
     public function envVariables(): HasMany
     {
         return $this->hasMany(EnvVariable::class);
+    }
+
+    public function domainRecord(): HasOne
+    {
+        return $this->hasOne(\App\Models\Domain::class);
     }
 
     public function latestDeployment()

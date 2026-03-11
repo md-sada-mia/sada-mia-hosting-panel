@@ -3,8 +3,10 @@
 namespace App\Jobs;
 
 use App\Models\App;
+use App\Models\Domain;
 use App\Services\PM2Service;
 use App\Services\NginxConfigService;
+use App\Services\DnsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,7 +22,7 @@ class DeleteApp implements ShouldQueue
         protected array $appData
     ) {}
 
-    public function handle(PM2Service $pm2Service, NginxConfigService $nginxService): void
+    public function handle(PM2Service $pm2Service, NginxConfigService $nginxService, DnsService $dnsService): void
     {
         try {
             // We work with a temporary App model instance since the original might be deleted
@@ -32,6 +34,13 @@ class DeleteApp implements ShouldQueue
             }
 
             $nginxService->remove($app);
+
+            // Also remove the DNS zone for this app's domain
+            $domain = Domain::where('app_id', $app->id)->first();
+            if ($domain) {
+                $dnsService->removeZone($domain);
+                $domain->delete();
+            }
 
             Log::info("Cleanup complete for app: {$app->name}");
         } catch (\Throwable $e) {

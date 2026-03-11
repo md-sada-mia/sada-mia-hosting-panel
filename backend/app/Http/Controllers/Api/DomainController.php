@@ -41,13 +41,20 @@ class DomainController extends Controller
             'notes'        => 'nullable|string',
         ]);
 
-        $domain = Domain::create(array_merge($validated, ['status' => 'pending']));
+        $nameservers = [
+            'nameserver_1' => $validated['nameserver_1'] ?? \App\Models\Setting::get('dns_default_ns1'),
+            'nameserver_2' => $validated['nameserver_2'] ?? \App\Models\Setting::get('dns_default_ns2'),
+            'nameserver_3' => $validated['nameserver_3'] ?? \App\Models\Setting::get('dns_default_ns3'),
+            'nameserver_4' => $validated['nameserver_4'] ?? \App\Models\Setting::get('dns_default_ns4'),
+        ];
+
+        $domain = Domain::create(array_merge($validated, $nameservers, ['status' => 'pending']));
 
         if ($domain->dns_managed) {
             try {
                 $this->dnsService->generateZone($domain->fresh());
             } catch (\Throwable $e) {
-                \Log::error("DNS zone generation failed for {$domain->domain}: " . $e->getMessage());
+                Log::error("DNS zone generation failed for {$domain->domain}: " . $e->getMessage());
             }
         }
 
@@ -103,7 +110,7 @@ class DomainController extends Controller
             try {
                 $this->dnsService->removeZone($domain);
             } catch (\Throwable $e) {
-                \Log::warning("Could not remove DNS zone for {$domain->domain}: " . $e->getMessage());
+                Log::warning("Could not remove DNS zone for {$domain->domain}: " . $e->getMessage());
             }
         }
 

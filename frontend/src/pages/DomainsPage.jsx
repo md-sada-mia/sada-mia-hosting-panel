@@ -110,8 +110,7 @@ export default function DomainsPage() {
   const [showRecordDlg, setShowRecordDlg] = useState(false);
 
   const [domainForm, setDomainForm] = useState({
-    domain: '', nameserver_1: '', nameserver_2: '',
-    nameserver_3: '', nameserver_4: '', dns_managed: false,
+    domain: '', dns_managed: false,
   });
   const [recordForm, setRecordForm] = useState({
     type: 'A', name: '@', value: '', ttl: 3600, priority: '',
@@ -154,7 +153,7 @@ export default function DomainsPage() {
       setDomains(prev => [data, ...prev]);
       setSelected(data);
       setShowDomainDlg(false);
-      setDomainForm({ domain: '', nameserver_1: '', nameserver_2: '', nameserver_3: '', nameserver_4: '', dns_managed: false });
+      setDomainForm({ domain: '', dns_managed: false });
       toast.success(`Domain ${data.domain} added!`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add domain');
@@ -504,33 +503,16 @@ export default function DomainsPage() {
                   className="bg-white/[0.04] border-white/10" />
               </div>
 
-              <div className="rounded-lg border border-white/8 bg-white/[0.02] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Network className="h-3 w-3" /> Nameservers
-                  </p>
-                  <div className="group relative">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 border border-white/10 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                      <p className="text-[11px] leading-relaxed text-white">
-                        Nameservers tell the internet where your website is hosted. 
-                        <strong> NS1</strong> and <strong>NS2</strong> are required. 
-                        You'll need to set these at your Domain Registrar (e.g. GoDaddy).
-                      </p>
-                    </div>
-                  </div>
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {[1,2,3,4].map(n => (
-                    <div key={n} className="grid gap-1">
-                      <label className="text-[11px] text-muted-foreground">NS{n} {n <= 2 && <span className="text-rose-400/70">•</span>}</label>
-                      <Input
-                        placeholder={`ns${n}.yourdomain.com`}
-                        value={domainForm[`nameserver_${n}`]}
-                        onChange={e => setDomainForm(f => ({...f, [`nameserver_${n}`]: e.target.value}))}
-                        className="h-8 text-sm bg-white/[0.04] border-white/10" />
-                    </div>
-                  ))}
+                <div>
+                  <p className="text-sm font-semibold text-primary">Pre-configured Nameservers</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    This domain will be automatically configured with your panel's default nameservers. 
+                    You can view and copy them from the domain list after creation.
+                  </p>
                 </div>
               </div>
 

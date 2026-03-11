@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -24,6 +24,10 @@ export default function SettingsPage() {
     github_client_secret: '',
     github_webhook_secret: '',
     github_connected: false,
+    dns_default_ns1: '',
+    dns_default_ns2: '',
+    dns_default_ns3: '',
+    dns_default_ns4: '',
   });
 
   useEffect(() => {
@@ -115,6 +119,13 @@ export default function SettingsPage() {
             >
               <Lock className="w-4 h-4 mr-2" />
               Change Password
+            </TabsTrigger>
+            <TabsTrigger 
+              value="dns" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              Nameserver Basics
             </TabsTrigger>
           </TabsList>
         </aside>
@@ -215,6 +226,59 @@ export default function SettingsPage() {
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="dns" className="mt-0">
+            <Card>
+              <form onSubmit={handleGithubSettingsUpdate}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Network className="h-5 w-5 text-primary" />
+                    Global Nameservers
+                  </CardTitle>
+                  <CardDescription>
+                    These will be automatically assigned to all new domains you add.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
+                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
+                  
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map(n => (
+                      <div key={n} className="grid gap-2">
+                        <label className="text-sm font-medium">Nameserver {n}</label>
+                        <Input 
+                          name={`dns_default_ns${n}`} 
+                          value={githubSettings[`dns_default_ns${n}`] || ''} 
+                          onChange={handleGithubChange} 
+                          placeholder={`ns${n}.yourprimary.com`} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-4">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-primary">Hostinger Style</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        By setting these here, you don't have to think about them when adding new domains. 
+                        Simply set your primary domain's <strong>Glue Records</strong> once at your registrar, 
+                        and then use these names for everything else!
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save Defaults'}
                   </Button>
                 </CardFooter>
               </form>

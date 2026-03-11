@@ -15,6 +15,10 @@ class SettingsController extends Controller
             'github_client_secret' => Setting::get('github_client_secret') ? '********' : null,
             'github_webhook_secret' => Setting::get('github_webhook_secret') ? '********' : null,
             'github_connected' => (bool) Setting::get('github_access_token'),
+            'dns_default_ns1' => Setting::get('dns_default_ns1'),
+            'dns_default_ns2' => Setting::get('dns_default_ns2'),
+            'dns_default_ns3' => Setting::get('dns_default_ns3'),
+            'dns_default_ns4' => Setting::get('dns_default_ns4'),
         ]);
     }
 
@@ -24,6 +28,10 @@ class SettingsController extends Controller
             'github_client_id' => 'nullable|string',
             'github_client_secret' => 'nullable|string',
             'github_webhook_secret' => 'nullable|string',
+            'dns_default_ns1' => 'nullable|string',
+            'dns_default_ns2' => 'nullable|string',
+            'dns_default_ns3' => 'nullable|string',
+            'dns_default_ns4' => 'nullable|string',
         ]);
 
         foreach ($validated as $key => $value) {

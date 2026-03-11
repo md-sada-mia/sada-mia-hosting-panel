@@ -80,6 +80,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/domains/{domain}/records/{record}', [DnsRecordController::class, 'update']);
     Route::delete('/domains/{domain}/records/{record}', [DnsRecordController::class, 'destroy']);
 
+    // App-level DNS management (shortcut via app)
+    Route::get('/apps/{app}/domain', function (\App\Models\App $app) {
+        return response()->json($app->domainRecord?->load('dnsRecords'));
+    });
+    Route::post('/apps/{app}/domain/records', function (\App\Models\App $app, \Illuminate\Http\Request $request) {
+        $domain = $app->domainRecord;
+        if (!$domain) return response()->json(['message' => 'No domain linked to this app'], 404);
+        $validated = $request->validate([
+            'type' => 'required|in:A,AAAA,CNAME,MX,TXT,NS,SRV,CAA',
+            'name' => 'required|string|max:255',
+            'value' => 'required|string',
+            'ttl' => 'nullable|integer|min:60',
+            'priority' => 'nullable|integer',
+        ]);
+        $record = $domain->dnsRecords()->create($validated);
+        app(\App\Services\DnsService::class)->syncRecords($domain->fresh()->load('dnsRecords'));
+        return response()->json($record, 201);
+    });
+    Route::delete('/apps/{app}/domain/records/{record}', function (\App\Models\App $app, \App\Models\DnsRecord $record) {
+        $domain = $app->domainRecord;
+        if (!$domain || $record->domain_id !== $domain->id) abort(404);
+        $record->delete();
+        app(\App\Services\DnsService::class)->syncRecords($domain->fresh()->load('dnsRecords'));
+        return response()->json(['message' => 'Deleted']);
+    });
+    Route::post('/apps/{app}/domain/sync', function (\App\Models\App $app) {
+        $domain = $app->domainRecord;
+        if (!$domain) return response()->json(['message' => 'No domain'], 404);
+        app(\App\Services\DnsService::class)->generateZone($domain->fresh()->load('dnsRecords'));
+        return response()->json(['message' => 'DNS zone synced']);
+    });
+
     // Email Management
     Route::get('/email/domains', [EmailController::class, 'indexDomains']);
     Route::post('/email/domains', [EmailController::class, 'storeDomain']);
