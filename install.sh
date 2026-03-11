@@ -198,6 +198,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data.www-data /var/www/hostin
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart nginx
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sada-mia-queue
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sada-mia-queue
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
 www-data ALL=(postgres) NOPASSWD: /usr/bin/psql -c *
 EOF
@@ -237,11 +239,35 @@ npm install
 npm run build
 chown -R www-data:www-data dist
 
-echo "==> 9.1 Starting Laravel Queue Worker"
+echo "==> 9.1 Setting up Laravel Queue Worker (Systemd)"
 cd ../backend
+BACKEND_DIR=$(pwd)
+# Stop and delete from PM2 if it was previously there
 sudo -u www-data pm2 delete "sada-mia-queue" > /dev/null 2>&1 || true
-sudo -u www-data pm2 start php --name "sada-mia-queue" -- artisan queue:work --timeout=600 --tries=3
-sudo -u www-data pm2 save
+sudo -u www-data pm2 save > /dev/null 2>&1 || true
+
+# Create Systemd Service
+cat > /etc/systemd/system/sada-mia-queue.service <<EOF
+[Unit]
+Description=Sada Mia Panel Queue Worker
+After=network.target postgresql.service redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+WorkingDirectory=$BACKEND_DIR
+ExecStart=/usr/bin/php $BACKEND_DIR/artisan queue:work --timeout=600 --tries=3
+StandardOutput=append:$BACKEND_DIR/storage/logs/queue.log
+StandardError=append:$BACKEND_DIR/storage/logs/queue.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable sada-mia-queue
+systemctl restart sada-mia-queue
 cd ../frontend
 
 echo "==> 10. Configuring Nginx for the Panel"
@@ -314,5 +340,5 @@ fi
 echo "  Default Login:   admin@panel.local               "
 echo "  Default Pass:    admin                           "
 echo "  Note: Configure domains inside the panel later.  "
-echo "  Queue worker is running via PM2: 'pm2 status sada-mia-queue'"
+echo "  Queue worker is running via systemd: 'systemctl status sada-mia-queue'"
 echo "==================================================="
