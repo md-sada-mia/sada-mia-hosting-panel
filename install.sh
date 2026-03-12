@@ -464,6 +464,14 @@ php artisan optimize:clear
 chown -R www-data:www-data storage bootstrap/cache database
 chmod -R 775 storage bootstrap/cache
 
+# Ensure database and file are owned by www-data for SQLite write access
+
+touch database/database.sqlite
+chown www-data:www-data database/database.sqlite
+chmod 664 database/database.sqlite
+
+
+
 echo "==> 9. Setting up Panel Frontend"
 cd ../frontend
 npm install
