@@ -68,6 +68,7 @@ export default function AppDetailPage() {
   const [pendingAction, setPendingAction] = useState(null);
 
   const logEndRef = useRef(null);
+  const deploymentsTopRef = useRef(null);
 
   const fetchApp = async () => {
     try {
@@ -119,9 +120,15 @@ export default function AppDetailPage() {
 
   useEffect(() => {
     if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      logEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [deployments]);
+
+  useEffect(() => {
+    if (activeTab === 'deployments' && deploymentsTopRef.current) {
+      deploymentsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [activeTab]);
 
   const handleConfirmAction = async () => {
     if (!pendingAction) return;
@@ -386,6 +393,7 @@ export default function AppDetailPage() {
 
         {/* ── Deployments ──────────────────────────────────────── */}
         <TabsContent value="deployments" className="mt-6">
+          <div ref={deploymentsTopRef} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
