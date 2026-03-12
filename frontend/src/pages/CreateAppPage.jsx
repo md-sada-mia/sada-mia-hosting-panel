@@ -5,6 +5,13 @@ import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const stripAnsi = (str) => {
   if (!str) return '';
@@ -178,17 +185,21 @@ export default function CreateAppPage() {
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">App Type</label>
-                <select 
-                  name="type" 
-                  value={form.type} 
-                  onChange={handleChange}
+                <Select
+                  name="type"
+                  value={form.type}
+                  onValueChange={(value) => setForm({ ...form, type: value })}
                   disabled={loading || createdApp}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-primary outline-none"
                 >
-                  <option value="nextjs">Next.js (Node.js/PM2)</option>
-                  <option value="laravel">Laravel (PHP-FPM)</option>
-                  <option value="static">Static HTML</option>
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nextjs">Next.js (Node.js/PM2)</SelectItem>
+                    <SelectItem value="laravel">Laravel (PHP-FPM)</SelectItem>
+                    <SelectItem value="static">Static HTML</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">
@@ -213,19 +224,22 @@ export default function CreateAppPage() {
                   {loadingRepos ? (
                     <div className="text-xs text-muted-foreground animate-pulse">Loading your repositories...</div>
                   ) : repos.length > 0 ? (
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none"
-                      onChange={(e) => {
-                        const repo = repos.find(r => r.id === parseInt(e.target.value));
+                    <Select
+                      onValueChange={(value) => {
+                        const repo = repos.find(r => r.id === parseInt(value));
                         if (repo) handleRepoSelect(repo);
                       }}
-                      value={form.github_id || ""}
+                      value={form.github_id ? form.github_id.toString() : ""}
                     >
-                      <option value="">-- Choose a repository --</option>
-                      {repos.map(repo => (
-                        <option key={repo.id} value={repo.id}>{repo.full_name}</option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="-- Choose a repository --" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {repos.map(repo => (
+                          <SelectItem key={repo.id} value={repo.id.toString()}>{repo.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <div className="text-xs text-destructive">No repositories found.</div>
                   )}

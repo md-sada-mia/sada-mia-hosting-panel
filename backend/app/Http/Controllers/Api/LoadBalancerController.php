@@ -58,7 +58,7 @@ class LoadBalancerController extends Controller
 
         $lb->update(['status' => 'active']);
 
-        $loaded = $lb->load(['apps:id,name', 'domains:id,domain']);
+        $loaded = $lb->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
         $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
 
@@ -67,7 +67,7 @@ class LoadBalancerController extends Controller
 
     public function show(LoadBalancer $loadBalancer): JsonResponse
     {
-        $loaded = $loadBalancer->load(['apps:id,name', 'domains:id,domain']);
+        $loaded = $loadBalancer->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
         $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
         return response()->json($resp);
@@ -108,7 +108,7 @@ class LoadBalancerController extends Controller
         $this->nginxService->generateLoadBalancer($loadBalancer);
         $loadBalancer->update(['status' => 'active']);
 
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,domain']);
+        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
         $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
         return response()->json($resp);

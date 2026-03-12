@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Network, Plus, Trash2, Edit, RefreshCw } from 'lucide-react';
+import { Network, Plus, Trash2, Edit, RefreshCw, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function LoadBalancersPage() {
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -15,8 +22,6 @@ export default function LoadBalancersPage() {
   const [formData, setFormData] = useState({
     name: '',
     method: 'round_robin',
-    domains: '', // comma separated string
-    app_ids: [],
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,16 +53,12 @@ export default function LoadBalancersPage() {
       setFormData({
         name: lb.name,
         method: lb.method,
-        domains: lb.domains ? lb.domains.join(', ') : '',
-        app_ids: lb.apps.map(a => a.id),
       });
     } else {
       setEditingLb(null);
       setFormData({
         name: '',
         method: 'round_robin',
-        domains: '',
-        app_ids: [],
       });
     }
     setIsModalOpen(true);
@@ -68,19 +69,12 @@ export default function LoadBalancersPage() {
     setEditingLb(null);
   };
 
-  const toggleAppSelection = (appId) => {
-    setFormData(prev => ({
-      ...prev,
-      app_ids: prev.app_ids.includes(appId)
-        ? prev.app_ids.filter(id => id !== appId)
-        : [...prev.app_ids, appId]
-    }));
-  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.domains || formData.app_ids.length === 0) {
-      toast.error('Name, domains, and at least one app are required');
+    if (!formData.name) {
+      toast.error('Name is required');
       return;
     }
 
@@ -89,8 +83,6 @@ export default function LoadBalancersPage() {
       const payload = {
         name: formData.name,
         method: formData.method,
-        domains: formData.domains.split(',').map(d => d.trim()).filter(Boolean),
-        app_ids: formData.app_ids,
       };
 
       if (editingLb) {
@@ -101,7 +93,13 @@ export default function LoadBalancersPage() {
 
       toast.success(`Load balancer ${editingLb ? 'updated' : 'created'} successfully`);
       handleCloseModal();
-      fetchData();
+      if (!editingLb) {
+          // If created, maybe navigate to manage page?
+          // For now just refresh data
+          fetchData();
+      } else {
+          fetchData();
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message || 'Failed to save load balancer');
     } finally {
@@ -168,9 +166,10 @@ export default function LoadBalancersPage() {
               <thead className="text-xs text-muted-foreground bg-muted/50 uppercase border-b">
                 <tr>
                   <th className="px-6 py-4 font-medium">Name</th>
-                  <th className="px-6 py-4 font-medium">Domains</th>
                   <th className="px-6 py-4 font-medium">Method</th>
-                  <th className="px-6 py-4 font-medium">Apps</th>
+                  <th className="px-6 py-4 font-medium text-center">Apps</th>
+                  <th className="px-6 py-4 font-medium text-center">Domains</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -180,33 +179,41 @@ export default function LoadBalancersPage() {
                     <td className="px-6 py-4 font-medium text-foreground">
                       {lb.name}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {lb.domains && lb.domains.map((d, i) => (
-                          <span key={i} className="px-2 py-1 bg-primary/10 text-primary rounded text-xs">
-                            {d}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-muted-foreground">
                       {lb.method === 'round_robin' ? 'Round Robin' : lb.method === 'least_conn' ? 'Least Connections' : 'IP Hash'}
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 text-xs font-semibold">
+                         {lb.apps?.length || 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/5 text-blue-400 border border-blue-500/10 text-xs font-semibold">
+                         {lb.domains?.length || 0}
+                      </span>
+                    </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {lb.apps.map((a) => (
-                          <span key={a.id} className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs">
-                            {a.name}
-                          </span>
-                        ))}
-                      </div>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider ${
+                        lb.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
+                        lb.status === 'error' ? 'bg-rose-500/10 text-rose-500' : 
+                        'bg-amber-500/10 text-amber-400'
+                      }`}>
+                        {lb.status || 'pending'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end items-center gap-2">
+                        <a
+                          href={`/load-balancers/${lb.id}/manage`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 transition-all rounded-md text-xs font-semibold"
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                          Manage
+                        </a>
                         <button
                           onClick={() => handleOpenModal(lb)}
                           className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted"
-                          title="Edit"
+                          title="Quick Edit"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
@@ -260,58 +267,20 @@ export default function LoadBalancersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Domains (comma separated)</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.domains}
-                    onChange={(e) => setFormData({ ...formData, domains: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    placeholder="e.g. app.example.com, www.example.com"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Traffic sent to these domains will be load balanced across the selected apps. Subdomains will auto-create DNS A records.
-                  </p>
-                </div>
-
-                <div>
                   <label className="block text-sm font-medium mb-1">Method</label>
-                  <select
+                  <Select
                     value={formData.method}
-                    onChange={(e) => setFormData({ ...formData, method: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-transparent focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    onValueChange={(value) => setFormData({ ...formData, method: value })}
                   >
-                    <option value="round_robin">Round Robin (Sequential)</option>
-                    <option value="least_conn">Least Connections</option>
-                    <option value="ip_hash">IP Hash (Sticky Sessions)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Target Applications</label>
-                  <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto bg-muted/20">
-                    {apps.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-2">No apps available</p>
-                    ) : (
-                      apps.map(app => (
-                        <label key={app.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded cursor-pointer transition-colors border border-transparent hover:border-border">
-                          <input
-                            type="checkbox"
-                            checked={formData.app_ids.includes(app.id)}
-                            onChange={() => toggleAppSelection(app.id)}
-                            className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
-                          />
-                          <div>
-                            <p className="text-sm font-medium">{app.name}</p>
-                            <p className="text-xs text-muted-foreground">{app.domain}</p>
-                          </div>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                  {formData.app_ids.length === 0 && (
-                    <p className="text-xs text-destructive mt-1">Please select at least one application.</p>
-                  )}
+                    <SelectTrigger className="w-full bg-transparent">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="round_robin">Round Robin (Sequential)</SelectItem>
+                      <SelectItem value="least_conn">Least Connections</SelectItem>
+                      <SelectItem value="ip_hash">IP Hash (Sticky Sessions)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </form>
             </div>
@@ -328,7 +297,7 @@ export default function LoadBalancersPage() {
               <button
                 type="submit"
                 form="lb-form"
-                disabled={isSubmitting || formData.app_ids.length === 0}
+                disabled={isSubmitting || !formData.name}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isSubmitting ? (

@@ -14,6 +14,13 @@ import {
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
   Mail
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const stripAnsi = (str) => {
   if (!str) return '';
@@ -664,13 +671,19 @@ export default function AppDetailPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
                           <label className="text-[11px] text-muted-foreground mb-1 block">Type</label>
-                          <select
+                          <Select
                             value={recordForm.type}
-                            onChange={e => setRecordForm(f => ({ ...f, type: e.target.value }))}
-                            className="w-full h-9 text-sm rounded-md border border-white/10 bg-white/5 px-3 focus:outline-none focus:ring-1 focus:ring-primary"
+                            onValueChange={value => setRecordForm(f => ({ ...f, type: value }))}
                           >
-                            {RECORD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
+                            <SelectTrigger className="w-full h-9 text-sm bg-white/5 border-white/10">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {RECORD_TYPES.map(t => (
+                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <label className="text-[11px] text-muted-foreground mb-1 block">Name</label>
