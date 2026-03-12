@@ -496,6 +496,20 @@ EOF
 
 ln -sf /etc/nginx/sites-available/sada-mia-panel /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
+
+# Create a default catch-all for port 80 to prevent random apps from acting as the default
+if [ "$PORT" -ne 80 ]; then
+cat > /etc/nginx/sites-available/00-default <<EOF
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 404;
+}
+EOF
+ln -sf /etc/nginx/sites-available/00-default /etc/nginx/sites-enabled/
+fi
+
 nginx -t && nginx -s reload
 
 echo "==================================================="
