@@ -123,10 +123,16 @@ class LoadBalancerController extends Controller
 
     public function destroy(LoadBalancer $loadBalancer): JsonResponse
     {
-        $this->nginxService->removeLoadBalancer($loadBalancer);
+        // Snapshot data for background job
+        $lbData = $loadBalancer->toArray();
+        $lbData['id'] = $loadBalancer->id;
+        $lbData['domains'] = $loadBalancer->domains->pluck('domain')->toArray();
+
+        \App\Jobs\DeleteLoadBalancer::dispatch($lbData);
+
         $loadBalancer->delete();
 
-        return response()->json(['message' => 'Load balancer deleted']);
+        return response()->json(['message' => 'Load balancer scheduled for deletion and cleanup']);
     }
 
     public function addDomain(Request $request, LoadBalancer $loadBalancer): JsonResponse
