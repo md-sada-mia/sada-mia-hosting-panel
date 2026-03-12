@@ -63,6 +63,7 @@ export default function AppDetailPage() {
   const [recordForm, setRecordForm] = useState({ type: 'A', name: '@', value: '', ttl: 3600, priority: '' });
   const [addingRecord, setAddingRecord] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const logEndRef = useRef(null);
 
@@ -130,6 +131,10 @@ export default function AppDetailPage() {
         return;
       }
       await api.post(`/apps/${id}/${action}`);
+      if (action === 'deploy') {
+        setActiveTab('deployments');
+        loadDeployments();
+      }
       fetchApp();
     } catch (err) {
       toast.error(err.response?.data?.error || `Failed to ${action}`);
@@ -294,7 +299,8 @@ export default function AppDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="deployments" onValueChange={(v) => {
+      <Tabs value={activeTab} onValueChange={(v) => {
+        setActiveTab(v);
         if (v === 'deployments') loadDeployments();
         if (v === 'overview') fetchApp();
         if (v === 'logs') loadLogs();
@@ -302,8 +308,8 @@ export default function AppDetailPage() {
         if (v === 'dns') fetchDomain();
       }}>
         <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex">
-          <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="env">Environment</TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-1.5">
             <Network className="h-3.5 w-3.5" /> DNS
@@ -385,7 +391,7 @@ export default function AppDetailPage() {
                 <div className="text-center text-muted-foreground py-8">No deployments found.</div>
               ) : (
                 <div className="space-y-4">
-                  {deployments.map(dep => (
+                  {deployments.map((dep, idx) => (
                     <div key={dep.id} className="border rounded-md p-4">
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
@@ -399,7 +405,7 @@ export default function AppDetailPage() {
                       </div>
                       <div className="bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto max-h-64 whitespace-pre-wrap">
                         {stripAnsi(dep.log_output) || 'No output recorded'}
-                        <div ref={logEndRef} />
+                        <div ref={idx === 0 ? logEndRef : null} />
                       </div>
                     </div>
                   ))}
