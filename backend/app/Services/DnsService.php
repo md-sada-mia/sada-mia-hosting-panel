@@ -175,10 +175,11 @@ ENTRY;
 
     private function removeNamedConfEntry(Domain $domain): void
     {
-        // Use sed to remove the zone block (multi-line removal via perl)
+        // Use perl to remove the zone block accurately, handling internal braces like allow-transfer { any; };
         $d = preg_quote($domain->domain, '/');
+        // This regex matches "zone "domain" { ... };" including internal blocks
         $this->shell->run(
-            "sudo perl -i -0pe 's/\\nzone \"{$d}\" \\{[^}]+\\};//g' {$this->namedConf} 2>/dev/null || true"
+            "sudo perl -i -0pe 's/zone \"{$d}\" \\{.*?\\};\\n?//sg' {$this->namedConf} 2>/dev/null || true"
         );
     }
 

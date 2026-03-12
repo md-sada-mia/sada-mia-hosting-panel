@@ -60,7 +60,7 @@ done
 
 if ! command -v nginx >/dev/null 2>&1; then
     echo "==> Installing Nginx"
-    apt-get install -y nginx
+    apt-get install -y -o Dpkg::Options::="--force-confold" nginx
 else
     echo "==> Nginx already installed, skipping."
 fi
@@ -72,7 +72,7 @@ if ! command -v php8.4 >/dev/null 2>&1; then
     fi
     add-apt-repository ppa:ondrej/php -y
     apt-get update
-    apt-get install -y php8.4 php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip php8.4-pgsql php8.4-bcmath php8.4-intl php8.4-gd php8.4-readline redis-server
+    apt-get install -y -o Dpkg::Options::="--force-confold" php8.4 php8.4-fpm php8.4-cli php8.4-sqlite3 php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip php8.4-pgsql php8.4-bcmath php8.4-intl php8.4-gd php8.4-readline redis-server
 else
     echo "==> PHP 8.4 already installed."
     # Ensure all extensions are definitely installed even if PHP core is there
@@ -137,7 +137,7 @@ fi
 
 echo "==> 5a. Installing BIND9 (DNS Server)"
 if ! command -v named >/dev/null 2>&1; then
-    apt-get install -y bind9 bind9utils bind9-doc
+    apt-get install -y -o Dpkg::Options::="--force-confold" bind9 bind9utils bind9-doc
     echo "==> BIND9 installed."
 else
     echo "==> BIND9 already installed, skipping."
@@ -181,14 +181,14 @@ if ! command -v postfix >/dev/null 2>&1; then
     # Pre-answer debconf so postfix installs non-interactively
     echo "postfix postfix/mailname string $(hostname -f)" | debconf-set-selections
     echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-    apt-get install -y postfix postfix-pcre
+    apt-get install -y -o Dpkg::Options::="--force-confold" postfix postfix-pcre
     echo "==> Postfix installed."
 else
     echo "==> Postfix already installed, skipping."
 fi
 
 if ! command -v dovecot >/dev/null 2>&1 && ! systemctl is-active --quiet dovecot 2>/dev/null; then
-    apt-get install -y dovecot-core dovecot-imapd dovecot-pop3d
+    apt-get install -y -o Dpkg::Options::="--force-confold" dovecot-core dovecot-imapd dovecot-pop3d
     echo "==> Dovecot installed."
 else
     echo "==> Dovecot already installed, skipping."
