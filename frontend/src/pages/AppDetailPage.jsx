@@ -11,7 +11,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
-  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock
+  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap
 } from 'lucide-react';
 
 const stripAnsi = (str) => {
@@ -395,7 +395,53 @@ export default function AppDetailPage() {
         </TabsList>
 
         {/* ── Overview ─────────────────────────────────────────── */}
-        <TabsContent value="overview" className="mt-6">
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          
+          {/* Resource Shortcuts Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Zap className="h-4 w-4 text-amber-400" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Resource Shortcuts</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <NavCard 
+                icon={FolderOpen}
+                title="File Manager"
+                description="Browse app files"
+                onClick={() => navigate(`/files?path=/${app.domain}`)}
+              />
+              
+              {app.databases?.length > 0 && (
+                <div className="flex items-center justify-between p-4 rounded-xl border bg-card/40 hover:bg-accent/40 transition-all border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-500/20 p-2.5 rounded-xl text-blue-400">
+                      <Database className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-sm truncate">{app.databases[0].db_name}</h4>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        User: <span className="font-mono">{app.databases[0].db_user}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={app.databases[0].status === 'active' ? 'success' : 'destructive'} className="text-[10px] h-5">
+                      {app.databases[0].status}
+                    </Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 text-[11px] gap-1.5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
+                      onClick={() => handleManageDatabase(app.databases[0].id)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Manage
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Repository Details</CardTitle>
@@ -448,43 +494,6 @@ export default function AppDetailPage() {
                     <div className="font-mono bg-muted/50 p-2 rounded">{app.port || 'Will be assigned on deploy'}</div>
                   </div>
                 )}
-                <div className="col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-4 mt-2">
-                  <NavCard 
-                    icon={FolderOpen}
-                    title="File Manager"
-                    description="Browse app files"
-                    onClick={() => navigate(`/files?path=/${app.domain}`)}
-                  />
-                  
-                  {app.databases?.length > 0 && (
-                    <div className="sm:col-span-1 flex items-center justify-between p-4 rounded-xl border bg-card/40 hover:bg-accent/40 transition-all border-white/5">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-blue-500/20 p-2.5 rounded-xl text-blue-400">
-                          <Database className="h-6 w-6" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-sm truncate">{app.databases[0].db_name}</h4>
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            User: <span className="font-mono">{app.databases[0].db_user}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={app.databases[0].status === 'active' ? 'success' : 'destructive'} className="text-[10px] h-5">
-                          {app.databases[0].status}
-                        </Badge>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-8 text-[11px] gap-1.5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
-                          onClick={() => handleManageDatabase(app.databases[0].id)}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" /> Manage
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </CardContent>
           </Card>
