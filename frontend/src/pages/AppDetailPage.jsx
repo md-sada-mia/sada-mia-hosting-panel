@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
@@ -64,6 +65,7 @@ export default function AppDetailPage() {
   const [addingRecord, setAddingRecord] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [pendingAction, setPendingAction] = useState(null);
 
   const logEndRef = useRef(null);
 
@@ -121,8 +123,10 @@ export default function AppDetailPage() {
     }
   }, [deployments]);
 
-  const handleAction = async (action) => {
-    if (!confirm(`Are you sure you want to ${action} this app?`)) return;
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    setPendingAction(null);
     setActionLoading(true);
     try {
       if (action === 'delete') {
@@ -141,6 +145,10 @@ export default function AppDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleAction = (action) => {
+    setPendingAction(action);
   };
 
   const handleToggleAutoDeploy = async () => {
@@ -657,6 +665,16 @@ export default function AppDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <ConfirmationDialog
+        open={!!pendingAction}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+        title={`${pendingAction?.charAt(0).toUpperCase() + pendingAction?.slice(1)} App`}
+        description={`Are you sure you want to ${pendingAction} this app?`}
+        confirmText={pendingAction === 'delete' ? 'Delete App' : pendingAction === 'deploy' ? 'Deploy now' : 'Confirm'}
+        variant={pendingAction === 'delete' ? 'destructive' : 'default'}
+        isLoading={actionLoading}
+        onConfirm={handleConfirmAction}
+      />
     </div>
   );
 }

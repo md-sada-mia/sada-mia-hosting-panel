@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
+import { toast } from 'sonner';
 
 export default function DatabasesPage() {
   const [databases, setDatabases] = useState([]);
@@ -13,6 +15,8 @@ export default function DatabasesPage() {
   const [newDbName, setNewDbName] = useState('');
   const [newCredentials, setNewCredentials] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [dbToDelete, setDbToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchDatabases = async () => {
     try {
@@ -40,8 +44,9 @@ export default function DatabasesPage() {
       setNewCredentials(data);
       setNewDbName('');
       fetchDatabases();
+      toast.success('Database created successfully');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create database');
+      toast.error(err.response?.data?.error || 'Failed to create database');
     } finally {
       setCreating(false);
     }
@@ -76,19 +81,28 @@ export default function DatabasesPage() {
       form.submit();
       document.body.removeChild(form);
     } catch (err) {
-      alert('Failed to retrieve credentials for autologin');
+      toast.error('Failed to retrieve credentials for autologin');
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!confirm(`WARNING: This will permanently delete the database "${name}" and all its data. Continue?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!dbToDelete) return;
+    setIsDeleting(true);
     try {
-      await api.delete(`/databases/${id}`);
+      await api.delete(`/databases/${dbToDelete.id}`);
+      toast.success(`Database "${dbToDelete.db_name}" deleted`);
       fetchDatabases();
-      if (newCredentials?.id === id) setNewCredentials(null);
+      if (newCredentials?.id === dbToDelete.id) setNewCredentials(null);
+      setDbToDelete(null);
     } catch (err) {
-      alert('Failed to delete database');
+      toast.error('Failed to delete database');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDelete = (db) => {
+    setDbToDelete(db);
   };
 
   const copyToClipboard = (text) => {
@@ -203,7 +217,7 @@ export default function DatabasesPage() {
                     >
                       <ExternalLink className="mr-2 h-4 w-4" /> Manage
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db.id, db.db_name)}>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db)}>
                       <Trash2 className="h-5 w-5" />
                     </Button>
                   </div>
@@ -213,6 +227,17 @@ export default function DatabasesPage() {
           )}
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={!!dbToDelete}
+        onOpenChange={(open) => !open && setDbToDelete(null)}
+        title="Delete Database"
+        description={`WARNING: This will permanently delete the database "${dbToDelete?.db_name}" and all its data. This action cannot be undone.`}
+        confirmText="Delete Database"
+        variant="destructive"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

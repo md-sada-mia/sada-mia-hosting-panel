@@ -88,6 +88,7 @@
 - Pages handle data fetching and state. Components are presentational and reusable.
 - Use **React Router** for navigation — do not use `window.location` redirects.
 - Match the existing dark/neutral design aesthetic present across all pages.
+- If any feature requires user confirmation (e.g., delete or confirmation dialoge ), the implementation must use the reusable ConfirmationDialog component. Do not implement js/browser native confirmation dialogs.
 
 ### Nginx & System Config
 

@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 // ─── Avatar helper ────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ export default function EmailPage() {
   const [deletingEd, setDeletingEd] = useState(null);
   const [deletingAcc, setDeletingAcc] = useState(null);
   const [deletingAlias, setDeletingAlias] = useState(null);
+  const [edToRemove, setEdToRemove] = useState(null);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -119,9 +121,11 @@ export default function EmailPage() {
     finally { setSaving(false); }
   };
 
-  const handleDeleteDomain = async (ed) => {
-    if (!confirm(`Remove email for ${ed.domain?.domain}?`)) return;
+  const handleConfirmDeleteDomain = async () => {
+    if (!edToRemove) return;
+    const ed = edToRemove;
     setDeletingEd(ed.id);
+    setEdToRemove(null);
     try {
       await api.delete(`/email/domains/${ed.id}`);
       const updated = emailDomains.filter(x => x.id !== ed.id);
@@ -130,6 +134,10 @@ export default function EmailPage() {
       toast.success('Email domain removed');
     } catch { toast.error('Failed'); }
     finally { setDeletingEd(null); }
+  };
+
+  const handleDeleteDomain = (ed) => {
+    setEdToRemove(ed);
   };
 
   const handleAddAccount = async (e) => {
@@ -683,6 +691,16 @@ export default function EmailPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <ConfirmationDialog
+        open={!!edToRemove}
+        onOpenChange={(open) => !open && setEdToRemove(null)}
+        title="Remove Email Domain"
+        description={`Are you sure you want to remove email hosting for ${edToRemove?.domain?.domain}? All mailboxes and messages will be permanently deleted.`}
+        confirmText="Remove Domain"
+        variant="destructive"
+        isLoading={!!deletingEd}
+        onConfirm={handleConfirmDeleteDomain}
+      />
     </div>
   );
 }

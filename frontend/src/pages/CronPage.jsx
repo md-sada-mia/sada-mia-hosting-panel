@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Clock, Plus, Trash2, Play, Square, Edit, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 export default function CronPage() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,8 @@ export default function CronPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [jobToDelete, setJobToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     command: '',
     schedule: '* * * * *',
@@ -55,15 +58,23 @@ export default function CronPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this cron job?')) return;
+  const handleConfirmDelete = async () => {
+    if (!jobToDelete) return;
+    setIsDeleting(true);
     try {
-      await api.delete(`/cron-jobs/${id}`);
-      setJobs(jobs.filter(j => j.id !== id));
+      await api.delete(`/cron-jobs/${jobToDelete.id}`);
+      setJobs(jobs.filter(j => j.id !== jobToDelete.id));
       toast.success('Cron job deleted');
+      setJobToDelete(null);
     } catch (err) {
       toast.error('Failed to delete cron job');
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDelete = (job) => {
+    setJobToDelete(job);
   };
 
   const handleSubmit = async (e) => {
@@ -297,9 +308,9 @@ export default function CronPage() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openForm(job)}>
                     <Edit className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(job.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(job)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                 </div>
                 <Button variant="outline" size="sm" className="h-8 w-full sm:hidden mt-2" onClick={() => openLogs(job)}>
                   View Logs
@@ -309,6 +320,16 @@ export default function CronPage() {
           ))}
         </div>
       )}
+      <ConfirmationDialog
+        open={!!jobToDelete}
+        onOpenChange={(open) => !open && setJobToDelete(null)}
+        title="Delete Cron Job"
+        description={`Are you sure you want to delete the cron job "${jobToDelete?.description || jobToDelete?.command}"? This action cannot be undone.`}
+        confirmText="Delete Job"
+        variant="destructive"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, Server, Database, Layers, MemoryStick, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState({});
+  const [showRebootConfirm, setShowRebootConfirm] = useState(false);
 
   const handleRestart = async (type) => {
     console.log(`Restart requested for: ${type}`);
@@ -172,11 +174,7 @@ export default function DashboardPage() {
               variant="destructive" 
               className="w-full justify-start cursor-pointer"
               disabled={restarting['reboot']}
-              onClick={() => {
-                if (confirm('Are you sure you want to reboot the entire system? This will take it offline for several minutes.')) {
-                  handleRestart('reboot');
-                }
-              }}
+              onClick={() => setShowRebootConfirm(true)}
             >
               <Activity className={`mr-2 h-4 w-4 ${restarting['reboot'] ? 'animate-spin' : ''}`} />
               {restarting['reboot'] ? 'Rebooting...' : 'System Reboot'}
@@ -184,6 +182,20 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmationDialog
+        open={showRebootConfirm}
+        onOpenChange={setShowRebootConfirm}
+        title="System Reboot"
+        description="Are you sure you want to reboot the entire system? This will take it offline for several minutes and disconnect all current sessions."
+        confirmText="Reboot Now"
+        variant="destructive"
+        isLoading={restarting['reboot']}
+        onConfirm={() => {
+          handleRestart('reboot');
+          setShowRebootConfirm(false);
+        }}
+      />
     </div>
   );
 }
