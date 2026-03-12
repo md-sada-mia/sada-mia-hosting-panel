@@ -91,7 +91,23 @@ sudo ./install.sh 192.168.1.100
 
 # Option C: Specify IP and custom port
 sudo ./install.sh 192.168.1.100 8080
+
+# Option D: Run with Data Cleanup (Keeps tools, resets apps/data)
+sudo ./install.sh --cleanup
 ```
+
+### 💡 Data Cleanup Mode
+
+Using the `--cleanup` flag allows you to reset the panel without reinstalling foundational software (PHP, Nginx, etc.).
+
+**What gets cleaned up:**
+
+- All deployed apps in `/var/www/hosting-apps/`
+- Nginx site configurations (except for the panel itself)
+- BIND9 DNS zone files and configurations
+- Postfix/Dovecot email accounts and mail data
+- System cron jobs for the `www-data` user
+- The panel database (reset to original seeded state)
 
 The script will automatically:
 

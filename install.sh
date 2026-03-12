@@ -21,7 +21,19 @@ fi
 # Load .env variables
 export $(grep -v '^#' .env | xargs)
 
-# Command-line arguments override .env
+# Command-line arguments
+DO_CLEANUP=false
+
+for arg in "$@"; do
+    case $arg in
+        --cleanup)
+            DO_CLEANUP=true
+            shift
+            ;;
+    esac
+done
+
+# Positional arguments override .env
 if [ -n "$1" ]; then
     PANEL_IP=$1
     sed -i "s/^PANEL_IP=.*/PANEL_IP=$1/" .env
@@ -46,6 +58,57 @@ else
 fi
 
 PORT=${PANEL_PORT:-8083}
+
+# Cleanup function if --cleanup flag is used
+perform_cleanup() {
+    echo "==> !!! PERFORMING DATA CLEANUP !!!"
+    echo "    This will remove all apps, domains, emails, and crons."
+    
+    # 1. Cleanup Apps
+    APPS_DIR="/var/www/hosting-apps"
+    if [ -d "$APPS_DIR" ]; then
+        echo "==> Cleaning up apps directory: $APPS_DIR"
+        rm -rf $APPS_DIR/*
+    fi
+
+    # 2. Cleanup Nginx
+    echo "==> Cleaning up Nginx configurations"
+    # Remove all except panel and default
+    find /etc/nginx/sites-available/ -type f ! -name 'sada-mia-panel' ! -name '00-default' -delete
+    find /etc/nginx/sites-enabled/ -type l ! -name 'sada-mia-panel' ! -name '00-default' -delete
+    
+    # 3. Cleanup DNS (BIND9)
+    echo "==> Cleaning up BIND9 zones"
+    rm -f /etc/bind/zones/*
+    echo "" > /etc/bind/named.conf.local
+    
+    # 4. Cleanup Email (Postfix + Dovecot)
+    echo "==> Cleaning up Email data"
+    rm -rf /var/mail/vhosts/*
+    echo "" > /etc/postfix/virtual_mailbox_domains
+    echo "" > /etc/postfix/virtual_mailbox_maps
+    echo "" > /etc/postfix/virtual_alias_maps
+    postmap /etc/postfix/virtual_mailbox_domains 2>/dev/null || true
+    postmap /etc/postfix/virtual_mailbox_maps    2>/dev/null || true
+    postmap /etc/postfix/virtual_alias_maps      2>/dev/null || true
+    echo "" > /etc/dovecot/users
+    
+    # 5. Cleanup Crons
+    echo "==> Cleaning up crontab for www-data"
+    crontab -r -u www-data 2>/dev/null || true
+    
+    # 6. Reset Database
+    echo "==> Resetting database to original state"
+    cd backend
+    php artisan migrate:fresh --seed --force
+    cd ..
+
+    echo "==> Cleanup complete!"
+}
+
+if [ "$DO_CLEANUP" = true ]; then
+    perform_cleanup
+fi
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -362,7 +425,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_mailbox_maps
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_alias_maps
 www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/postfix/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/mail/vhosts/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail:vmail /var/mail/vhosts/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail.vmail /var/mail/vhosts/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/mail/vhosts/*
 # Dovecot / Email account management
 www-data ALL=(ALL) NOPASSWD: /usr/bin/touch /etc/dovecot/users
