@@ -12,8 +12,8 @@ class SettingsController extends Controller
     {
         return response()->json([
             'github_client_id' => Setting::get('github_client_id'),
-            'github_client_secret' => Setting::get('github_client_secret') ? '********' : null,
-            'github_webhook_secret' => Setting::get('github_webhook_secret') ? '********' : null,
+            'github_client_secret' => Setting::get('github_client_secret'),
+            'github_webhook_secret' => Setting::get('github_webhook_secret'),
             'github_connected' => (bool) Setting::get('github_access_token'),
             'dns_default_ns1' => Setting::get('dns_default_ns1'),
             'dns_default_ns2' => Setting::get('dns_default_ns2'),
@@ -35,9 +35,7 @@ class SettingsController extends Controller
         ]);
 
         foreach ($validated as $key => $value) {
-            if ($value !== null && $value !== '********') {
-                Setting::set($key, $value);
-            }
+            Setting::set($key, $value);
         }
 
         return response()->json(['message' => 'Settings updated successfully']);

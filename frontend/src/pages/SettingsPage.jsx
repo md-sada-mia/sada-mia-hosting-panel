@@ -5,13 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showClientSecret, setShowClientSecret] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   
   const [passwords, setPasswords] = useState({
     current_password: '',
@@ -167,11 +169,43 @@ export default function SettingsPage() {
                   </div>
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Client Secret</label>
-                    <Input type="password" name="github_client_secret" value={githubSettings.github_client_secret || ''} onChange={handleGithubChange} placeholder="********" />
+                    <div className="relative">
+                      <Input 
+                        type={showClientSecret ? "text" : "password"} 
+                        name="github_client_secret" 
+                        value={githubSettings.github_client_secret || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="********" 
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowClientSecret(!showClientSecret)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                      >
+                        {showClientSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Global Webhook Secret</label>
-                    <Input type="password" name="github_webhook_secret" value={githubSettings.github_webhook_secret || ''} onChange={handleGithubChange} placeholder="********" />
+                    <div className="relative">
+                      <Input 
+                        type={showWebhookSecret ? "text" : "password"} 
+                        name="github_webhook_secret" 
+                        value={githubSettings.github_webhook_secret || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="********" 
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowWebhookSecret(!showWebhookSecret)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                      >
+                        {showWebhookSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <p className="text-xs text-muted-foreground italic">Used as default secret for new apps.</p>
                   </div>
 
