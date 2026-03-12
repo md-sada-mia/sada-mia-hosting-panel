@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\CronJobController;
 use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\DnsRecordController;
 use App\Http\Controllers\Api\EmailController;
+use App\Http\Controllers\Api\FileManagerController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -135,6 +136,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/email/domains/{emailDomain}/aliases', [EmailController::class, 'indexAliases']);
     Route::post('/email/domains/{emailDomain}/aliases', [EmailController::class, 'storeAlias']);
     Route::delete('/email/domains/{emailDomain}/aliases/{alias}', [EmailController::class, 'destroyAlias']);
+
+    // File Manager
+    Route::get('/files', [FileManagerController::class, 'index']);
+    Route::get('/files/content', [FileManagerController::class, 'show']);
+    Route::get('/files/download', [FileManagerController::class, 'download']);
+    Route::get('/files/search', [FileManagerController::class, 'search']);
+    Route::post('/files', [FileManagerController::class, 'store']);
+    Route::put('/files', [FileManagerController::class, 'update']);
+    Route::delete('/files', [FileManagerController::class, 'destroy']);
+    Route::post('/files/rename', [FileManagerController::class, 'rename']);
+    Route::post('/files/copy', [FileManagerController::class, 'copy']);
+    Route::post('/files/upload', [FileManagerController::class, 'upload']);
+    Route::post('/files/chmod', [FileManagerController::class, 'chmod']);
+    Route::post('/files/compress', [FileManagerController::class, 'compress']);
+    Route::post('/files/extract', [FileManagerController::class, 'extract']);
 });
 
 

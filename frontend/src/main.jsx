@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import GitHubCallbackPage from './pages/GitHubCallbackPage';
 import DomainsPage from './pages/DomainsPage';
 import EmailPage from './pages/EmailPage';
+import FileManagerPage from './pages/FileManagerPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -37,6 +38,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/domains" element={<DomainsPage />} />
             <Route path="/email" element={<EmailPage />} />
             <Route path="/cron-jobs" element={<CronPage />} />
+            <Route path="/files" element={<FileManagerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/github/callback" element={<GitHubCallbackPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
