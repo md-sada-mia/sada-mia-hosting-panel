@@ -54,6 +54,8 @@ class LoadBalancerController extends Controller
 
         $this->processDomainsDNS($validated['domains']);
 
+        // Explicitly load relations so the Nginx config generator sees the new apps and domains
+        $lb->load(['apps', 'domains']);
         $this->nginxService->generateLoadBalancer($lb);
 
         $lb->update(['status' => 'active']);
@@ -105,6 +107,8 @@ class LoadBalancerController extends Controller
             $this->processDomainsDNS($validated['domains']);
         }
 
+        // Explicitly load relations so the Nginx config generator sees the updated apps and domains
+        $loadBalancer->load(['apps', 'domains']);
         $this->nginxService->generateLoadBalancer($loadBalancer);
         $loadBalancer->update(['status' => 'active']);
 

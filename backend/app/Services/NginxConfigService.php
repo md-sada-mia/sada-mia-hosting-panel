@@ -49,30 +49,15 @@ class NginxConfigService
         $upstreams = [];
         foreach ($lb->apps as $app) {
             if ($app->port) {
+                // Next.js apps running on their own port
                 $upstreams[] = "    server 127.0.0.1:{$app->port};";
             } else {
-                // Determine port from internal Docker or Nginx IP/Port. 
-                // Since this panel is bare-metal Nginx without docker right now (based on other configs), 
-                // we can't easily proxy to another domain port 80 unless they resolve internally. 
-                // Using 127.0.0.1 and asking the downstream server block to handle it.
-                // Wait, if it's purely PHP-FPM, we could map it directly, but it's simpler to proxy to the app domain.
-                $upstreams[] = "    server 127.0.0.1:80;"; // Or perhaps require Next.js apps with ports, but let's just proxy to the app's server domain name internally
-                // $upstreams[] = "    server {$app->domain}:80;";
+                // PHP/Static apps load balanced via their unique internal Nginx port to bypass Host header issues
+                $internalPort = 60000 + $app->id;
+                $upstreams[] = "    server 127.0.0.1:{$internalPort};";
             }
         }
 
-        // Let's proxy to the domain name of the app so its existing Nginx server block handles it, if it doesn't have a port.
-        foreach ($upstreams as &$u) {
-            $u = trim($u);
-        }
-        $upstreams = [];
-        foreach ($lb->apps as $app) {
-            if ($app->port) {
-                $upstreams[] = "    server 127.0.0.1:{$app->port};";
-            } else {
-                $upstreams[] = "    server {$app->domain}:80;";
-            }
-        }
 
         $methodLine = '';
         if ($lb->method === 'least_conn') {
@@ -133,11 +118,13 @@ class NginxConfigService
 
     private function replacePlaceholders(string $stub, App $app): string
     {
+        $internalPort = 60000 + $app->id;
         return str_replace(
-            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}'],
+            ['{{domain}}', '{{port}}', '{{internal_port}}', '{{deploy_path}}', '{{php_fpm_sock}}'],
             [
                 $app->domain,
                 $app->port,
+                $internalPort,
                 $app->deploy_path,
                 config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
             ],
