@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Mail, Plus, Trash2, User, ArrowRightLeft, KeyRound, Loader2,
   Eye, EyeOff, Globe, Shield, Zap, Search, X, CheckCircle2,
@@ -77,6 +78,9 @@ export default function EmailPage() {
   const [deletingAcc, setDeletingAcc] = useState(null);
   const [deletingAlias, setDeletingAlias] = useState(null);
   const [edToRemove, setEdToRemove] = useState(null);
+
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -199,6 +203,9 @@ export default function EmailPage() {
   };
 
   // Derived
+  const filteredDomains = emailDomains.filter(ed => 
+    (ed.domain?.domain || '').toLowerCase().includes(search.toLowerCase())
+  );
   const usedIds = emailDomains.map(ed => ed.domain_id);
   const availableDomains = allDomains.filter(d => !usedIds.includes(d.id));
   const totalAccounts = emailDomains.reduce((a, ed) => a + (ed.accounts?.length || 0), 0);
@@ -278,10 +285,19 @@ export default function EmailPage() {
 
           {/* ── Left: Email domain list ──────────────────────────────────── */}
           <div className="lg:col-span-2 flex flex-col gap-2">
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search domains..." 
+                className="pl-9 bg-white/5 border-white/10 h-10"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-semibold px-1 mb-1">
               Email Domains
             </p>
-            {emailDomains.map(ed => {
+            {filteredDomains.map(ed => {
               const isActive = selected?.id === ed.id;
               const domainName = ed.domain?.domain || '—';
               return (

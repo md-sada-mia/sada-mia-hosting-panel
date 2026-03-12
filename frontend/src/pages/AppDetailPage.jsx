@@ -11,7 +11,8 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
-  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap
+  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
+  Mail
 } from 'lucide-react';
 
 const stripAnsi = (str) => {
@@ -440,6 +441,16 @@ export default function AppDetailPage() {
                   </div>
                 </div>
               )}
+
+              <NavCard 
+                icon={Mail}
+                title="Emails"
+                description="Managing mailboxes"
+                color="violet"
+                onClick={() => navigate(`/email?q=${app.domain}`)}
+              />
+
+              
             </div>
           </div>
 
