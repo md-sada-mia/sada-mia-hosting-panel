@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Network, Plus, Trash2, Edit, RefreshCw, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/select";
 
 export default function LoadBalancersPage() {
+  const navigate = useNavigate();
   const [loadBalancers, setLoadBalancers] = useState([]);
   const [apps, setApps] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,18 +87,17 @@ export default function LoadBalancersPage() {
         method: formData.method,
       };
 
+      let res;
       if (editingLb) {
-        await api.put(`/load-balancers/${editingLb.id}`, payload);
+        res = await api.put(`/load-balancers/${editingLb.id}`, payload);
       } else {
-        await api.post('/load-balancers', payload);
+        res = await api.post('/load-balancers', payload);
       }
 
       toast.success(`Load balancer ${editingLb ? 'updated' : 'created'} successfully`);
       handleCloseModal();
-      if (!editingLb) {
-          // If created, maybe navigate to manage page?
-          // For now just refresh data
-          fetchData();
+      if (!editingLb && res.data?.id) {
+          navigate(`/load-balancers/${res.data.id}/manage`);
       } else {
           fetchData();
       }

@@ -34,9 +34,9 @@ class LoadBalancerController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|unique:load_balancers,name',
             'method' => 'required|in:round_robin,least_conn,ip_hash',
-            'app_ids' => 'required|array|min:1',
+            'app_ids' => 'nullable|array',
             'app_ids.*' => 'exists:apps,id',
-            'domains' => 'required|array|min:1',
+            'domains' => 'nullable|array',
             'domains.*' => 'string'
         ]);
 
@@ -46,13 +46,16 @@ class LoadBalancerController extends Controller
             'status' => 'pending'
         ]);
 
-        $lb->apps()->sync($validated['app_ids']);
-
-        foreach ($validated['domains'] as $domain) {
-            $lb->domains()->create(['domain' => $domain]);
+        if (!empty($validated['app_ids'])) {
+            $lb->apps()->sync($validated['app_ids']);
         }
 
-        $this->processDomainsDNS($validated['domains']);
+        if (!empty($validated['domains'])) {
+            foreach ($validated['domains'] as $domain) {
+                $lb->domains()->create(['domain' => $domain]);
+            }
+            $this->processDomainsDNS($validated['domains']);
+        }
 
         // Explicitly load relations so the Nginx config generator sees the new apps and domains
         $lb->load(['apps', 'domains']);
