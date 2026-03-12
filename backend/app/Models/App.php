@@ -53,4 +53,9 @@ class App extends Model
     {
         return $this->hasOne(Deployment::class)->latestOfMany();
     }
+
+    public function loadBalancers()
+    {
+        return $this->belongsToMany(\App\Models\LoadBalancer::class, 'load_balancer_apps');
+    }
 }

@@ -19,6 +19,7 @@ import GitHubCallbackPage from './pages/GitHubCallbackPage';
 import DomainsPage from './pages/DomainsPage';
 import EmailPage from './pages/EmailPage';
 import FileManagerPage from './pages/FileManagerPage';
+import LoadBalancersPage from './pages/LoadBalancersPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -34,6 +35,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/apps" element={<AppsPage />} />
             <Route path="/apps/create" element={<CreateAppPage />} />
             <Route path="/apps/:id" element={<AppDetailPage />} />
+            <Route path="/load-balancers" element={<LoadBalancersPage />} />
             <Route path="/databases" element={<DatabasesPage />} />
             <Route path="/domains" element={<DomainsPage />} />
             <Route path="/email" element={<EmailPage />} />

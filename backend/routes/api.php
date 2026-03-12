@@ -61,6 +61,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
 
+    // Load Balancers
+    Route::apiResource('load-balancers', \App\Http\Controllers\Api\LoadBalancerController::class);
+
     // Cron Jobs
     Route::get('/cron-jobs', [CronJobController::class, 'index']);
     Route::post('/cron-jobs', [CronJobController::class, 'store']);
