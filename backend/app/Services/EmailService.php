@@ -71,6 +71,8 @@ class EmailService
 
         // Dovecot users file  e.g. user@domain.com:{PLAIN}password::::
         $hash = $this->hashPassword($account->password_hash);
+
+        $this->removeDovecotUser($fullMail);
         $this->appendLine($this->dovecotUsersFile, "{$fullMail}:{$hash}::::::userdb_quota_rule=*:bytes=" . ($account->quota_mb * 1024 * 1024));
 
         $this->reloadDovecot();
@@ -137,12 +139,17 @@ class EmailService
 
     private function hashPassword(string $password): string
     {
+        // Don't re-hash if already prefixed
+        if (str_starts_with($password, '{')) {
+            return $password;
+        }
+
         // Try doveadm first (requires Dovecot installed)
-        $hash = trim($this->runOutput("doveadm pw -s SHA512-CRYPT -p " . escapeshellarg($password) . " 2>/dev/null"));
+        $hash = trim($this->runOutput("sudo doveadm pw -s SHA512-CRYPT -p " . escapeshellarg($password) . " 2>/dev/null"));
         if (!empty($hash) && str_starts_with($hash, '{')) {
             return $hash;
         }
-        // Fallback: store prefixed plain (not for production without Dovecot)
+        // Fallback: store prefixed plain
         return '{PLAIN}' . $password;
     }
 

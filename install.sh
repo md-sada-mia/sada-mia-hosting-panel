@@ -298,6 +298,12 @@ virtual_alias_maps = hash:/etc/postfix/virtual_alias_maps
 virtual_minimum_uid = 100
 virtual_uid_maps = static:5000
 virtual_gid_maps = static:5000
+
+# Allow Dovecot SASL for authenticated sending
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination
 POSTFIXEOF
 
     systemctl enable postfix 2>/dev/null || true
@@ -314,7 +320,9 @@ chmod 640 "$DOVECOT_USERS"
 DOVECOT_AUTH=/etc/dovecot/conf.d/10-auth.conf
 if [ -f "$DOVECOT_AUTH" ]; then
     # Disable default system auth and enable passwd-file
-    sed -i 's/^!include auth-system.conf.ext/!#include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    sed -i 's/^!#include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    sed -i 's/^!include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    sed -i 's/^#!include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
     grep -q 'auth-passwdfile.conf.ext' "$DOVECOT_AUTH" || echo '!include auth-passwdfile.conf.ext' >> "$DOVECOT_AUTH"
 fi
 
@@ -328,6 +336,17 @@ userdb {
   driver = passwd-file
   args = username_format=%u /etc/dovecot/users
   default_fields = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n
+}
+DOVECOTEOF
+
+# Ensure Dovecot SASL socket for Postfix
+cat > /etc/dovecot/conf.d/10-master.conf <<'DOVECOTEOF'
+service auth {
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+  }
 }
 DOVECOTEOF
 
@@ -528,6 +547,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 750 /etc/opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/opendkim/keys/*/default.txt
+# Dovecot management
+www-data ALL=(ALL) NOPASSWD: /usr/bin/doveadm *
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
