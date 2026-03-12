@@ -151,9 +151,10 @@ class AppController extends Controller
 
     public function destroy(AppModel $app)
     {
-        // Snapshot data for background job
+        // Snapshot data for background job including relations
         $appData = $app->toArray();
         $appData['id'] = $app->id;
+        $appData['databases'] = $app->databases->toArray();
 
         DeleteApp::dispatch($appData);
 

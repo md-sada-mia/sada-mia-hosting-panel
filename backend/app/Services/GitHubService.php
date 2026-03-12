@@ -86,4 +86,16 @@ class GitHubService
 
         return $response->json();
     }
+
+    public function getHooks($token, $fullName)
+    {
+        $response = Http::withToken($token)->get("https://api.github.com/repos/{$fullName}/hooks");
+        return $response->json();
+    }
+
+    public function deleteWebhook($token, $fullName, $hookId)
+    {
+        $response = Http::withToken($token)->delete("https://api.github.com/repos/{$fullName}/hooks/{$hookId}");
+        return $response->successful();
+    }
 }
