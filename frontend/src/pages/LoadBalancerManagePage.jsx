@@ -83,41 +83,63 @@ export default function LoadBalancerManagePage() {
     updateLB({ name: name.trim() });
   };
 
-  const handleAddDomain = (e) => {
+  const handleAddDomain = async (e) => {
     e.preventDefault();
     if (!newDomain.trim()) return;
-    const currentDomains = lb.domains || [];
-    if (currentDomains.includes(newDomain.trim())) {
-      toast.error('Domain already exists');
-      return;
+    
+    setIsSaving(true);
+    try {
+      const { data } = await api.post(`/load-balancers/${id}/domains`, { domain: newDomain.trim() });
+      setLb(data);
+      setNewDomain('');
+      toast.success('Domain added successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add domain');
+    } finally {
+      setIsSaving(false);
     }
-    updateLB({ domains: [...currentDomains, newDomain.trim()] });
-    setNewDomain('');
   };
 
-  const handleRemoveDomain = (domainToRemove) => {
-    const currentDomains = lb.domains || [];
-    updateLB({ domains: currentDomains.filter(d => d !== domainToRemove) });
+  const handleRemoveDomain = async (domainToRemove) => {
+    setIsSaving(true);
+    try {
+      const { data } = await api.delete(`/load-balancers/${id}/domains`, { data: { domain: domainToRemove } });
+      setLb(data);
+      toast.success('Domain removed successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to remove domain');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleAddApp = () => {
+  const handleAddApp = async () => {
     if (!selectedAppToAdd) return;
-    const currentAppIds = lb.apps.map(a => a.id);
-    if (currentAppIds.includes(parseInt(selectedAppToAdd))) {
-      toast.error('App already added');
-      return;
+    
+    setIsSaving(true);
+    try {
+      const { data } = await api.post(`/load-balancers/${id}/apps`, { app_id: selectedAppToAdd });
+      setLb(data);
+      setSelectedAppToAdd('');
+      toast.success('App attached successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to attach app');
+    } finally {
+      setIsSaving(false);
     }
-    updateLB({ app_ids: [...currentAppIds, parseInt(selectedAppToAdd)] });
-    setSelectedAppToAdd('');
   };
 
-  const handleRemoveApp = (appId) => {
-    const currentAppIds = lb.apps.map(a => a.id);
-    if (currentAppIds.length <= 1) {
-      toast.error('At least one app is required for a load balancer');
-      return;
+  const handleRemoveApp = async (appId) => {
+    setIsSaving(true);
+    try {
+      const { data } = await api.delete(`/load-balancers/${id}/apps/${appId}`);
+      setLb(data);
+      toast.success('App detached successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to detach app');
+    } finally {
+      setIsSaving(false);
     }
-    updateLB({ app_ids: currentAppIds.filter(id => id !== appId) });
   };
 
   if (isLoading) {

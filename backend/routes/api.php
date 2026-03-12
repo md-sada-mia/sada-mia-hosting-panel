@@ -63,6 +63,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Load Balancers
     Route::apiResource('load-balancers', \App\Http\Controllers\Api\LoadBalancerController::class);
+    Route::post('/load-balancers/{loadBalancer}/domains', [\App\Http\Controllers\Api\LoadBalancerController::class, 'addDomain']);
+    Route::delete('/load-balancers/{loadBalancer}/domains', [\App\Http\Controllers\Api\LoadBalancerController::class, 'removeDomain']);
+    Route::post('/load-balancers/{loadBalancer}/apps', [\App\Http\Controllers\Api\LoadBalancerController::class, 'attachApp']);
+    Route::delete('/load-balancers/{loadBalancer}/apps/{app}', [\App\Http\Controllers\Api\LoadBalancerController::class, 'detachApp']);
 
     // Cron Jobs
     Route::get('/cron-jobs', [CronJobController::class, 'index']);
