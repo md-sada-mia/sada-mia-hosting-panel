@@ -100,6 +100,12 @@ perform_cleanup() {
     echo "" > /etc/opendkim/SigningTable
     echo "" > /etc/opendkim/TrustedHosts
     
+    # 4b. Cleanup Webmail
+    echo "==> Cleaning up Webmail data"
+    rm -rf /var/www/webmail/*
+    sudo -u postgres psql -c "DROP DATABASE IF EXISTS roundcube;" 2>/dev/null || true
+    sudo -u postgres psql -c "DROP USER IF EXISTS roundcube;" 2>/dev/null || true
+
     # 5. Cleanup Crons
     echo "==> Cleaning up crontab for www-data"
     crontab -r -u www-data 2>/dev/null || true
@@ -421,6 +427,41 @@ EOF
 chown -R www-data:www-data $ADMINER_DIR
 chmod -R 755 $ADMINER_DIR
 
+echo "==> 7b. Installing Roundcube Webmail"
+WEBMAIL_DIR="/var/www/webmail"
+mkdir -p $WEBMAIL_DIR
+
+# Create database for Roundcube if it doesn't exist
+if ! sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw roundcube; then
+    echo "==> Creating PostgreSQL database and user for Roundcube"
+    RC_PASS=$(openssl rand -hex 12)
+    sudo -u postgres psql -c "CREATE USER roundcube WITH PASSWORD '$RC_PASS';"
+    sudo -u postgres psql -c "CREATE DATABASE roundcube OWNER roundcube;"
+fi
+
+if [ ! -f "$WEBMAIL_DIR/index.php" ]; then
+    echo "==> Downloading Roundcube"
+    RC_VERSION="1.6.9"
+    wget -O /tmp/roundcube.tar.gz "https://github.com/roundcube/roundcubemail/releases/download/$RC_VERSION/roundcubemail-$RC_VERSION-complete.tar.gz"
+    tar -xzf /tmp/roundcube.tar.gz -C $WEBMAIL_DIR --strip-components=1
+    rm /tmp/roundcube.tar.gz
+    
+    # Import database schema
+    sudo -u postgres PGPASSWORD=$RC_PASS psql -h localhost -U roundcube -d roundcube < $WEBMAIL_DIR/SQL/postgres.initial.sql
+    
+    # Basic configuration
+    cp $WEBMAIL_DIR/config/config.inc.php.sample $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['db_dsnw'\] = .*|\$config\['db_dsnw'\] = 'pgsql://roundcube:$RC_PASS@localhost/roundcube';|" $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['imap_host'\] = .*|\$config\['imap_host'\] = 'localhost:143';|" $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['smtp_host'\] = .*|\$config\['smtp_host'\] = 'localhost:587';|" $WEBMAIL_DIR/config/config.inc.php
+    echo "\$config['smtp_conn_options'] = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];" >> $WEBMAIL_DIR/config/config.inc.php
+    echo "\$config['imap_conn_options'] = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];" >> $WEBMAIL_DIR/config/config.inc.php
+
+    chown -R www-data:www-data $WEBMAIL_DIR
+    chmod -R 755 $WEBMAIL_DIR
+    chmod -R 775 $WEBMAIL_DIR/temp $WEBMAIL_DIR/logs
+fi
+
 echo "==> 8. Configuring Sudoers for www-data"
 sudo_user_name=${SUDO_USER:-$(whoami)}
 # Create sudoers file with expanded variables. Heredoc with quotes 'EOF' prevents shell expansion.
@@ -596,6 +637,19 @@ server {
         }
     }
 
+    # Roundcube Webmail shortcut
+    location /webmail {
+        alias /var/www/webmail;
+        index index.php;
+        try_files \$uri \$uri/ /webmail/index.php?\$args;
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME \$request_filename;
+        }
+    }
+
     # Adminer
     location /adminer {
         root /var/www;
@@ -615,6 +669,26 @@ server {
         fastcgi_param SCRIPT_FILENAME $BACKEND_DIR/index.php;
         fastcgi_param SCRIPT_NAME /index.php;
         fastcgi_param REQUEST_URI \$request_uri;
+    }
+}
+
+# Webmail subdomain wildcard (optional but common)
+server {
+    listen $PORT;
+    listen [::]:$PORT;
+    server_name webmail.*;
+
+    root /var/www/webmail;
+    index index.php;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$args;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
     }
 }
 EOF
