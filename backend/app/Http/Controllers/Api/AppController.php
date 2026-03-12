@@ -113,29 +113,8 @@ class AppController extends Controller
             }
         }
 
-        // Auto-create Domain record with default nameservers
-        try {
-            $ns = [
-                'nameserver_1' => Setting::get('dns_default_ns1'),
-                'nameserver_2' => Setting::get('dns_default_ns2'),
-                'nameserver_3' => Setting::get('dns_default_ns3'),
-                'nameserver_4' => Setting::get('dns_default_ns4'),
-            ];
-            $domain = Domain::create(array_merge([
-                'app_id'      => $app->id,
-                'domain'      => $app->domain,
-                'status'      => 'pending',
-                'dns_managed' => true,
-            ], array_filter($ns)));
-
-            // Auto-create essential DNS records (A, CNAME www, MX, SPF TXT)
-            $this->dnsService->createDefaultRecords($domain);
-
-            // Generate BIND9 zone file (now includes the records)
-            $this->dnsService->generateZone($domain->fresh()->load('dnsRecords'));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Auto-domain creation failed for app {$app->id}: " . $e->getMessage());
-        }
+        // Auto-create Domain record with default nameservers and records
+        $this->dnsService->createManagedDomain($app->domain, $app->id);
 
         return response()->json($app, 201);
     }

@@ -101,6 +101,39 @@ class DnsService
     }
 
     /**
+     * Consistently create a new managed Domain record with default NS and records.
+     */
+    public function createManagedDomain(string $domainName, ?int $appId = null): ?Domain
+    {
+        try {
+            $ns = [
+                'nameserver_1' => \App\Models\Setting::get('dns_default_ns1'),
+                'nameserver_2' => \App\Models\Setting::get('dns_default_ns2'),
+                'nameserver_3' => \App\Models\Setting::get('dns_default_ns3'),
+                'nameserver_4' => \App\Models\Setting::get('dns_default_ns4'),
+            ];
+
+            $domain = Domain::create(array_merge([
+                'domain'      => $domainName,
+                'app_id'      => $appId,
+                'status'      => 'active', // or 'pending' depending on standard flow, let's use active to match manual create
+                'dns_managed' => true,
+            ], array_filter($ns)));
+
+            // Auto-create essential records (A, www, MX, etc.)
+            $this->createDefaultRecords($domain);
+
+            // Generate zone file
+            $this->generateZone($domain->fresh()->load('dnsRecords'));
+
+            return $domain;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Unified domain creation failed for {$domainName}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Check if BIND9 is installed.
      */
     public function isBindInstalled(): bool
