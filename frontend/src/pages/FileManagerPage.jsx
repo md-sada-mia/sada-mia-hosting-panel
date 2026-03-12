@@ -11,7 +11,7 @@ import {
   FileArchive, ChevronRight, Home, Upload, Plus, Trash2, Edit, Copy, Download,
   Search, RefreshCw, X, Check, Lock, Archive, PackageOpen, HardDrive,
   ArrowLeft, MoreVertical, Eye, Save, ChevronDown, Info, FolderPlus, FilePlus,
-  MoveRight, Shield, Grid3X3, List
+  MoveRight, Shield, Grid3X3, List, Layers
 } from 'lucide-react';
 
 // ──────────────────────────────────────────────────
@@ -257,6 +257,7 @@ function UploadZone({ currentPath, onSuccess }) {
 export default function FileManagerPage() {
   const [currentPath, setCurrentPath] = useState('/');
   const [items, setItems] = useState([]);
+  const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
@@ -302,6 +303,18 @@ export default function FileManagerPage() {
   const [compressLoading, setCompressLoading] = useState(false);
   const [compressOpen, setCompressOpen] = useState(false);
 
+  // Helper to reliably get the absolute path for any item (including search results)
+  const getItemPath = useCallback((item) => {
+    if (!item) return '';
+    if (item.path) return item.path; // from search results
+    return currentPath.replace(/\/$/, '') + '/' + item.name;
+  }, [currentPath]);
+
+  // Helper to get directory of an item
+  const getItemDir = useCallback((path) => {
+    return path.replace(/\/[^/]+$/, '') || '/';
+  }, []);
+
   // ── Fetch directory ───────────────────────────────
   const fetchDirectory = useCallback(async (path) => {
     setLoading(true);
@@ -309,15 +322,21 @@ export default function FileManagerPage() {
     setSearchResults(null);
     setSearchQuery('');
     try {
-      const { data } = await api.get('/files', { params: { path } });
-      setCurrentPath(data.path);
-      setItems(data.items);
+      const [{ data: filesData }, { data: appsData }] = await Promise.all([
+        api.get('/files', { params: { path } }),
+        // Only fetch apps if we don't have them yet
+        apps.length ? { data: apps } : api.get('/apps')
+      ]);
+      
+      setCurrentPath(filesData.path);
+      setItems(filesData.items);
+      if (!apps.length) setApps(appsData);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load directory.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apps]);
 
   useEffect(() => { fetchDirectory('/'); }, [fetchDirectory]);
 
@@ -325,15 +344,16 @@ export default function FileManagerPage() {
   const breadcrumbs = useCallback(() => {
     const parts = currentPath.replace(/^\//, '').split('/').filter(Boolean);
     return [
-      { label: 'Root', path: '/' },
+      { label: 'Apps', path: '/' },
       ...parts.map((p, i) => ({ label: p, path: '/' + parts.slice(0, i + 1).join('/') })),
     ];
   }, [currentPath]);
 
   // ── Navigate ─────────────────────────────────────
   const navigate = (item) => {
+    const targetPath = getItemPath(item);
     if (item.type === 'directory') {
-      fetchDirectory(currentPath.replace(/\/$/, '') + '/' + item.name);
+      fetchDirectory(targetPath);
     } else if (isTextFile(item.extension)) {
       openEditor(item);
     }
@@ -346,7 +366,7 @@ export default function FileManagerPage() {
 
   // ── Open editor ──────────────────────────────────
   const openEditor = async (item) => {
-    const filePath = currentPath.replace(/\/$/, '') + '/' + item.name;
+    const filePath = getItemPath(item);
     setEditorPath(filePath);
     setEditorLoading(true);
     setEditorOpen(true);
@@ -369,7 +389,7 @@ export default function FileManagerPage() {
 
   // ── Download ─────────────────────────────────────
   const handleDownload = async (item) => {
-    const filePath = currentPath.replace(/\/$/, '') + '/' + item.name;
+    const filePath = getItemPath(item);
     const token = localStorage.getItem('panel_token');
     const url = `/api/files/download?path=${encodeURIComponent(filePath)}`;
     const link = document.createElement('a');
@@ -420,8 +440,9 @@ export default function FileManagerPage() {
   const handleRename = async () => {
     if (!renameName.trim() || renameName === renameTarget.name) return;
     setRenameLoading(true);
-    const from = currentPath.replace(/\/$/, '') + '/' + renameTarget.name;
-    const to   = currentPath.replace(/\/$/, '') + '/' + renameName.trim();
+    const from = getItemPath(renameTarget);
+    const targetDir = getItemDir(from);
+    const to = targetDir.replace(/\/$/, '') + '/' + renameName.trim();
     try {
       await api.post('/files/rename', { from, to });
       toast.success('Renamed successfully.');
@@ -438,7 +459,7 @@ export default function FileManagerPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
-    const path = currentPath.replace(/\/$/, '') + '/' + deleteTarget.name;
+    const path = getItemPath(deleteTarget);
     try {
       await api.delete('/files', { params: { path } });
       toast.success('Deleted successfully.');
@@ -453,13 +474,13 @@ export default function FileManagerPage() {
 
   // ── Clipboard ────────────────────────────────────
   const handleCopy = (item) => {
-    const path = currentPath.replace(/\/$/, '') + '/' + item.name;
+    const path = getItemPath(item);
     setClipboard({ items: [{ ...item, path }], action: 'copy' });
     toast.info(`Copied "${item.name}" to clipboard.`);
   };
 
   const handleCut = (item) => {
-    const path = currentPath.replace(/\/$/, '') + '/' + item.name;
+    const path = getItemPath(item);
     setClipboard({ items: [{ ...item, path }], action: 'cut' });
     toast.info(`Cut "${item.name}" — ready to paste.`);
   };
@@ -495,7 +516,7 @@ export default function FileManagerPage() {
 
   const handleChmod = async () => {
     setChmodLoading(true);
-    const path = currentPath.replace(/\/$/, '') + '/' + chmodTarget.name;
+    const path = getItemPath(chmodTarget);
     try {
       await api.post('/files/chmod', { path, mode: chmodValue });
       toast.success('Permissions updated.');
@@ -517,8 +538,9 @@ export default function FileManagerPage() {
 
   const handleCompress = async () => {
     setCompressLoading(true);
-    const path = currentPath.replace(/\/$/, '') + '/' + compressTarget.name;
-    const output = currentPath.replace(/\/$/, '') + '/' + compressName;
+    const path = getItemPath(compressTarget);
+    const targetDir = getItemDir(path);
+    const output = targetDir.replace(/\/$/, '') + '/' + compressName;
     try {
       await api.post('/files/compress', { paths: [path], output });
       toast.success('Archive created.');
@@ -533,8 +555,8 @@ export default function FileManagerPage() {
 
   // ── Extract ──────────────────────────────────────
   const handleExtract = async (item) => {
-    const path = currentPath.replace(/\/$/, '') + '/' + item.name;
-    const dest = currentPath;
+    const path = getItemPath(item);
+    const dest = getItemDir(path);
     try {
       await api.post('/files/extract', { path, dest });
       toast.success('Extracted successfully.');
@@ -638,7 +660,7 @@ export default function FileManagerPage() {
             <span key={crumb.path} className="flex items-center gap-1 flex-shrink-0">
               {i === 0 ? (
                 <button onClick={() => fetchDirectory('/')} className="flex items-center gap-1 text-xs font-medium hover:text-primary transition-colors">
-                  <Home className="h-3 w-3" /> Root
+                  <Layers className="h-3 w-3" /> Apps
                 </button>
               ) : (
                 <button
@@ -707,7 +729,11 @@ export default function FileManagerPage() {
               <span className="text-right">Actions</span>
             </div>
             {/* Rows */}
-            {displayItems.map(item => (
+            {displayItems.map(item => {
+              const isRootAppFolder = currentPath === '/' && item.type === 'directory';
+              const app = isRootAppFolder ? apps.find(a => a.domain === item.name) : null;
+              
+              return (
               <div
                 key={item.name}
                 onDoubleClick={() => navigate(item)}
@@ -720,7 +746,10 @@ export default function FileManagerPage() {
                 </div>
                 <div className="flex items-center gap-2.5 min-w-0" onDoubleClick={() => navigate(item)}>
                   {getFileIcon(item)}
-                  <span className="truncate text-xs font-medium">{item.name}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="truncate text-xs font-medium">{item.name}</span>
+                    {app && <span className="text-[9px] text-muted-foreground truncate">{app.type.toUpperCase()} App</span>}
+                  </div>
                   {!item.readable && <Lock className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
                 </div>
                 <div className="text-right text-[11px] text-muted-foreground">
@@ -736,20 +765,24 @@ export default function FileManagerPage() {
                       <Download className="h-3 w-3 text-muted-foreground" />
                     </button>
                   )}
-                  <button onClick={() => openRename(item)} className="p-1 rounded hover:bg-accent" title="Rename">
-                    <Edit className="h-3 w-3 text-muted-foreground" />
+                  <button onClick={() => openRename(item)} className="p-1 rounded hover:bg-accent" title="Rename" disabled={isRootAppFolder}>
+                    <Edit className={`h-3 w-3 ${isRootAppFolder ? 'text-muted-foreground/30' : 'text-muted-foreground'}`} />
                   </button>
-                  <button onClick={() => setDeleteTarget(item)} className="p-1 rounded hover:bg-destructive/10" title="Delete">
-                    <Trash2 className="h-3 w-3 text-rose-400" />
+                  <button onClick={() => setDeleteTarget(item)} className="p-1 rounded hover:bg-destructive/10" title="Delete" disabled={isRootAppFolder}>
+                    <Trash2 className={`h-3 w-3 ${isRootAppFolder ? 'text-muted-foreground/30' : 'text-rose-400'}`} />
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         ) : (
           /* Grid view */
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
-            {displayItems.map(item => (
+            {displayItems.map(item => {
+              const isRootAppFolder = currentPath === '/' && item.type === 'directory';
+              const app = isRootAppFolder ? apps.find(a => a.domain === item.name) : null;
+              
+              return (
               <div
                 key={item.name}
                 onDoubleClick={() => navigate(item)}
@@ -765,10 +798,10 @@ export default function FileManagerPage() {
                 {getFileIcon(item, 'h-10 w-10')}
                 <span className="text-[11px] font-medium text-center break-all line-clamp-2 leading-tight">{item.name}</span>
                 <span className="text-[10px] text-muted-foreground">
-                  {item.type === 'file' ? formatBytes(item.size) : 'Folder'}
+                  {app ? `${app.type.toUpperCase()} App` : item.type === 'file' ? formatBytes(item.size) : 'Folder'}
                 </span>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>
@@ -779,14 +812,20 @@ export default function FileManagerPage() {
           <span className="text-xs text-primary font-medium">{selected.size} item(s) selected</span>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => {
-              const paths = Array.from(selected).map(n => ({ name: n, path: currentPath.replace(/\/$/, '') + '/' + n }));
+              const paths = Array.from(selected).map(n => {
+                const item = displayItems.find(i => i.name === n);
+                return { name: n, path: item ? getItemPath(item) : currentPath.replace(/\/$/, '') + '/' + n };
+              });
               setClipboard({ items: paths, action: 'copy' });
               toast.info(`${paths.length} item(s) copied to clipboard.`);
             }}>
               <Copy className="h-3 w-3" /> Copy
             </Button>
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => {
-              const paths = Array.from(selected).map(n => ({ name: n, path: currentPath.replace(/\/$/, '') + '/' + n }));
+              const paths = Array.from(selected).map(n => {
+                const item = displayItems.find(i => i.name === n);
+                return { name: n, path: item ? getItemPath(item) : currentPath.replace(/\/$/, '') + '/' + n };
+              });
               setClipboard({ items: paths, action: 'cut' });
               toast.info(`${paths.length} item(s) cut to clipboard.`);
             }}>

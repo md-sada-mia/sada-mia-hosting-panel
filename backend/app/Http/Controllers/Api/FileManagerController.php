@@ -9,9 +9,13 @@ use Illuminate\Support\Str;
 
 class FileManagerController extends Controller
 {
-    protected string $root = '/';
+    protected string $root;
 
-    public function __construct(protected FileManagerService $fileManager) {}
+    public function __construct(protected FileManagerService $fileManager)
+    {
+        // Sandbox the file manager strictly to the apps directory
+        $this->root = config('hosting.apps_base_path', '/var/www/hosting-apps');
+    }
 
     /**
      * List directory contents.
@@ -23,10 +27,21 @@ class FileManagerController extends Controller
         $path = $request->input('path', '/');
         $resolved = $this->fileManager->resolvePath($path, $this->root);
 
+        // Ensure the root apps directory exists if we are querying it and it hasn't been created yet
+        if ($resolved === $this->root && !is_dir($this->root)) {
+            @mkdir($this->root, 0755, true);
+        }
+
         $items = $this->fileManager->listDirectory($resolved);
 
+        // Strip the root path so the frontend always gets a relative path
+        $relativePath = str_replace($this->root, '', $resolved);
+        if ($relativePath === '') {
+            $relativePath = '/';
+        }
+
         return response()->json([
-            'path'  => $resolved,
+            'path'  => $relativePath,
             'items' => $items,
         ]);
     }
@@ -218,6 +233,12 @@ class FileManagerController extends Controller
 
         $dir      = $this->fileManager->resolvePath($request->input('path', '/'), $this->root);
         $results  = $this->fileManager->search($dir, $request->input('q'));
+
+        // Strip the root path from each search result
+        foreach ($results as &$result) {
+            $relativePath = str_replace($this->root, '', $result['path']);
+            $result['path'] = $relativePath === '' ? '/' : $relativePath;
+        }
 
         return response()->json(['results' => $results]);
     }
