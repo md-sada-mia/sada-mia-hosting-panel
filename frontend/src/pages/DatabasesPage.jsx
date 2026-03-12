@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,10 @@ export default function DatabasesPage() {
   const [copied, setCopied] = useState(false);
   const [dbToDelete, setDbToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
 
   const fetchDatabases = async () => {
     try {
@@ -118,9 +123,17 @@ export default function DatabasesPage() {
           <h2 className="text-3xl font-bold tracking-tight">PostgreSQL Databases</h2>
           <p className="text-muted-foreground mt-1">Manage local PostgreSQL databases and users.</p>
         </div>
-        <Button variant="outline" onClick={() => window.open('/adminer', '_blank')}>
-          <ExternalLink className="mr-2 h-4 w-4" /> Open Adminer
-        </Button>
+        <div className="flex items-center gap-3">
+          <Input 
+            placeholder="Search databases..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-64 h-9"
+          />
+          <Button variant="outline" onClick={() => window.open('/adminer', '_blank')}>
+            <ExternalLink className="mr-2 h-4 w-4" /> Open Adminer
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -193,7 +206,9 @@ export default function DatabasesPage() {
               <p>No databases provisioned yet.</p>
             </Card>
           ) : (
-            databases.map(db => (
+            databases
+              .filter(db => db.db_name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map(db => (
                <Card key={db.id}>
                 <CardContent className="p-6 flex items-center justify-between">
                   <div className="flex items-center gap-4">

@@ -11,7 +11,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
-  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight
+  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock
 } from 'lucide-react';
 
 const stripAnsi = (str) => {
@@ -51,6 +51,8 @@ function NavCard({ icon: Icon, title, description, onClick, color = "primary" })
     primary: "bg-primary/20 text-primary border-primary/20 hover:border-primary/50",
     blue: "bg-blue-500/20 text-blue-400 border-blue-500/20 hover:border-blue-500/50",
     emerald: "bg-emerald-500/20 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/50",
+    purple: "bg-purple-500/20 text-purple-400 border-purple-500/20 hover:border-purple-500/50",
+    amber: "bg-amber-500/20 text-amber-400 border-amber-500/20 hover:border-amber-500/50",
   };
 
   return (
@@ -274,6 +276,35 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleManageDatabase = async (dbId) => {
+    try {
+      const { data } = await api.get(`/databases/${dbId}/credentials`);
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/adminer/';
+      form.target = '_blank';
+      const fields = {
+        'auth[driver]': 'pgsql',
+        'auth[server]': '127.0.0.1',
+        'auth[username]': data.db_user,
+        'auth[password]': data.db_password,
+        'auth[db]': data.db_name,
+      };
+      for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch (err) {
+      toast.error('Failed to retrieve credentials for autologin');
+    }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -421,10 +452,38 @@ export default function AppDetailPage() {
                   <NavCard 
                     icon={FolderOpen}
                     title="File Manager"
-                    description="Browse and manage app files"
+                    description="Browse app files"
                     onClick={() => navigate(`/files?path=/${app.domain}`)}
                   />
-                  {/* Future navigation cards can go here */}
+                  
+                  {app.databases?.length > 0 && (
+                    <div className="sm:col-span-1 flex items-center justify-between p-4 rounded-xl border bg-card/40 hover:bg-accent/40 transition-all border-white/5">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-blue-500/20 p-2.5 rounded-xl text-blue-400">
+                          <Database className="h-6 w-6" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm truncate">{app.databases[0].db_name}</h4>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            User: <span className="font-mono">{app.databases[0].db_user}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={app.databases[0].status === 'active' ? 'success' : 'destructive'} className="text-[10px] h-5">
+                          {app.databases[0].status}
+                        </Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-[11px] gap-1.5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10"
+                          onClick={() => handleManageDatabase(app.databases[0].id)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> Manage
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

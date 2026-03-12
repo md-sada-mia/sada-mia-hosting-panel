@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Globe, Plus, Trash2, Server, Network, Copy, Check, ChevronRight,
   Settings2, RefreshCw, Shield, Loader2, Zap, AlertTriangle,
@@ -103,7 +104,10 @@ export default function DomainsPage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [deletingDom, setDeletingDom] = useState(null);
   const [deletingRec, setDeletingRec] = useState(null);
-  const [search, setSearch] = useState('');
+
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('q') || '';
+  const [search, setSearch] = useState(initialSearch);
 
   // Dialogs
   const [showRecordDlg, setShowRecordDlg] = useState(false);
