@@ -11,7 +11,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
-  AlertTriangle, Shield, Loader2
+  AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight
 } from 'lucide-react';
 
 const stripAnsi = (str) => {
@@ -43,6 +43,34 @@ function CopyBtn({ value }) {
     <button onClick={handle} className="p-1.5 rounded hover:bg-white/10 transition-colors text-muted-foreground hover:text-white">
       {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
+  );
+}
+
+function NavCard({ icon: Icon, title, description, onClick, color = "primary" }) {
+  const colorMap = {
+    primary: "bg-primary/20 text-primary border-primary/20 hover:border-primary/50",
+    blue: "bg-blue-500/20 text-blue-400 border-blue-500/20 hover:border-blue-500/50",
+    emerald: "bg-emerald-500/20 text-emerald-400 border-emerald-500/20 hover:border-emerald-500/50",
+  };
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-xl border bg-card/40 p-4 transition-all hover:bg-accent/40 cursor-pointer ${colorMap[color] || colorMap.primary}`}
+    >
+      <div className="flex items-center gap-4">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${colorMap[color]}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm text-foreground truncate">{title}</h3>
+          <p className="text-[11px] text-muted-foreground truncate">{description}</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+      </div>
+      {/* Subtle Glow Background */}
+      <div className="absolute -right-4 -top-4 h-16 w-16 bg-primary/10 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
   );
 }
 
@@ -296,7 +324,10 @@ export default function AppDetailPage() {
               </Button>
             </>
           )}
-          <Button
+            <Button size="sm" variant="outline" onClick={() => navigate(`/files?path=/${app.domain}`)}>
+              <FolderOpen className="mr-2 h-4 w-4" /> File Manager
+            </Button>
+            <Button
             size="sm"
             variant={app.status === 'error' ? 'destructive' : 'default'}
             onClick={() => handleAction('deploy')}
@@ -386,6 +417,15 @@ export default function AppDetailPage() {
                     <div className="font-mono bg-muted/50 p-2 rounded">{app.port || 'Will be assigned on deploy'}</div>
                   </div>
                 )}
+                <div className="col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-4 mt-2">
+                  <NavCard 
+                    icon={FolderOpen}
+                    title="File Manager"
+                    description="Browse and manage app files"
+                    onClick={() => navigate(`/files?path=/${app.domain}`)}
+                  />
+                  {/* Future navigation cards can go here */}
+                </div>
               </div>
             </CardContent>
           </Card>

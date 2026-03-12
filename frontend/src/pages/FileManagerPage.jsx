@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -265,6 +266,9 @@ export default function FileManagerPage() {
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPath = searchParams.get('path') || '/';
+
   // Context menu
   const [ctxMenu, setCtxMenu] = useState(null);
 
@@ -331,14 +335,23 @@ export default function FileManagerPage() {
       setCurrentPath(filesData.path);
       setItems(filesData.items);
       if (!apps.length) setApps(appsData);
+      
+      // Update URL if it changed
+      if (filesData.path !== searchParams.get('path')) {
+        setSearchParams({ path: filesData.path }, { replace: true });
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load directory.');
     } finally {
       setLoading(false);
     }
-  }, [apps]);
+  }, [apps, searchParams, setSearchParams]);
 
-  useEffect(() => { fetchDirectory('/'); }, [fetchDirectory]);
+  useEffect(() => { 
+    fetchDirectory(initialPath); 
+    // We only want to run this once on mount or when id changes (which isn't here)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Breadcrumbs ──────────────────────────────────
   const breadcrumbs = useCallback(() => {
