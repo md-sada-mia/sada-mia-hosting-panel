@@ -36,6 +36,9 @@ class EmailService
 
         $this->appendLine($this->virtualDomainsFile, $domain);
         $this->postmapAndReload($this->virtualDomainsFile);
+
+        // Ensure DKIM is set up
+        $this->ensureDkimSetup($emailDomain);
     }
 
     public function removeDomain(EmailDomain $emailDomain): void
@@ -173,8 +176,39 @@ class EmailService
         $this->shell->run("sudo postfix reload 2>/dev/null || true");
     }
 
-    private function reloadDovecot(): void
+    public function reloadDovecot(): void
     {
         $this->shell->run("sudo systemctl reload dovecot 2>/dev/null || true");
+    }
+
+    // ─── DKIM ────────────────────────────────────────────────────────────────────
+
+    public function ensureDkimSetup(EmailDomain $emailDomain): void
+    {
+        $domain = $emailDomain->domain->domain;
+        $keyDir = "/etc/opendkim/keys/{$domain}";
+
+        // 1. Create directory
+        $this->shell->run("sudo mkdir -p {$keyDir}");
+
+        // 2. Generate keys if they don't exist
+        if (trim($this->runOutput("sudo ls {$keyDir}/default.private 2>/dev/null; echo \$?")) !== '0') {
+            $this->shell->run("sudo opendkim-genkey -b 2048 -d {$domain} -D {$keyDir} -s default");
+            $this->shell->run("sudo chown -R opendkim:opendkim /etc/opendkim");
+            $this->shell->run("sudo chmod -R 750 /etc/opendkim");
+        }
+
+        // 3. Update KeyTable: default._domainkey.example.com example.com:default:/etc/opendkim/keys/example.com/default.private
+        $this->appendLine("/etc/opendkim/KeyTable", "default._domainkey.{$domain} {$domain}:default:{$keyDir}/default.private");
+
+        // 4. Update SigningTable: *@example.com default._domainkey.example.com
+        $this->appendLine("/etc/opendkim/SigningTable", "*@{$domain} default._domainkey.{$domain}");
+
+        // 5. Update TrustedHosts
+        $this->appendLine("/etc/opendkim/TrustedHosts", $domain);
+        $this->appendLine("/etc/opendkim/TrustedHosts", "mail.{$domain}");
+
+        // 6. Reload OpenDKIM
+        $this->shell->run("sudo systemctl reload opendkim 2>/dev/null || true");
     }
 }

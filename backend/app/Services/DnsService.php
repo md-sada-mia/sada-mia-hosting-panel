@@ -59,6 +59,16 @@ class DnsService
     }
 
     /**
+     * Re-run default record creation and regenerate zone file.
+     * Useful when new infra-level records (like DKIM) are generated.
+     */
+    public function refreshEmailDnsRecords(Domain $domain): void
+    {
+        $this->createDefaultRecords($domain);
+        $this->generateZone($domain->fresh()->load('dnsRecords'));
+    }
+
+    /**
      * Sync records (re-generate zone file from DB records).
      */
     public function syncRecords(Domain $domain): void
@@ -84,12 +94,19 @@ class DnsService
             ['type' => 'A',     'name' => '@',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'www',    'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'mail',         'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'webmail',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autoconfig',   'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autodiscover', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'MX',    'name' => '@',      'value' => 'mail.' . $domain->domain . '.', 'ttl' => 3600, 'priority' => 10],
             ['type' => 'TXT',   'name' => '@',      'value' => "v=spf1 a mx ip4:{$serverIp} ~all", 'ttl' => 3600, 'priority' => null],
             ['type' => 'TXT',   'name' => '_dmarc', 'value' => 'v=DMARC1; p=none; sp=none; aspf=r; adkim=r', 'ttl' => 3600, 'priority' => null],
         ];
+
+        // Try to add DKIM record if it exists on disk
+        $dkimValue = $this->extractDkimValue($domain->domain);
+        if ($dkimValue) {
+            $defaults[] = ['type' => 'TXT', 'name' => 'default._domainkey', 'value' => $dkimValue, 'ttl' => 3600, 'priority' => null];
+        }
 
         foreach ($defaults as $rec) {
             // Only create if not already present (idempotent)
@@ -222,5 +239,26 @@ ENTRY;
     private function reloadBind(): void
     {
         $this->shell->run('sudo named-checkconf 2>/dev/null && sudo systemctl reload bind9 2>/dev/null || true');
+    }
+
+    private function extractDkimValue(string $domainName): ?string
+    {
+        $file = "/etc/opendkim/keys/{$domainName}/default.txt";
+        // Use sudo cat because of permissions
+        $content = $this->runOutput("sudo cat {$file} 2>/dev/null");
+        if (empty($content)) {
+            return null;
+        }
+
+        // Parse: "v=DKIM1; k=rsa; p=MIIBIj..."
+        // Typically it's across multiple lines with quotes
+        if (preg_match('/\((.*?)\)/s', $content, $matches)) {
+            $value = $matches[1];
+            // Remove quotes and whitespace
+            $value = str_replace(['"', "\n", "\t", ' '], '', $value);
+            return $value;
+        }
+
+        return null;
     }
 }

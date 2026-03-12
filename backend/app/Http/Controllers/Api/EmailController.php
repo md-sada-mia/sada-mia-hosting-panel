@@ -16,7 +16,10 @@ use Illuminate\Validation\Rule;
 
 class EmailController extends Controller
 {
-    public function __construct(protected EmailService $emailService) {}
+    public function __construct(
+        protected EmailService $emailService,
+        protected \App\Services\DnsService $dnsService
+    ) {}
 
     // ─── Email Domains ────────────────────────────────────────────────────────────
 
@@ -47,8 +50,10 @@ class EmailController extends Controller
 
         try {
             $this->emailService->addDomain($emailDomain);
+            // Refresh DNS to pick up DKIM and other mail-specific records
+            $this->dnsService->refreshEmailDnsRecords($emailDomain->domain);
         } catch (\Throwable $e) {
-            \Log::error("Failed to configure email domain: " . $e->getMessage());
+            Log::error("Failed to configure email domain: " . $e->getMessage());
         }
 
         return response()->json($emailDomain, 201);
@@ -63,7 +68,7 @@ class EmailController extends Controller
         try {
             $this->emailService->removeDomain($emailDomain);
         } catch (\Throwable $e) {
-            \Log::warning("Could not remove email domain from Postfix: " . $e->getMessage());
+            Log::warning("Could not remove email domain from Postfix: " . $e->getMessage());
         }
         $emailDomain->delete();
         return response()->json(['message' => 'Email domain removed.']);
@@ -114,7 +119,7 @@ class EmailController extends Controller
 
             $this->emailService->addAccount($account->fresh()->load('emailDomain.domain'));
         } catch (\Throwable $e) {
-            \Log::error("Email account creation failed: " . $e->getMessage());
+            Log::error("Email account creation failed: " . $e->getMessage());
         }
 
         return response()->json($account->fresh()->append('full_email'), 201);
@@ -140,7 +145,7 @@ class EmailController extends Controller
                 $hash = $this->emailService->updateAccountPassword($account, $validated['password']);
                 $account->update(['password_hash' => $hash]);
             } catch (\Throwable $e) {
-                \Log::error("Password update failed: " . $e->getMessage());
+                Log::error("Password update failed: " . $e->getMessage());
             }
         }
 
@@ -164,7 +169,7 @@ class EmailController extends Controller
         try {
             $this->emailService->removeAccount($account);
         } catch (\Throwable $e) {
-            \Log::warning("Could not remove account from Postfix/Dovecot: " . $e->getMessage());
+            Log::warning("Could not remove account from Postfix/Dovecot: " . $e->getMessage());
         }
         $account->delete();
         return response()->json(['message' => 'Account deleted.']);
@@ -196,7 +201,7 @@ class EmailController extends Controller
         try {
             $this->emailService->addAlias($alias);
         } catch (\Throwable $e) {
-            \Log::error("Alias creation failed: " . $e->getMessage());
+            Log::error("Alias creation failed: " . $e->getMessage());
         }
 
         return response()->json($alias, 201);
@@ -212,7 +217,7 @@ class EmailController extends Controller
         try {
             $this->emailService->removeAlias($alias);
         } catch (\Throwable $e) {
-            \Log::warning("Could not remove alias: " . $e->getMessage());
+            Log::warning("Could not remove alias: " . $e->getMessage());
         }
         $alias->delete();
         return response()->json(['message' => 'Alias deleted.']);

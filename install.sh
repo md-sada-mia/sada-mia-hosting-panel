@@ -92,6 +92,13 @@ perform_cleanup() {
     postmap /etc/postfix/virtual_mailbox_maps    2>/dev/null || true
     postmap /etc/postfix/virtual_alias_maps      2>/dev/null || true
     echo "" > /etc/dovecot/users
+
+    # 4a. Cleanup OpenDKIM
+    echo "==> Cleaning up OpenDKIM data"
+    rm -rf /etc/opendkim/keys/*
+    echo "" > /etc/opendkim/KeyTable
+    echo "" > /etc/opendkim/SigningTable
+    echo "" > /etc/opendkim/TrustedHosts
     
     # 5. Cleanup Crons
     echo "==> Cleaning up crontab for www-data"
@@ -115,7 +122,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo "==> 1. Updating packages"
 apt-get update
 # Install basic utilities if missing
-for pkg in curl wget git unzip sqlite3 libsqlite3-dev; do
+for pkg in curl wget git unzip sqlite3 libsqlite3-dev opendkim opendkim-tools; do
     if ! dpkg -s $pkg >/dev/null 2>&1; then
         apt-get install -y $pkg
     fi
@@ -327,7 +334,44 @@ fi
 
 systemctl enable dovecot 2>/dev/null || true
 systemctl restart dovecot 2>/dev/null || true
-echo "==> Postfix + Dovecot configured. Virtual mailboxes at /var/mail/vhosts/"
+
+echo "==> 5c. Configuring OpenDKIM"
+mkdir -p /etc/opendkim/keys
+touch /etc/opendkim/KeyTable /etc/opendkim/SigningTable /etc/opendkim/TrustedHosts
+chown -R opendkim:opendkim /etc/opendkim
+chmod -R 750 /etc/opendkim
+
+cat > /etc/opendkim.conf <<EOF
+Syslog          yes
+UMask           002
+KeyTable        refile:/etc/opendkim/KeyTable
+SigningTable    refile:/etc/opendkim/SigningTable
+ExternalIgnoreList  refile:/etc/opendkim/TrustedHosts
+InternalHosts       refile:/etc/opendkim/TrustedHosts
+Canonicalization    relaxed/simple
+Selector        default
+Socket          local:/var/spool/postfix/opendkim/opendkim.sock
+UserID          opendkim:opendkim
+EOF
+
+# Setup socket directory for Postfix integration
+mkdir -p /var/spool/postfix/opendkim
+chown opendkim:postfix /var/spool/postfix/opendkim
+chmod 750 /var/spool/postfix/opendkim
+usermod -a -G opendkim postfix
+usermod -a -G postfix opendkim
+
+# Postfix milter configuration
+postconf -e "milter_protocol = 6"
+postconf -e "milter_default_action = accept"
+postconf -e "smtpd_milters = unix:opendkim/opendkim.sock"
+postconf -e "non_smtpd_milters = unix:opendkim/opendkim.sock"
+
+systemctl enable opendkim 2>/dev/null || true
+systemctl restart opendkim 2>/dev/null || true
+postfix reload 2>/dev/null || true
+
+echo "==> Postfix + Dovecot + OpenDKIM configured."
 
 echo "==> 6. Creating Apps Directory"
 APPS_DIR="/var/www/hosting-apps"
@@ -433,6 +477,16 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/dovecot/users
 www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/dovecot/users
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload dovecot
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart dovecot
+# OpenDKIM management
+www-data ALL=(ALL) NOPASSWD: /usr/bin/opendkim-genkey *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /etc/opendkim/keys/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R opendkim.opendkim /etc/opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 750 /etc/opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/opendkim/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/opendkim/keys/*/default.txt
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
