@@ -403,7 +403,7 @@ export default function AppDetailPage() {
               <Zap className="h-4 w-4 text-amber-400" />
               <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Resource Shortcuts</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <NavCard 
                 icon={FolderOpen}
                 title="File Manager"
@@ -418,6 +418,7 @@ export default function AppDetailPage() {
                       <Database className="h-6 w-6" />
                     </div>
                     <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-blue-400/80 mb-0.5">Database</div>
                       <h4 className="font-semibold text-sm truncate">{app.databases[0].db_name}</h4>
                       <div className="text-[11px] text-muted-foreground truncate">
                         User: <span className="font-mono">{app.databases[0].db_user}</span>
