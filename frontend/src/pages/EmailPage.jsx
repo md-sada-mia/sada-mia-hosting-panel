@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Mail, Plus, Trash2, User, ArrowRightLeft, KeyRound, Loader2,
   Eye, EyeOff, Globe, Shield, Zap, Search, X, CheckCircle2,
-  AlertTriangle, Copy, Check, MoreVertical, HardDrive, Users, Info
+  AlertTriangle, Copy, Check, MoreVertical, HardDrive, Users, Info, Inbox
 } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -224,10 +224,16 @@ export default function EmailPage() {
             Postfix + Dovecot virtual mailboxes — managed natively.
           </p>
         </div>
-        <Button onClick={() => setShowDomainDlg(true)}
-          className="gap-2 bg-primary/90 hover:bg-primary shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] transition-all">
-          <Plus className="h-4 w-4" /> Enable Email Domain
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => window.open('/webmail', '_blank')}
+            className="gap-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all">
+            <Inbox className="h-4 w-4" /> Webmail
+          </Button>
+          <Button onClick={() => setShowDomainDlg(true)}
+            className="gap-2 bg-primary/90 hover:bg-primary shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] transition-all">
+            <Plus className="h-4 w-4" /> Enable Email Domain
+          </Button>
+        </div>
       </div>
 
       {/* Stats strip */}

@@ -17,7 +17,6 @@ export default function Layout() {
     { label: 'DNS & Domains', path: '/domains', icon: Globe },
     { label: 'Load Balancers', path: '/load-balancers', icon: Network },
     { label: 'Email', path: '/email', icon: Mail },
-    { label: 'Webmail', path: '/webmail', icon: Inbox, external: true },
     { label: 'Cron Jobs', path: '/cron-jobs', icon: Clock },
     { label: 'File Manager', path: '/files', icon: FolderOpen },
     { label: 'Settings', path: '/settings', icon: Settings },
