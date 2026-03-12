@@ -280,6 +280,7 @@ export default function LoadBalancersPage() {
                       <SelectItem value="round_robin">Round Robin (Sequential)</SelectItem>
                       <SelectItem value="least_conn">Least Connections</SelectItem>
                       <SelectItem value="ip_hash">IP Hash (Sticky Sessions)</SelectItem>
+                      <SelectItem value="random">Random</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

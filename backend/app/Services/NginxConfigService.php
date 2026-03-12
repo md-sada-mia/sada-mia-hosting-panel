@@ -64,6 +64,8 @@ class NginxConfigService
             $methodLine = 'least_conn;';
         } elseif ($lb->method === 'ip_hash') {
             $methodLine = 'ip_hash;';
+        } elseif ($lb->method === 'random') {
+            $methodLine = 'random;';
         }
 
         $config = str_replace(

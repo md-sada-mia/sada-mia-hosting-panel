@@ -33,7 +33,7 @@ class LoadBalancerController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|unique:load_balancers,name',
-            'method' => 'required|in:round_robin,least_conn,ip_hash',
+            'method' => 'required|in:round_robin,least_conn,ip_hash,random',
             'app_ids' => 'nullable|array',
             'app_ids.*' => 'exists:apps,id',
             'domains' => 'nullable|array',
@@ -82,10 +82,10 @@ class LoadBalancerController extends Controller
     {
         $validated = $request->validate([
             'name' => 'string|unique:load_balancers,name,' . $loadBalancer->id,
-            'method' => 'in:round_robin,least_conn,ip_hash',
-            'app_ids' => 'array|min:1',
+            'method' => 'in:round_robin,least_conn,ip_hash,random',
+            'app_ids' => 'nullable|array',
             'app_ids.*' => 'exists:apps,id',
-            'domains' => 'array|min:1',
+            'domains' => 'nullable|array',
             'domains.*' => 'string'
         ]);
 

@@ -292,12 +292,14 @@ export default function LoadBalancerManagePage() {
                   <SelectItem value="round_robin">Round Robin (Sequential)</SelectItem>
                   <SelectItem value="least_conn">Least Connections</SelectItem>
                   <SelectItem value="ip_hash">IP Hash (Sticky Sessions)</SelectItem>
+                  <SelectItem value="random">Random</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed italic">
                 {lb.method === 'round_robin' && "Distributes requests sequentially among all servers."}
                 {lb.method === 'least_conn' && "Sends requests to the server with the fewest active connections."}
                 {lb.method === 'ip_hash' && "Ensures a user is always served by the same backend app (IP sticky)."}
+                {lb.method === 'random' && "Distributes requests randomly among all servers."}
               </p>
             </CardContent>
           </Card>
