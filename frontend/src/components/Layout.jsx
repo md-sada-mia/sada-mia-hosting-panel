@@ -1,6 +1,6 @@
 import { useAuth } from '@/lib/AuthContext';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Layers, Database, Clock, Settings, LogOut, Globe, Mail, FolderOpen, Network, Inbox } from 'lucide-react';
+import { LayoutDashboard, Layers, Database, Clock, Settings, LogOut, Globe, Mail, FolderOpen, Network, Users } from 'lucide-react';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -11,15 +11,16 @@ export default function Layout() {
   }
 
   const navItems = [
-    { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { label: 'Applications', path: '/apps', icon: Layers },
-    { label: 'Databases', path: '/databases', icon: Database },
-    { label: 'DNS & Domains', path: '/domains', icon: Globe },
-    { label: 'Load Balancers', path: '/load-balancers', icon: Network },
-    { label: 'Email', path: '/email', icon: Mail },
-    { label: 'Cron Jobs', path: '/cron-jobs', icon: Clock },
-    { label: 'File Manager', path: '/files', icon: FolderOpen },
-    { label: 'Settings', path: '/settings', icon: Settings },
+    { label: 'Dashboard',     path: '/',              icon: LayoutDashboard },
+    { label: 'CRM',           path: '/crm',           icon: Users },
+    { label: 'Applications',  path: '/apps',          icon: Layers },
+    { label: 'Databases',     path: '/databases',     icon: Database },
+    { label: 'DNS & Domains', path: '/domains',       icon: Globe },
+    { label: 'Load Balancers',path: '/load-balancers',icon: Network },
+    { label: 'Email',         path: '/email',         icon: Mail },
+    { label: 'Cron Jobs',     path: '/cron-jobs',     icon: Clock },
+    { label: 'File Manager',  path: '/files',         icon: FolderOpen },
+    { label: 'Settings',      path: '/settings',      icon: Settings },
   ];
 
   return (

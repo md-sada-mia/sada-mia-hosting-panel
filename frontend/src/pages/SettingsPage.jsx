@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -30,7 +31,13 @@ export default function SettingsPage() {
     dns_default_ns2: '',
     dns_default_ns3: '',
     dns_default_ns4: '',
+    crm_creation_type: 'load_balancer',
+    crm_default_lb_id: '',
+    crm_default_provision_domain: '',
   });
+
+  const [loadBalancers, setLoadBalancers] = useState([]);
+  const [systemDomains, setSystemDomains] = useState([]);
 
   useEffect(() => {
     fetchSettings();
@@ -40,6 +47,12 @@ export default function SettingsPage() {
     try {
       const { data } = await api.get('/settings');
       setGithubSettings(data);
+      
+      const lbRes = await api.get('/load-balancers');
+      setLoadBalancers(lbRes.data);
+
+      const domainRes = await api.get('/domains');
+      setSystemDomains(domainRes.data);
     } catch (err) {
       console.error('Failed to fetch settings', err);
     }
@@ -73,10 +86,10 @@ export default function SettingsPage() {
 
     try {
       await api.post('/settings', githubSettings);
-      setMessage('GitHub settings updated successfully.');
+      setMessage('Settings updated successfully.');
       fetchSettings();
     } catch (err) {
-      setError('Failed to update GitHub settings');
+      setError('Failed to update settings');
     } finally {
       setLoading(false);
     }
@@ -128,6 +141,13 @@ export default function SettingsPage() {
             >
               <Globe className="w-4 h-4 mr-2" />
               Nameserver Basics
+            </TabsTrigger>
+            <TabsTrigger 
+              value="crm" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              CRM Settings
             </TabsTrigger>
           </TabsList>
         </aside>
@@ -313,6 +333,118 @@ export default function SettingsPage() {
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Saving...' : 'Save Defaults'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="crm" className="mt-0">
+            <Card>
+              <form onSubmit={handleGithubSettingsUpdate}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    CRM Provisioning Type
+                  </CardTitle>
+                  <CardDescription>
+                    Choose how the CRM creates hosting resources for new customers.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
+                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {[
+                      { value: 'load_balancer', icon: Network, title: 'Load Balancer Domain', desc: 'Attach a domain to an existing load balancer for each customer.' },
+                      { value: 'app',           icon: Layers,  title: 'Application',          desc: 'Create or link a standalone application for each customer.' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setGithubSettings({ ...githubSettings, crm_creation_type: opt.value })}
+                        className={`text-left p-5 rounded-xl border-2 transition-all ${
+                          githubSettings.crm_creation_type === opt.value
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                        }`}
+                      >
+                        <opt.icon className={`h-6 w-6 mb-3 ${
+                          githubSettings.crm_creation_type === opt.value ? 'text-primary' : 'text-muted-foreground'
+                        }`} />
+                        <p className="font-semibold text-sm">{opt.title}</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{opt.desc}</p>
+                        {githubSettings.crm_creation_type === opt.value && (
+                          <span className="inline-block mt-2 px-2 py-0.5 bg-primary/15 text-primary text-[10px] font-semibold rounded-full uppercase tracking-wide">Selected</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {githubSettings.crm_creation_type === 'load_balancer' && (
+                    <div className="pt-4 border-t space-y-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Network className="h-4 w-4 text-primary" />
+                        Default Load Balancer
+                      </label>
+                      <div className="max-w-md">
+                        <Select 
+                          value={githubSettings.crm_default_lb_id ? String(githubSettings.crm_default_lb_id) : ''} 
+                          onValueChange={v => setGithubSettings({ ...githubSettings, crm_default_lb_id: v })}
+                        >
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="-- Select a default load balancer --" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {loadBalancers.map(lb => (
+                              <SelectItem key={lb.id} value={String(lb.id)}>{lb.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground mt-1.5 italic">
+                          This load balancer will be pre-selected when you add a new customer in CRM.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t space-y-3">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Default Provisioning Domain
+                    </label>
+                    <div className="max-w-md">
+                      <Select 
+                        value={githubSettings.crm_default_provision_domain || ''} 
+                        onValueChange={v => setGithubSettings({ ...githubSettings, crm_default_provision_domain: v })}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="-- Select a domain from system --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {systemDomains.map(d => (
+                            <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1.5 italic">
+                        New customers will be assigned a subdomain (e.g. <strong>business.yourhosting.com</strong>) using this domain.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
+                    <ShieldCheck className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      This setting determines what happens when you click <strong>Provision</strong> on a CRM customer. 
+                      You can change it at any time; existing customer resources are not affected.
+                    </p>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save CRM Settings'}
                   </Button>
                 </CardFooter>
               </form>

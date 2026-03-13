@@ -21,6 +21,8 @@ import EmailPage from './pages/EmailPage';
 import FileManagerPage from './pages/FileManagerPage';
 import LoadBalancersPage from './pages/LoadBalancersPage';
 import LoadBalancerManagePage from './pages/LoadBalancerManagePage';
+import CrmPage from './pages/CrmPage';
+import CrmNewCustomerPage from './pages/CrmNewCustomerPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -33,6 +35,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
+            <Route path="/crm" element={<CrmPage />} />
+            <Route path="/crm/new" element={<CrmNewCustomerPage />} />
+            <Route path="/crm/edit/:id" element={<CrmNewCustomerPage />} />
             <Route path="/apps" element={<AppsPage />} />
             <Route path="/apps/create" element={<CreateAppPage />} />
             <Route path="/apps/:id" element={<AppDetailPage />} />

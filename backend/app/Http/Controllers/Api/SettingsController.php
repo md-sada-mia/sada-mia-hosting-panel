@@ -19,6 +19,9 @@ class SettingsController extends Controller
             'dns_default_ns2' => Setting::get('dns_default_ns2'),
             'dns_default_ns3' => Setting::get('dns_default_ns3'),
             'dns_default_ns4' => Setting::get('dns_default_ns4'),
+            'crm_creation_type' => Setting::get('crm_creation_type', 'load_balancer'),
+            'crm_default_lb_id' => Setting::get('crm_default_lb_id'),
+            'crm_default_provision_domain' => Setting::get('crm_default_provision_domain'),
         ]);
     }
 
@@ -32,6 +35,9 @@ class SettingsController extends Controller
             'dns_default_ns2' => 'nullable|string',
             'dns_default_ns3' => 'nullable|string',
             'dns_default_ns4' => 'nullable|string',
+            'crm_creation_type' => 'nullable|in:app,load_balancer',
+            'crm_default_lb_id' => 'nullable|integer',
+            'crm_default_provision_domain' => 'nullable|string',
         ]);
 
         foreach ($validated as $key => $value) {

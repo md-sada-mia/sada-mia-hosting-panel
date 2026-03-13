@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\DnsRecordController;
 use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\FileManagerController;
+use App\Http\Controllers\Api\CustomerController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -60,6 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
+
+    // CRM Customers
+    Route::apiResource('customers', CustomerController::class);
+    Route::post('/customers/{customer}/provision', [CustomerController::class, 'provision']);
 
     // Load Balancers
     Route::apiResource('load-balancers', \App\Http\Controllers\Api\LoadBalancerController::class);
