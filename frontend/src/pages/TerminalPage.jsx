@@ -146,6 +146,62 @@ export default function TerminalPage() {
         setHistoryIndex(-1);
         setCommand('');
       }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      handleAutocomplete();
+    }
+  };
+
+  const handleAutocomplete = async () => {
+    // Basic logic: find the last word
+    const parts = command.split(' ');
+    const lastPart = parts[parts.length - 1];
+    
+    // We only try to autocomplete if there's *something* or we want to list directory
+    try {
+      const { data } = await api.get('/terminal/autocomplete', {
+        params: { cwd, partial: lastPart }
+      });
+      
+      const matches = data.matches || [];
+      
+      if (matches.length === 1) {
+        // Exact match
+        let replacement = matches[0];
+        // If it's a directory, we don't add a space
+        const hasTrailingSlash = replacement.endsWith('/');
+        parts[parts.length - 1] = replacement;
+        setCommand(parts.join(' ') + (hasTrailingSlash ? '' : ' '));
+      } else if (matches.length > 1) {
+        // Multiple matches, show them and find common prefix
+        setOutputLines(prev => [
+          ...prev, 
+          { type: 'input', text: `${user}@${hostname}:${cwd}$ ${command}` },
+          { type: 'output', text: matches.join('  ') }
+        ]);
+        
+        // Find longest common prefix
+        let prefix = '';
+        const shortest = matches.reduce((a, b) => a.length <= b.length ? a : b);
+        for (let i = 0; i < shortest.length; i++) {
+            const char = shortest[i];
+            if (matches.every(m => m[i] === char)) {
+                prefix += char;
+            } else {
+                break;
+            }
+        }
+        
+        if (prefix.length > lastPart.length) {
+            // we have a partial common prefix we can auto-fill
+            // Make sure we include any directory path we were already typing
+            const dirPart = lastPart.substring(0, lastPart.lastIndexOf('/') + 1);
+            parts[parts.length - 1] = dirPart + prefix;
+            setCommand(parts.join(' '));
+        }
+      }
+    } catch (err) {
+      console.error('Autocomplete failed', err);
     }
   };
 

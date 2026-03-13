@@ -169,6 +169,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Terminal Access
     Route::get('/terminal/info', [TerminalController::class, 'info']);
+    Route::get('/terminal/autocomplete', [TerminalController::class, 'autocomplete']);
     Route::post('/terminal/execute', [TerminalController::class, 'execute']);
 });
 

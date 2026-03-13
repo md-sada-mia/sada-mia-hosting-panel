@@ -176,4 +176,51 @@ class TerminalController extends Controller
             'exit_code' => -1
         ], 500);
     }
+
+    /**
+     * Autocomplete file/folder names
+     * GET /api/terminal/autocomplete?cwd=/some/path&partial=docs
+     */
+    public function autocomplete(Request $request)
+    {
+        $cwd = $request->input('cwd', $this->root);
+        $partial = $request->input('partial', '');
+
+        $targetDir = rtrim($cwd, '/');
+        $filePrefix = $partial;
+
+        // If the partial contains a slash, we need to split it
+        if (strpos($partial, '/') !== false) {
+            $parts = explode('/', $partial);
+            $filePrefix = array_pop($parts);
+            $subPath = implode('/', $parts);
+
+            if (Str::startsWith($partial, '/')) {
+                $targetDir = '/' . ltrim($subPath, '/');
+            } else {
+                $targetDir = $targetDir . '/' . $subPath;
+            }
+        }
+
+        $realTarget = realpath($targetDir);
+
+        if ($realTarget === false || !is_dir($realTarget)) {
+            return response()->json(['matches' => []]);
+        }
+
+        $matches = [];
+        $files = scandir($realTarget);
+        if ($files !== false) {
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') continue;
+                if ($filePrefix === '' || Str::startsWith($file, $filePrefix)) {
+                    // Add slash to directories 
+                    $isDir = is_dir($realTarget . '/' . $file);
+                    $matches[] = $file . ($isDir ? '/' : '');
+                }
+            }
+        }
+
+        return response()->json(['matches' => array_values($matches)]);
+    }
 }
