@@ -53,6 +53,20 @@ class DatabaseService
         ]);
     }
 
+    public function changePassword(Database $database, string $newPassword): void
+    {
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $database->db_user) . "\"";
+
+        $cmd = "sudo -u postgres psql -c \"ALTER ROLE {$quotedUser} WITH ENCRYPTED PASSWORD '{$newPassword}';\"";
+
+        $result = $this->shell->run($cmd);
+        if ($result['exit_code'] !== 0) {
+            throw new \RuntimeException("Failed to change database password: " . $result['output']);
+        }
+
+        $database->update(['db_password' => $newPassword]);
+    }
+
     public function delete(Database $database): void
     {
         $quotedDb = "\"" . str_replace("\"", "\"\"", $database->db_name) . "\"";

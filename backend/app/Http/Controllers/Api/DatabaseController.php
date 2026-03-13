@@ -42,6 +42,20 @@ class DatabaseController extends Controller
         return response()->json($database->makeVisible(['db_password']));
     }
 
+    public function updatePassword(Request $request, Database $database)
+    {
+        $validated = $request->validate([
+            'password' => 'required|string|min:8',
+        ]);
+
+        try {
+            $this->dbService->changePassword($database, $validated['password']);
+            return response()->json(['message' => 'Database password updated successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     public function destroy(Database $database)
     {
         try {

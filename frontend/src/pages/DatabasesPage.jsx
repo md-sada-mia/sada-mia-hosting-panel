@@ -5,8 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink, Key } from 'lucide-react';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function DatabasesPage() {
@@ -18,6 +26,10 @@ export default function DatabasesPage() {
   const [copied, setCopied] = useState(false);
   const [dbToDelete, setDbToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [dbToChangePassword, setDbToChangePassword] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -108,6 +120,23 @@ export default function DatabasesPage() {
 
   const handleDelete = (db) => {
     setDbToDelete(db);
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    if (!dbToChangePassword || !newPassword) return;
+
+    setIsChangingPassword(true);
+    try {
+      await api.post(`/databases/${dbToChangePassword.id}/password`, { password: newPassword });
+      toast.success('Database password updated successfully');
+      setDbToChangePassword(null);
+      setNewPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update database password');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const copyToClipboard = (text) => {
@@ -232,6 +261,15 @@ export default function DatabasesPage() {
                     >
                       <ExternalLink className="mr-2 h-4 w-4" /> Manage
                     </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                      onClick={() => setDbToChangePassword(db)}
+                      title="Change Password"
+                    >
+                      <Key className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db)}>
                       <Trash2 className="h-5 w-5" />
                     </Button>
@@ -253,6 +291,40 @@ export default function DatabasesPage() {
         isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
       />
+
+      <Dialog open={!!dbToChangePassword} onOpenChange={(open) => !open && setDbToChangePassword(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handlePasswordChange}>
+            <DialogHeader>
+              <DialogTitle>Change Database Password</DialogTitle>
+              <DialogDescription>
+                Enter a new password for database <span className="font-semibold">{dbToChangePassword?.db_name}</span>.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDbToChangePassword(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isChangingPassword || newPassword.length < 8}>
+                {isChangingPassword ? 'Changing...' : 'Change Password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
