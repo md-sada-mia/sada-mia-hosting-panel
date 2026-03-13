@@ -59,6 +59,27 @@ fi
 
 PORT=${PANEL_PORT:-8083}
 
+# Check for directory traversal permissions (common issue in home dirs)
+echo "==> Checking directory permissions for www-data"
+CURRENT_DIR=$(pwd)
+# Try to access the current directory as www-data
+if ! sudo -u www-data test -x "$CURRENT_DIR"; then
+    echo "    [!] www-data cannot access $CURRENT_DIR. Attempting to fix..."
+    
+    # Trace back to / and add +x where needed (carefully)
+    path_acc=""
+    IFS='/' read -ra ADDR <<< "$CURRENT_DIR"
+    for i in "${ADDR[@]}"; do
+        if [ -z "$i" ]; then continue; fi
+        path_acc="$path_acc/$i"
+        # If it's a home directory (e.g. /home/user), it needs +x for traversal
+        if [[ "$path_acc" =~ ^/home/[^/]+$ ]] || [[ "$path_acc" == "$CURRENT_DIR" ]]; then
+            echo "    Setting +x on $path_acc"
+            chmod +x "$path_acc"
+        fi
+    done
+fi
+
 # Cleanup function if --cleanup flag is used
 perform_cleanup() {
     echo "==> !!! PERFORMING DATA CLEANUP !!!"
@@ -577,8 +598,8 @@ php artisan migrate
 php artisan db:seed --class=DatabaseSeeder --force
 php artisan storage:link || true
 php artisan optimize:clear
-chown -R www-data:www-data storage bootstrap/cache database
-chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache database public
+chmod -R 775 storage bootstrap/cache public
 
 # Ensure database and file are owned by www-data for SQLite write access
 
@@ -593,6 +614,7 @@ cd ../frontend
 npm install
 npm run build
 chown -R www-data:www-data dist
+chmod -R 755 dist
 
 echo "==> 9.1 Setting up Laravel Queue Worker (Systemd)"
 cd ../backend
