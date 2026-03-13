@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\DnsRecordController;
 use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\FileManagerController;
+use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\CustomerController;
 use Illuminate\Support\Facades\Route;
 
@@ -165,6 +166,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/files/chmod', [FileManagerController::class, 'chmod']);
     Route::post('/files/compress', [FileManagerController::class, 'compress']);
     Route::post('/files/extract', [FileManagerController::class, 'extract']);
+
+    // Terminal Access
+    Route::get('/terminal/info', [TerminalController::class, 'info']);
+    Route::post('/terminal/execute', [TerminalController::class, 'execute']);
 });
 
 

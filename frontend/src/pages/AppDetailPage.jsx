@@ -12,7 +12,7 @@ import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
-  Mail, Info
+  Mail, Info, Terminal
 } from 'lucide-react';
 import {
   Select,
@@ -434,6 +434,14 @@ export default function AppDetailPage() {
                 title="File Manager"
                 description="Browse app files"
                 onClick={() => navigate(`/files?path=/${app.domain}`)}
+              />
+
+              <NavCard 
+                icon={Terminal}
+                title="Terminal"
+                description="Shell access"
+                color="amber"
+                onClick={() => navigate(`/terminal?path=/${app.domain}`)}
               />
               
               {app.databases?.length > 0 && (

@@ -23,6 +23,7 @@ import LoadBalancersPage from './pages/LoadBalancersPage';
 import LoadBalancerManagePage from './pages/LoadBalancerManagePage';
 import CrmPage from './pages/CrmPage';
 import CrmNewCustomerPage from './pages/CrmNewCustomerPage';
+import TerminalPage from './pages/TerminalPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -45,8 +46,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/load-balancers/:id/manage" element={<LoadBalancerManagePage />} />
             <Route path="/databases" element={<DatabasesPage />} />
             <Route path="/domains" element={<DomainsPage />} />
-            <Route path="/email" element={<EmailPage />} />
             <Route path="/cron-jobs" element={<CronPage />} />
+            <Route path="/terminal" element={<TerminalPage />} />
             <Route path="/files" element={<FileManagerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/github/callback" element={<GitHubCallbackPage />} />
