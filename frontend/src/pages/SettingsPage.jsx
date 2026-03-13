@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SettingsPage() {
@@ -337,6 +337,109 @@ export default function SettingsPage() {
                 </CardFooter>
               </form>
             </Card>
+
+            <div className="mt-8 space-y-6">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                <h3 className="text-xl font-bold">Nameserver Setup Guide</h3>
+              </div>
+              
+              <div className="grid gap-4">
+                {[
+                  {
+                    step: "01",
+                    title: "Select your Primary Domain",
+                    description: "Choose a domain you own to be your nameserver host (e.g., mydns.io).",
+                    icon: Globe
+                  },
+                  {
+                    step: "02",
+                    title: "Get your Server IP",
+                    description: "Your nameservers need to point to this server. You can find your IP address on the Dashboard or by running 'curl ifconfig.me' in your terminal.",
+                    icon: Network
+                  },
+                  {
+                    step: "03",
+                    title: "Configure Glue Records",
+                    description: "Go to your registrar and add 'Glue Records'. This pairs your hostname with your IP address at the registry level.",
+                    details: ["ns1.host.com -> 1.2.3.4", "ns2.host.com -> 1.2.3.4"],
+                    icon: ShieldCheck
+                  },
+                  {
+                    step: "04",
+                    title: "Register & Verify",
+                    description: "Once Glue records are set, use a tool like 'dig +short NS yourdomain.com' to verify they are active globally.",
+                    icon: Info
+                  }
+                ].map((item, idx) => (
+                  <Card key={idx} className="overflow-hidden border-none bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <CardContent className="p-0">
+                      <div className="flex flex-col md:flex-row md:items-center">
+                        <div className="bg-primary/10 px-6 py-6 md:py-0 md:h-full flex items-center justify-center min-w-[80px]">
+                          <span className="text-2xl font-black text-primary/40">{item.step}</span>
+                        </div>
+                        <div className="p-6 flex-1 flex items-start gap-4">
+                          <div className="mt-1 p-2 rounded-lg bg-background border border-border">
+                            <item.icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {item.description}
+                            </p>
+                            {item.details && (
+                              <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-mono">
+                                {item.details.map((detail, i) => (
+                                  <span key={i} className="bg-background border border-border px-1.5 py-0.5 rounded text-primary">
+                                    {detail}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 ml-auto hidden md:block" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-primary">
+                    <ShieldCheck className="h-4 w-4" /> Registrar Location
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground leading-loose">
+                    Glue records are usually found under:
+                    <ul className="list-disc ml-4 mt-1 space-y-1">
+                      <li><strong>Namecheap:</strong> Advanced DNS → Personal DNS Server</li>
+                      <li><strong>GoDaddy:</strong> DNS → Host Names</li>
+                      <li><strong>Cloudflare:</strong> DNS → Records → Custom Nameservers</li>
+                    </ul>
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-primary">
+                    <Globe className="h-4 w-4" /> Verification Tip
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground leading-loose">
+                    After setting Glue records, it can take up to 24 hours to propagate. Check status using:
+                    <code className="block mt-2 bg-background p-2 rounded text-[10px] border border-border">
+                      whois yourdomain.com | grep "Name Server"
+                    </code>
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 text-center px-8">
+                <p className="text-xs text-muted-foreground italic">
+                  Need more help? Check out our <a href="https://www.namecheap.com/support/knowledgebase/article.aspx/768/10/how-do-i-register-personal-nameservers-for-my-domain/" target="_blank" className="text-primary font-medium hover:underline inline-flex items-center gap-0.5">full documentation <ExternalLink className="h-3 w-3" /></a>
+                </p>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="crm" className="mt-0">
