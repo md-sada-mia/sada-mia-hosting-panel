@@ -62,22 +62,50 @@ PORT=${PANEL_PORT:-8083}
 # Check for directory traversal permissions (common issue in home dirs)
 echo "==> Checking directory permissions for www-data"
 CURRENT_DIR=$(pwd)
-# Try to access the current directory as www-data
-if ! sudo -u www-data test -x "$CURRENT_DIR"; then
-    echo "    [!] www-data cannot access $CURRENT_DIR. Attempting to fix..."
-    
-    # Trace back to / and add +x where needed (carefully)
-    path_acc=""
-    IFS='/' read -ra ADDR <<< "$CURRENT_DIR"
+
+# Function to fix permissions up the tree
+fix_path_permissions() {
+    local target_path=$1
+    local path_acc=""
+    IFS='/' read -ra ADDR <<< "$target_path"
     for i in "${ADDR[@]}"; do
+        if [ -z "$i" ] && [ "${path_acc}" == "" ]; then 
+            # This handles the leading slash
+            path_acc="/"
+            continue
+        fi
+        
         if [ -z "$i" ]; then continue; fi
-        path_acc="$path_acc/$i"
-        # If it's a home directory (e.g. /home/user), it needs +x for traversal
-        if [[ "$path_acc" =~ ^/home/[^/]+$ ]] || [[ "$path_acc" == "$CURRENT_DIR" ]]; then
-            echo "    Setting +x on $path_acc"
-            chmod +x "$path_acc"
+        
+        if [ "$path_acc" == "/" ]; then
+            path_acc="/$i"
+        else
+            path_acc="$path_acc/$i"
+        fi
+        
+        # If it's a home directory or a parent of the project, it needs +x for traversal
+        if [[ "$path_acc" =~ ^/home/[^/]+$ ]] || [[ "$target_path" == "$path_acc"* ]]; then
+            if [ ! -x "$path_acc" ] || ! sudo -u www-data test -x "$path_acc" 2>/dev/null; then
+                echo "    Setting +x on $path_acc"
+                chmod +x "$path_acc" 2>/dev/null || true
+            fi
         fi
     done
+}
+
+fix_path_permissions "$CURRENT_DIR"
+
+# Also ensure Nginx can read the Frontend and Backend public files
+if [ -d "$CURRENT_DIR/frontend/dist" ]; then
+    echo "==> Ensuring frontend/dist is readable"
+    chown -R www-data:www-data "$CURRENT_DIR/frontend/dist"
+    chmod -R 755 "$CURRENT_DIR/frontend/dist"
+fi
+
+if [ -d "$CURRENT_DIR/backend/public" ]; then
+    echo "==> Ensuring backend/public is readable"
+    chown -R www-data:www-data "$CURRENT_DIR/backend/public"
+    chmod -R 755 "$CURRENT_DIR/backend/public"
 fi
 
 # Cleanup function if --cleanup flag is used
