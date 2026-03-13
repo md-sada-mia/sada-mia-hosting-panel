@@ -123,29 +123,35 @@ export default function DomainsPage() {
   const isFirstRun = useRef(true);
 
   const fetchDomains = useCallback(async (query = search, forceSelect = false) => {
-    setLoading(true);
+    // Only show the big loader on initial load if we have nothing
+    if (domains.length === 0) setLoading(true);
+    
     try {
       const { data } = await api.get('/domains', { params: { q: query } });
       setDomains(data);
       
       // If no domain is selected yet, or we're forcing selection, try to find an exact match
-      if ((!selected || forceSelect) && data.length > 0) {
-        let toSelect = data[0];
-        if (query) {
-          const exactMatch = data.find(d => d.domain.toLowerCase() === query.toLowerCase());
-          if (exactMatch) {
-            toSelect = exactMatch;
-          } else {
-            const partialMatch = data.find(d => d.domain.toLowerCase().includes(query.toLowerCase()));
-            if (partialMatch) toSelect = partialMatch;
+      // We use a functional state update or we check against a ref if needed, 
+      // but here we just want to avoid re-triggering fetchDomains when 'selected' changes.
+      setSelected(prevSelected => {
+        if ((!prevSelected || forceSelect) && data.length > 0) {
+          let toSelect = data[0];
+          if (query) {
+            const exactMatch = data.find(d => d.domain.toLowerCase() === query.toLowerCase());
+            if (exactMatch) toSelect = exactMatch;
+            else {
+              const partialMatch = data.find(d => d.domain.toLowerCase().includes(query.toLowerCase()));
+              if (partialMatch) toSelect = partialMatch;
+            }
           }
+          return toSelect;
         }
-        setSelected(toSelect);
-      }
+        return prevSelected;
+      });
     } finally {
       setLoading(false);
     }
-  }, [selected]);
+  }, [search]); // Removed selected from dependencies
 
   const fetchRecords = useCallback(async (domainId) => {
     setLoadingRecs(true);
