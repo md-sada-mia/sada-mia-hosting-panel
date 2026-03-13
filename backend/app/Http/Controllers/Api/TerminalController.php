@@ -22,10 +22,25 @@ class TerminalController extends Controller
      */
     public function info(Request $request)
     {
-        $cwd = $request->input('path', $this->root);
+        $inputPath = $request->input('path');
+
+        if ($inputPath) {
+            // The frontend might pass a relative path (e.g. `/?path=/app.example.com`)
+            // Translate it based on our root.
+            $cwd = $this->root . '/' . ltrim($inputPath, '/');
+        } else {
+            $cwd = $this->root;
+        }
+
+        $realCwd = realpath($cwd);
+        if ($realCwd !== false && is_dir($realCwd)) {
+            $cwd = $realCwd;
+        } else {
+            $cwd = $this->root;
+        }
 
         // Ensure path is within allowed root
-        if (!Str::startsWith(realpath($cwd) ?: $cwd, $this->root) && $cwd !== '/') {
+        if (!Str::startsWith($cwd, $this->root) && $cwd !== '/') {
             $cwd = $this->root;
         }
 
