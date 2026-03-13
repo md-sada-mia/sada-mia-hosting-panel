@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Users, Building2, Mail, Phone, MapPin, StickyNote,
   Network, Layers, Plus, RefreshCw, Zap, Github, Terminal,
-  ChevronRight, CheckCircle2, AlertCircle, ExternalLink
+  ChevronRight, CheckCircle2, AlertCircle, ExternalLink, Edit2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -64,6 +64,11 @@ export default function CrmNewCustomerPage() {
   const [isDeploying, setIsDeploying] = useState(false);
   const [done, setDone] = useState(false);
   const logEndRef = useRef(null);
+
+  // Domain Editing State
+  const [isEditingDomain, setIsEditingDomain] = useState(false);
+  const [newDomainValue, setNewDomainValue] = useState('');
+  const [isUpdatingDomain, setIsUpdatingDomain] = useState(false);
 
   useEffect(() => { fetchPrereqs(); }, []);
 
@@ -133,6 +138,26 @@ export default function CrmNewCustomerPage() {
         setDone(true);
       }
     } catch { /* silent */ }
+  };
+
+  const updateDomain = async () => {
+    if (!newDomainValue.trim()) {
+      toast.error("Domain cannot be empty");
+      return;
+    }
+
+    try {
+      setIsUpdatingDomain(true);
+      const { data } = await api.put(`/customers/${id}/domain`, { domain: newDomainValue.trim() });
+      toast.success(data.message);
+      setDeployedResource(data.customer.resource);
+      setIsEditingDomain(false);
+    } catch (error) {
+      console.error('Update domain error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update domain');
+    } finally {
+      setIsUpdatingDomain(false);
+    }
   };
 
   const validate = () => {
@@ -394,10 +419,51 @@ export default function CrmNewCustomerPage() {
                   <span className="font-semibold">{deployedResource.name}</span>
                 </div>
                 <div className="flex justify-between items-start text-xs border-b border-muted/50 pb-2">
-                  <span className="text-muted-foreground uppercase tracking-wider font-bold">Domain</span>
+                  <span className="text-muted-foreground uppercase tracking-wider font-bold mt-1">Domain</span>
                   <div className="flex flex-col items-end gap-1 text-right">
-                    {deployedResource.deployment_info?.domain ? (
-                      <span className="font-medium bg-muted/50 px-2 py-0.5 rounded-md border">{deployedResource.deployment_info.domain}</span>
+                    {isEditingDomain ? (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <input
+                          type="text"
+                          value={newDomainValue}
+                          onChange={(e) => setNewDomainValue(e.target.value)}
+                          placeholder="subdomain.example.com"
+                          className="px-2 py-1 text-xs border rounded bg-background w-32 focus:outline-none focus:ring-1 focus:ring-primary"
+                          autoFocus
+                        />
+                        <button
+                          onClick={updateDomain}
+                          disabled={isUpdatingDomain}
+                          className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                        >
+                          {isUpdatingDomain ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setIsEditingDomain(false)}
+                          disabled={isUpdatingDomain}
+                          className="p-1 rounded bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : deployedResource.deployment_info?.domain ? (
+                      <div className="flex items-center gap-2 group">
+                        <span className="font-medium bg-muted/50 px-2 py-0.5 rounded-md border">{deployedResource.deployment_info.domain}</span>
+                        {(deployedResource.deployment_info.domain_mode === 'subdomain' || deployedResource.deployment_info.domain_mode === 'custom') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setNewDomainValue(deployedResource.deployment_info.domain);
+                              setIsEditingDomain(true);
+                            }}
+                            className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                            title="Edit Domain"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     ) : deployedResource.domain ? (
                       <span className="font-medium bg-muted/50 px-2 py-0.5 rounded-md border">{deployedResource.domain}</span>
                     ) : (
