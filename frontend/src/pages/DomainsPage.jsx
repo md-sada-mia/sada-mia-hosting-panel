@@ -116,18 +116,20 @@ export default function DomainsPage() {
     type: 'A', name: '@', value: '', ttl: 3600, priority: '',
   });
   const [saving, setSaving] = useState(false);
+  const [parentDomain, setParentDomain] = useState(null);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const searchTimeout = useRef(null);
+  const isFirstRun = useRef(true);
 
-  const fetchDomains = useCallback(async (query = search) => {
+  const fetchDomains = useCallback(async (query = search, forceSelect = false) => {
     setLoading(true);
     try {
       const { data } = await api.get('/domains', { params: { q: query } });
       setDomains(data);
       
-      // If no domain is selected yet, try to find one matching initial search or just pick the first
-      if (!selected && data.length > 0) {
+      // If no domain is selected yet, or we're forcing selection, try to find an exact match
+      if ((!selected || forceSelect) && data.length > 0) {
         let toSelect = data[0];
         if (query) {
           const exactMatch = data.find(d => d.domain.toLowerCase() === query.toLowerCase());
@@ -162,7 +164,11 @@ export default function DomainsPage() {
 
   // Watch search and fetch debounced
   useEffect(() => {
-    if (search === initialSearch) return;
+    // Skip on mount as fetchDomains(initialSearch) is handled above
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     
@@ -173,9 +179,27 @@ export default function DomainsPage() {
     return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
-  }, [search, fetchDomains, initialSearch]);
+  }, [search, fetchDomains]);
 
-  useEffect(() => { if (selected) fetchRecords(selected.id); }, [selected, fetchRecords]);
+  const fetchParentDomain = useCallback(async (domainName) => {
+    try {
+      const { data } = await api.get(`/domains/find-parent?domain=${domainName}`);
+      setParentDomain(data);
+    } catch {
+      setParentDomain(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selected) {
+      fetchRecords(selected.id);
+      if (!selected.dns_managed) {
+        fetchParentDomain(selected.domain);
+      } else {
+        setParentDomain(null);
+      }
+    }
+  }, [selected, fetchRecords, fetchParentDomain]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -287,7 +311,13 @@ export default function DomainsPage() {
               onChange={e => setSearch(e.target.value)}
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <button 
+                onClick={() => {
+                  setSearch('');
+                  fetchDomains('', true); // Immediately fetch all and force select first
+                }} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -416,13 +446,17 @@ export default function DomainsPage() {
                       </span>
                     ))}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => fetchRecords(selected.id)}>
-                    <RefreshCw className={`h-3.5 w-3.5 ${loadingRecs ? 'animate-spin' : ''}`} />
-                  </Button>
-                  <Button size="sm" onClick={() => setShowRecordDlg(true)}
-                    className="gap-1.5 bg-primary/90 hover:bg-primary text-xs shadow shadow-primary/20">
-                    <Plus className="h-3.5 w-3.5" /> Add Record
-                  </Button>
+                  {selected.dns_managed && (
+                    <>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => fetchRecords(selected.id)}>
+                        <RefreshCw className={`h-3.5 w-3.5 ${loadingRecs ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Button size="sm" onClick={() => setShowRecordDlg(true)}
+                        className="gap-1.5 bg-primary/90 hover:bg-primary text-xs shadow shadow-primary/20">
+                        <Plus className="h-3.5 w-3.5" /> Add Record
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -473,6 +507,70 @@ export default function DomainsPage() {
                   <div className="flex items-center justify-center h-40 gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span className="text-sm">Fetching records...</span>
+                  </div>
+                ) : !selected.dns_managed ? (
+                  <div className="p-8">
+                    <div className="max-w-xl mx-auto space-y-8">
+                      {/* Subdomain Management Policy Card */}
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-lg shadow-blue-500/5">
+                          <Shield className="h-6 w-6 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold text-white tracking-tight">DNS Management Policy</h3>
+                          <p className="text-[11px] text-blue-400 font-medium uppercase tracking-wider mt-0.5">Subdomain Configuration</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-300 leading-relaxed font-medium">
+                            This domain is managed under a parent DNS zone.
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            To maintain a lean and efficient configuration, the system automatically aggregates subdomain records under their respective primary domains.
+                          </p>
+                        </div>
+
+                        <div className="bg-white/[0.03] rounded-xl p-5 border border-white/5 space-y-4">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-white mb-1">
+                            <Info className="h-3.5 w-3.5 text-blue-400" />
+                            Key Implementation Details
+                          </div>
+                          <ul className="space-y-3">
+                            {[
+                              { title: "Centralized Control", desc: "All DNS records for this subdomain are stored within the parent domain's record set." },
+                              { title: "Automatic Sync", desc: "Base A records are automatically managed; changes to the parent zone safely include this subdomain." },
+                              { title: "Custom Records", desc: "If you need additional CNAME or TXT records, please add them directly to the parent domain." }
+                            ].map((item, i) => (
+                              <li key={i} className="flex gap-3">
+                                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500/40 shrink-0" />
+                                <div className="space-y-1">
+                                  <p className="text-xs font-medium text-white/90">{item.title}</p>
+                                  <p className="text-[11px] text-muted-foreground leading-normal">{item.desc}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {parentDomain && (
+                          <div className="flex items-center gap-3 pt-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/30 text-xs font-medium h-9"
+                              onClick={() => {
+                                setSearch(parentDomain.domain);
+                                fetchDomains(parentDomain.domain, true);
+                              }}
+                            >
+                              Go to parent: <span className="text-primary ml-1">{parentDomain.domain}</span> <ChevronRight className="h-3 w-3 ml-2" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : records.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
