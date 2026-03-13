@@ -546,7 +546,7 @@ export default function EmailPage() {
                   <p className="text-sm">All domains already have email enabled. Add a new domain in DNS & Domains first.</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {availableDomains.map(d => (
                     <label key={d.id} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                       domainForm.domain_id == d.id ? 'border-primary/60 bg-primary/8' : 'border-white/8 hover:border-white/15 bg-white/[0.02]'
