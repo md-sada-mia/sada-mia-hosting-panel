@@ -8,12 +8,14 @@ use App\Models\CustomerDeployment;
 use App\Models\App as AppModel;
 use App\Models\LoadBalancer;
 use App\Models\Setting;
+use App\Models\Domain;
 use App\Services\DeploymentService;
 use App\Services\DatabaseService;
 use App\Services\DnsService;
 use App\Services\GitHubService;
 use App\Services\NginxConfigService;
 use App\Jobs\DeployApp;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -331,53 +333,72 @@ class CustomerController extends Controller
             return response()->json(['message' => 'No deployed resource to update'], 400);
         }
 
-        // 1. Update the CustomerDeployment Historical Record
-        if ($customer->deployment) {
-            $customer->deployment->update(['domain' => $newDomain]);
-        }
+        return \DB::transaction(function () use ($customer, $newDomain) {
+            try {
+                if ($customer->resource_type === 'app') {
+                    $app = AppModel::findOrFail($customer->resource_id);
+                    $oldDomain = $app->domain;
 
-        try {
-            if ($customer->resource_type === 'app') {
-                $app = AppModel::findOrFail($customer->resource_id);
-                $oldDomain = $app->domain;
-                $app->update(['domain' => $newDomain]);
-
-                // Sync Nginx & DNS
-                $this->nginxService->generate($app);
-                $this->dnsService->createManagedDomain($newDomain, $app->id);
-            } elseif ($customer->resource_type === 'load_balancer') {
-                $lb = LoadBalancer::findOrFail($customer->resource_id);
-
-                // For a Load Balancer, we'll update the first associated domain for simplicity if it was tracked as a subdomain deployment
-                $trackedDeploymentDomain = $customer->deployment ? $customer->deployment->getOriginal('domain') : null;
-
-                if ($trackedDeploymentDomain) {
-                    $domainRecord = $lb->domains()->where('domain', $trackedDeploymentDomain)->first();
-                    if ($domainRecord) {
-                        $domainRecord->update(['domain' => $newDomain]);
-                    } else {
-                        // Or attach it if it didn't exist
-                        $lb->domains()->create(['domain' => $newDomain]);
+                    // Cleanup old DNS Zone
+                    if ($oldDomain && strtolower($oldDomain) !== $newDomain) {
+                        $oldDomainRecord = Domain::where('domain', strtolower($oldDomain))->first();
+                        if ($oldDomainRecord) {
+                            $this->dnsService->removeZone($oldDomainRecord);
+                            $oldDomainRecord->delete();
+                        }
                     }
-                } else {
-                    $lb->domains()->create(['domain' => $newDomain]);
+
+                    $app->update(['domain' => $newDomain]);
+
+                    // Sync Nginx & DNS
+                    $this->nginxService->generate($app);
+                    $this->dnsService->createManagedDomain($newDomain, $app->id);
+                } elseif ($customer->resource_type === 'load_balancer') {
+                    $lb = LoadBalancer::findOrFail($customer->resource_id);
+
+                    // For a Load Balancer, we'll update the first associated domain for simplicity if it was tracked as a subdomain deployment
+                    $trackedDeploymentDomain = $customer->deployment ? $customer->deployment->getOriginal('domain') : null;
+
+                    if ($trackedDeploymentDomain && strtolower($trackedDeploymentDomain) !== $newDomain) {
+                        // Cleanup old DNS Zone
+                        $oldDomainRecord = Domain::where('domain', strtolower($trackedDeploymentDomain))->first();
+                        if ($oldDomainRecord) {
+                            $this->dnsService->removeZone($oldDomainRecord);
+                            $oldDomainRecord->delete();
+                        }
+
+                        $domainRecord = $lb->domains()->where('domain', $trackedDeploymentDomain)->first();
+                        if ($domainRecord) {
+                            $domainRecord->update(['domain' => $newDomain]);
+                        } else {
+                            // Or attach it if it didn't exist
+                            $lb->domains()->create(['domain' => $newDomain]);
+                        }
+                    } else {
+                        $lb->domains()->firstOrCreate(['domain' => $newDomain]);
+                    }
+
+                    // Sync Nginx & DNS
+                    $this->nginxService->generateLoadBalancer($lb);
+                    $this->dnsService->createManagedDomain($newDomain);
                 }
 
-                // Sync Nginx & DNS
-                $this->nginxService->generateLoadBalancer($lb);
-                $this->dnsService->createManagedDomain($newDomain);
+                // 3. Update the CustomerDeployment Historical Record last
+                if ($customer->deployment) {
+                    $customer->deployment->update(['domain' => $newDomain]);
+                }
+
+                $data = $customer->fresh()->toArray();
+                $data['resource'] = $this->resolveResource($customer->fresh());
+
+                return response()->json([
+                    'message' => 'Domain updated successfully',
+                    'customer' => $data
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to update domain for customer {$customer->id}: " . $e->getMessage());
+                throw $e; // Re-throw to trigger rollback
             }
-
-            $data = $customer->fresh()->toArray();
-            $data['resource'] = $this->resolveResource($customer->fresh());
-
-            return response()->json([
-                'message' => 'Domain updated successfully',
-                'customer' => $data
-            ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Failed to update domain for customer {$customer->id}: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to update domain configuration', 'error' => $e->getMessage()], 500);
-        }
+        });
     }
 }
