@@ -34,6 +34,7 @@ export default function SettingsPage() {
     crm_creation_type: 'load_balancer',
     crm_default_lb_id: '',
     crm_default_deployment_domain: '',
+    panel_url: '',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -148,6 +149,13 @@ export default function SettingsPage() {
             >
               <Users className="w-4 h-4 mr-2" />
               CRM Settings
+            </TabsTrigger>
+            <TabsTrigger 
+              value="system" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              System Settings
             </TabsTrigger>
           </TabsList>
         </aside>
@@ -548,6 +556,61 @@ export default function SettingsPage() {
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Saving...' : 'Save CRM Settings'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="system" className="mt-0">
+            <Card>
+              <form onSubmit={handleGithubSettingsUpdate}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5 text-primary" />
+                    System Configuration
+                  </CardTitle>
+                  <CardDescription>
+                    Configure core panel settings and external access URLs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
+                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
+                  
+                  <div className="grid gap-3">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Control Panel Address
+                    </label>
+                    <div className="space-y-2">
+                      <Input 
+                        name="panel_url" 
+                        value={githubSettings.panel_url || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="e.g. panel.yourdomain.com" 
+                      />
+                      <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                        This URL is used for GitHub OAuth redirects and other system links. 
+                        <strong> Note:</strong> The panel port will be automatically appended if missing.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
+                    <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-primary">Important Recommendation</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        If you are using a domain name, make sure to update your GitHub App's <strong>Redirect URL</strong> 
+                        to match this new address to avoid authentication issues.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save System Settings'}
                   </Button>
                 </CardFooter>
               </form>

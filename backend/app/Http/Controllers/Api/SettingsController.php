@@ -22,6 +22,7 @@ class SettingsController extends Controller
             'crm_creation_type' => Setting::get('crm_creation_type', 'load_balancer'),
             'crm_default_lb_id' => Setting::get('crm_default_lb_id'),
             'crm_default_deployment_domain' => Setting::get('crm_default_deployment_domain'),
+            'panel_url' => Setting::get('panel_url'),
         ]);
     }
 
@@ -38,7 +39,27 @@ class SettingsController extends Controller
             'crm_creation_type' => 'nullable|in:app,load_balancer',
             'crm_default_lb_id' => 'nullable|integer',
             'crm_default_deployment_domain' => 'nullable|string',
+            'panel_url' => 'nullable|string',
         ]);
+
+        if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {
+            $url = $validated['panel_url'];
+
+            // Ensure protocol
+            if (!preg_match("~^(?:f|ht)tps?://~i", $url)) {
+                $url = "http://" . $url;
+            }
+
+            $parsed = parse_url($url);
+            $port = env('PANEL_PORT', '8083');
+
+            // If port is not in the URL, append it
+            if (!isset($parsed['port']) && $port) {
+                $url = rtrim($url, '/') . ':' . $port;
+            }
+
+            $validated['panel_url'] = $url;
+        }
 
         foreach ($validated as $key => $value) {
             Setting::set($key, $value);

@@ -18,8 +18,8 @@ class GitHubService
         $this->clientSecret = Setting::get('github_client_secret');
 
         // OAuth redirect should go to the frontend UI
-        $frontendUrl = env('FRONTEND_URL', config('app.url'));
-        $this->redirectUri = rtrim($frontendUrl, '/') . '/github/callback';
+        $panelUrl = Setting::get('panel_url', env('FRONTEND_URL', config('app.url')));
+        $this->redirectUri = rtrim($panelUrl, '/') . '/github/callback';
     }
 
     public function getAuthUrl()
