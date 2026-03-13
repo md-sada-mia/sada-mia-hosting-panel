@@ -46,6 +46,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/load-balancers/:id/manage" element={<LoadBalancerManagePage />} />
             <Route path="/databases" element={<DatabasesPage />} />
             <Route path="/domains" element={<DomainsPage />} />
+            <Route path="/email" element={<EmailPage />} />
             <Route path="/cron-jobs" element={<CronPage />} />
             <Route path="/terminal" element={<TerminalPage />} />
             <Route path="/files" element={<FileManagerPage />} />

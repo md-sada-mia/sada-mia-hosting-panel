@@ -16,6 +16,8 @@ export default function Layout() {
     { label: 'Applications',  path: '/apps',          icon: Layers },
     { label: 'Databases',     path: '/databases',     icon: Database },
     { label: 'DNS & Domains', path: '/domains',       icon: Globe },
+    { label: 'Load Balancers', path: '/load-balancers', icon: Network },
+    { label: 'Email', path: '/email', icon: Mail },
     { label: 'Cron Jobs',     path: '/cron-jobs',     icon: Clock },
     { label: 'Terminal',      path: '/terminal',      icon: Terminal },
     { label: 'File Manager',  path: '/files',         icon: FolderOpen },
