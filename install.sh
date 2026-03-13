@@ -609,15 +609,26 @@ composer install --no-interaction --optimize-autoloader
 cp .env.example .env || true
 php artisan key:generate
 # Update APP_URL in backend .env
+# Set correct variables for Sanctum and Sessions to work over IP:PORT
 if [ "$PORT" -eq 80 ]; then
-    sed -i "s|^APP_URL=.*|APP_URL=http://$IP_ADDRESS|" .env
-    # Add FRONTEND_URL if missing
-    grep -q "FRONTEND_URL=" .env || echo "FRONTEND_URL=http://$IP_ADDRESS" >> .env
+    APP_URL_VAL="http://$IP_ADDRESS"
+    STATEFUL_VAL="$IP_ADDRESS"
 else
-    sed -i "s|^APP_URL=.*|APP_URL=http://$IP_ADDRESS:$PORT|" .env
-    # Add FRONTEND_URL if missing
-    grep -q "FRONTEND_URL=" .env || echo "FRONTEND_URL=http://$IP_ADDRESS:$PORT" >> .env
+    APP_URL_VAL="http://$IP_ADDRESS:$PORT"
+    STATEFUL_VAL="$IP_ADDRESS:$PORT,$IP_ADDRESS"
 fi
+
+sed -i "s|^APP_URL=.*|APP_URL=$APP_URL_VAL|" .env
+sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
+
+# Add or Update FRONTEND_URL
+grep -q "FRONTEND_URL=" .env && sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=$APP_URL_VAL|" .env || echo "FRONTEND_URL=$APP_URL_VAL" >> .env
+
+# Add or Update SANCTUM_STATEFUL_DOMAINS
+grep -q "SANCTUM_STATEFUL_DOMAINS=" .env && sed -i "s|^SANCTUM_STATEFUL_DOMAINS=.*|SANCTUM_STATEFUL_DOMAINS=$STATEFUL_VAL|" .env || echo "SANCTUM_STATEFUL_DOMAINS=$STATEFUL_VAL" >> .env
+
+# Add or Update SESSION_DOMAIN
+grep -q "SESSION_DOMAIN=" .env && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=$IP_ADDRESS|" .env || echo "SESSION_DOMAIN=$IP_ADDRESS" >> .env
 # Only publish sanctum migrations if not already present to avoid duplicate errors
 if [ -z "$(ls database/migrations/*_create_personal_access_tokens_table.php 2>/dev/null)" ]; then
     php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
