@@ -118,17 +118,32 @@ export default function DomainsPage() {
   const [saving, setSaving] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+  const searchTimeout = useRef(null);
 
-  const fetchDomains = useCallback(async () => {
+  const fetchDomains = useCallback(async (query = search) => {
     setLoading(true);
     try {
-      const { data } = await api.get('/domains');
+      const { data } = await api.get('/domains', { params: { q: query } });
       setDomains(data);
-      if (!selected && data.length > 0) setSelected(data[0]);
+      
+      // If no domain is selected yet, try to find one matching initial search or just pick the first
+      if (!selected && data.length > 0) {
+        let toSelect = data[0];
+        if (query) {
+          const exactMatch = data.find(d => d.domain.toLowerCase() === query.toLowerCase());
+          if (exactMatch) {
+            toSelect = exactMatch;
+          } else {
+            const partialMatch = data.find(d => d.domain.toLowerCase().includes(query.toLowerCase()));
+            if (partialMatch) toSelect = partialMatch;
+          }
+        }
+        setSelected(toSelect);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selected]);
 
   const fetchRecords = useCallback(async (domainId) => {
     setLoadingRecs(true);
@@ -140,7 +155,26 @@ export default function DomainsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchDomains(); }, [fetchDomains]);
+  // Initial fetch on mount
+  useEffect(() => { 
+    fetchDomains(initialSearch); 
+  }, []);
+
+  // Watch search and fetch debounced
+  useEffect(() => {
+    if (search === initialSearch) return;
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    
+    searchTimeout.current = setTimeout(() => {
+      fetchDomains(search);
+    }, 400);
+
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [search, fetchDomains, initialSearch]);
+
   useEffect(() => { if (selected) fetchRecords(selected.id); }, [selected, fetchRecords]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -192,7 +226,7 @@ export default function DomainsPage() {
     }
   };
 
-  const filtered = domains.filter(d => d.domain.includes(search.toLowerCase()));
+  const filtered = domains;
 
   // ── Record type stats ─────────────────────────────────────────────────────
 

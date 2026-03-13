@@ -16,13 +16,23 @@ class DomainController extends Controller
     /**
      * GET /domains
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $domains = Domain::with(['app:id,name', 'dnsRecords', 'emailDomain'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Domain::with(['app:id,name', 'dnsRecords', 'emailDomain'])
+            ->orderBy('created_at', 'desc');
 
-        return response()->json($domains);
+        if ($search = $request->query('q')) {
+            // Priority 1: Exact match hides all others
+            $exactMatch = (clone $query)->where('domain', $search)->get();
+            if ($exactMatch->isNotEmpty()) {
+                return response()->json($exactMatch);
+            }
+
+            // Priority 2: Partial matches
+            $query->where('domain', 'like', "%{$search}%");
+        }
+
+        return response()->json($query->get());
     }
 
     /**
@@ -117,5 +127,24 @@ class DomainController extends Controller
         $domain->delete();
 
         return response()->json(['message' => 'Domain deleted.']);
+    }
+
+    /**
+     * GET /domains/find-parent?domain=sub.example.com
+     */
+    public function findParent(Request $request): JsonResponse
+    {
+        $domainName = $request->query('domain');
+        if (!$domainName) {
+            return response()->json(['message' => 'Domain parameter is required'], 400);
+        }
+
+        $parent = $this->dnsService->findParentDomain($domainName);
+
+        if (!$parent) {
+            return response()->json(['message' => 'No managed parent domain found'], 404);
+        }
+
+        return response()->json($parent);
     }
 }

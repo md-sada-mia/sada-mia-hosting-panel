@@ -45,6 +45,19 @@ class DnsService
      */
     public function removeZone(Domain $domain): void
     {
+        $parent = $this->findParentDomain($domain->domain);
+
+        if ($parent && !$domain->dns_managed) {
+            // It was a subdomain managed via parent's A records
+            DnsRecord::where('domain_id', $parent->id)
+                ->where('app_id', $domain->app_id)
+                ->delete();
+
+            $this->generateZone($parent->fresh()->load('dnsRecords'));
+            $domain->update(['status' => 'inactive']);
+            return;
+        }
+
         $zoneFile = "{$this->zonesDir}/db.{$domain->domain}";
 
         // Remove zone file
@@ -126,6 +139,42 @@ class DnsService
     public function createManagedDomain(string $domainName, ?int $appId = null): ?Domain
     {
         try {
+            $parent = $this->findParentDomain($domainName);
+
+            if ($parent) {
+                // If it's a subdomain of a managed parent, we don't manage DNS separately
+                $domain = Domain::create([
+                    'domain'      => $domainName,
+                    'app_id'      => $appId,
+                    'status'      => 'active',
+                    'dns_managed' => false, // Important: not managed as a separate zone
+                ]);
+
+                // Add A record to the parent domain
+                // We need to extract the "name" for the A record relative to parent
+                $hostname = str_replace('.' . $parent->domain, '', $domainName);
+
+                $serverIp = trim(shell_exec("hostname -I 2>/dev/null | awk '{print $1}'") ?? '127.0.0.1');
+
+                // Create A record in parent's DNS records
+                DnsRecord::create([
+                    'domain_id' => $parent->id,
+                    'app_id'    => $appId, // Track which app this record belongs to
+                    'type'      => 'A',
+                    'name'      => $hostname,
+                    'value'     => $serverIp,
+                    'ttl'       => 3600,
+                ]);
+
+                // Create www CNAME/A for the subdomain? User didn't ask but usually expected.
+                // For now, let's stick to (a records) as requested.
+
+                // Regenerate parent zone
+                $this->generateZone($parent->fresh()->load('dnsRecords'));
+
+                return $domain;
+            }
+
             $ns = [
                 'nameserver_1' => \App\Models\Setting::get('dns_default_ns1'),
                 'nameserver_2' => \App\Models\Setting::get('dns_default_ns2'),
@@ -136,7 +185,7 @@ class DnsService
             $domain = Domain::create(array_merge([
                 'domain'      => $domainName,
                 'app_id'      => $appId,
-                'status'      => 'active', // or 'pending' depending on standard flow, let's use active to match manual create
+                'status'      => 'active',
                 'dns_managed' => true,
             ], array_filter($ns)));
 
@@ -151,6 +200,35 @@ class DnsService
             \Illuminate\Support\Facades\Log::error("Unified domain creation failed for {$domainName}: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Find if a domain is a subdomain of an existing managed domain.
+     */
+    public function findParentDomain(string $domainName): ?Domain
+    {
+        $parts = explode('.', $domainName);
+
+        // We need at least 3 parts for it to be a subdomain of something we might manage 
+        // (e.g., sub.example.com has 3 parts)
+        if (count($parts) < 3) {
+            return null;
+        }
+
+        // Try progressively shorter suffixes
+        // e.g., for a.b.c.com -> b.c.com, c.com
+        for ($i = 1; $i < count($parts) - 1; $i++) {
+            $candidate = implode('.', array_slice($parts, $i));
+            $parent = Domain::where('domain', $candidate)
+                ->where('dns_managed', true)
+                ->first();
+
+            if ($parent) {
+                return $parent;
+            }
+        }
+
+        return null;
     }
 
     /**

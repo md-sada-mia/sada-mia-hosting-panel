@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cron-jobs/{cronJob}/toggle', [CronJobController::class, 'toggle']);
 
     // DNS Domains
+    Route::get('/domains/find-parent', [DomainController::class, 'findParent']);
     Route::get('/domains', [DomainController::class, 'index']);
     Route::post('/domains', [DomainController::class, 'store']);
     Route::get('/domains/{domain}', [DomainController::class, 'show']);

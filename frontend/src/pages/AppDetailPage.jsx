@@ -12,7 +12,7 @@ import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
-  Mail
+  Mail, Info
 } from 'lucide-react';
 import {
   Select,
@@ -102,6 +102,7 @@ export default function AppDetailPage() {
   const [recordForm, setRecordForm] = useState({ type: 'A', name: '@', value: '', ttl: 3600, priority: '' });
   const [addingRecord, setAddingRecord] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(null);
+  const [parentDomain, setParentDomain] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingAction, setPendingAction] = useState(null);
 
@@ -128,6 +129,15 @@ export default function AppDetailPage() {
       setDomainData(data);
     } catch { /* domain may not exist yet */ }
     finally { setDnsLoading(false); }
+  };
+
+  const fetchParentDomain = async (domainName) => {
+    try {
+      const { data } = await api.get(`/domains/find-parent?domain=${domainName}`);
+      setParentDomain(data);
+    } catch {
+      setParentDomain(null);
+    }
   };
 
   const handleSetupDefaults = async () => {
@@ -163,10 +173,17 @@ export default function AppDetailPage() {
   }, [deployments]);
 
   useEffect(() => {
-    if (activeTab === 'deployments' && deploymentsTopRef.current) {
-      deploymentsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (activeTab === 'dns') {
+      fetchDomain();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const effectiveDomain = domainData ?? app?.domain_record;
+    if (activeTab === 'dns' && effectiveDomain && !effectiveDomain.dns_managed) {
+      fetchParentDomain(effectiveDomain.domain);
+    }
+  }, [activeTab, domainData, app?.domain_record]);
 
   const handleConfirmAction = async () => {
     if (!pendingAction) return;
@@ -623,13 +640,15 @@ export default function AppDetailPage() {
                               <Shield className="h-2.5 w-2.5" /> BIND9 Managed
                             </span>
                           )}
-                        </div>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="shrink-0">
-                      {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-                      Sync Zone
-                    </Button>
+                  </div>
+                  {effectiveDomain.dns_managed && (
+                      <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="shrink-0">
+                        {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                        Sync Zone
+                      </Button>
+                    )}
                   </div>
 
                   {/* Nameservers */}
@@ -650,142 +669,205 @@ export default function AppDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* DNS Records */}
-              <Card className="border-white/10 bg-white/[0.02]">
-                <CardHeader className="flex flex-row items-center justify-between pb-4">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Database className="h-4 w-4 text-primary" /> DNS Records
-                    </CardTitle>
-                    <CardDescription>{(effectiveDomain.dns_records || effectiveDomain.dnsRecords)?.length || 0} records</CardDescription>
-                  </div>
-                  <Button size="sm" onClick={() => setShowAddRecord(v => !v)} className="gap-1.5">
-                    <Plus className="h-3.5 w-3.5" /> Add Record
-                  </Button>
-                </CardHeader>
-
-                {showAddRecord && (
-                  <div className="mx-6 mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <form onSubmit={handleAddRecord}>
-                      <p className="text-sm font-semibold mb-3">New DNS Record</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div>
-                          <label className="text-[11px] text-muted-foreground mb-1 block">Type</label>
-                          <Select
-                            value={recordForm.type}
-                            onValueChange={value => setRecordForm(f => ({ ...f, type: value }))}
-                          >
-                            <SelectTrigger className="w-full h-9 text-sm bg-white/5 border-white/10">
-                              <SelectValue placeholder="Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {RECORD_TYPES.map(t => (
-                                <SelectItem key={t} value={t}>{t}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] text-muted-foreground mb-1 block">Name</label>
-                          <Input
-                            value={recordForm.name}
-                            onChange={e => setRecordForm(f => ({ ...f, name: e.target.value }))}
-                            placeholder="@ or subdomain"
-                            className="h-9 text-sm bg-white/5 border-white/10"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="text-[11px] text-muted-foreground mb-1 block">Value</label>
-                          <Input
-                            value={recordForm.value}
-                            onChange={e => setRecordForm(f => ({ ...f, value: e.target.value }))}
-                            placeholder="IP, hostname, or text..."
-                            className="h-9 text-sm bg-white/5 border-white/10"
-                            required
-                          />
-                        </div>
+              {/* DNS Records or Documentation */}
+              {!effectiveDomain.dns_managed ? (
+                <div className="flex justify-center pt-2 pb-12">
+                  <div className="w-full max-w-[55%] bg-blue-500/5 border border-blue-500/10 rounded-2xl p-8 relative overflow-hidden group">
+                    {/* Decorative background element */}
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-colors duration-700" />
+                    
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 shadow-lg shadow-blue-500/5">
+                        <Shield className="h-6 w-6 text-blue-400" />
                       </div>
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <div>
-                          <label className="text-[11px] text-muted-foreground mb-1 block">TTL (seconds)</label>
-                          <Input
-                            type="number"
-                            value={recordForm.ttl}
-                            onChange={e => setRecordForm(f => ({ ...f, ttl: parseInt(e.target.value) }))}
-                            placeholder="3600"
-                            className="h-9 text-sm bg-white/5 border-white/10"
-                          />
+                      <div>
+                        <h3 className="text-base font-bold text-white tracking-tight">DNS Management Policy</h3>
+                        <p className="text-[11px] text-blue-400 font-medium uppercase tracking-wider mt-0.5">Subdomain Configuration</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-300 leading-relaxed font-medium">
+                          This domain is managed under a parent DNS zone.
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          To maintain a lean and efficient configuration, the system automatically aggregates subdomain records under their respective primary domains.
+                        </p>
+                      </div>
+
+                      <div className="bg-white/[0.03] rounded-xl p-5 border border-white/5 space-y-4">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-white mb-1">
+                          <Info className="h-3.5 w-3.5 text-blue-400" />
+                          Key Implementation Details
                         </div>
-                        {(recordForm.type === 'MX' || recordForm.type === 'SRV') && (
+                        <ul className="space-y-3">
+                          {[
+                            { title: "Centralized Control", desc: "All DNS records for this app are stored within the parent domain's record set." },
+                            { title: "Automatic Sync", desc: "Base A records are automatically managed; changes to the parent zone safely include this app." },
+                            { title: "Custom Records", desc: "If you need additional CNAME or TXT records, please add them directly to the parent domain." }
+                          ].map((item, i) => (
+                            <li key={i} className="flex gap-3">
+                              <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500/40 shrink-0" />
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-white/90">{item.title}</p>
+                                <p className="text-[11px] text-muted-foreground leading-normal">{item.desc}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/30 text-xs font-medium h-9"
+                          onClick={() => navigate(`/domains${parentDomain ? `?q=${parentDomain.domain}` : ''}`)}
+                        >
+                          Go to Domains Panel <ChevronRight className="h-3 w-3 ml-2" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Card className="border-white/10 bg-white/[0.02]">
+                  <CardHeader className="flex flex-row items-center justify-between pb-4">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Database className="h-4 w-4 text-primary" /> DNS Records
+                      </CardTitle>
+                      <CardDescription>{(effectiveDomain.dns_records || effectiveDomain.dnsRecords)?.length || 0} records</CardDescription>
+                    </div>
+                    <Button size="sm" onClick={() => setShowAddRecord(v => !v)} className="gap-1.5">
+                      <Plus className="h-3.5 w-3.5" /> Add Record
+                    </Button>
+                  </CardHeader>
+
+                  {showAddRecord && (
+                    <div className="mx-6 mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <form onSubmit={handleAddRecord}>
+                        <p className="text-sm font-semibold mb-3">New DNS Record</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <label className="text-[11px] text-muted-foreground mb-1 block">Priority</label>
+                            <label className="text-[11px] text-muted-foreground mb-1 block">Type</label>
+                            <Select
+                              value={recordForm.type}
+                              onValueChange={value => setRecordForm(f => ({ ...f, type: value }))}
+                            >
+                              <SelectTrigger className="w-full h-9 text-sm bg-white/5 border-white/10">
+                                <SelectValue placeholder="Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {RECORD_TYPES.map(t => (
+                                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-[11px] text-muted-foreground mb-1 block">Name</label>
                             <Input
-                              type="number"
-                              value={recordForm.priority}
-                              onChange={e => setRecordForm(f => ({ ...f, priority: e.target.value }))}
-                              placeholder="10"
+                              value={recordForm.name}
+                              onChange={e => setRecordForm(f => ({ ...f, name: e.target.value }))}
+                              placeholder="@ or subdomain"
                               className="h-9 text-sm bg-white/5 border-white/10"
                             />
                           </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2 mt-4 justify-end">
-                        <Button size="sm" type="button" variant="ghost" onClick={() => setShowAddRecord(false)}>Cancel</Button>
-                        <Button size="sm" type="submit" disabled={addingRecord}>
-                          {addingRecord ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
-                          Add Record
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                <CardContent className="px-0 pb-0">
-                  {(!(effectiveDomain.dns_records || effectiveDomain.dnsRecords) || (effectiveDomain.dns_records || effectiveDomain.dnsRecords).length === 0) ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <Server className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                      <p className="text-sm font-medium mb-1">No DNS records yet</p>
-                      <p className="text-xs mb-4">Auto-create the essential records (A, CNAME, MX, SPF) for this domain</p>
-                      <Button size="sm" onClick={handleSetupDefaults} disabled={settingUpDefaults} className="gap-1.5">
-                        {settingUpDefaults ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                        Setup Default Records
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-white/5">
-                      {/* Header */}
-                      <div className="grid grid-cols-[80px_1fr_1fr_80px_40px] gap-3 px-6 py-2">
-                        {['Type', 'Name', 'Value', 'TTL', ''].map(h => (
-                          <span key={h} className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{h}</span>
-                        ))}
-                      </div>
-                      {(effectiveDomain.dns_records || effectiveDomain.dnsRecords).map(record => (
-                        <div key={record.id} className="grid grid-cols-[80px_1fr_1fr_80px_40px] gap-3 px-6 py-3 items-center hover:bg-white/[0.02] transition-colors group">
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-bold border ${recordTypeColor[record.type] || 'bg-muted text-muted-foreground border-transparent'}`}>
-                            {record.type}
-                          </span>
-                          <code className="text-sm font-mono text-white/80 truncate">{record.name}</code>
-                          <div className="flex items-center gap-1 min-w-0">
-                            <code className="text-sm font-mono text-muted-foreground truncate flex-1">{record.value}</code>
-                            <CopyBtn value={record.value} />
+                          <div className="sm:col-span-2">
+                            <label className="text-[11px] text-muted-foreground mb-1 block">Value</label>
+                            <Input
+                              value={recordForm.value}
+                              onChange={e => setRecordForm(f => ({ ...f, value: e.target.value }))}
+                              placeholder="IP, hostname, or text..."
+                              className="h-9 text-sm bg-white/5 border-white/10"
+                              required
+                            />
                           </div>
-                          <span className="text-xs text-muted-foreground">{record.ttl}s</span>
-                          <button
-                            onClick={() => handleDeleteRecord(record.id)}
-                            disabled={deletingRecord === record.id}
-                            className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            {deletingRecord === record.id
-                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              : <Trash2 className="h-3.5 w-3.5" />
-                            }
-                          </button>
                         </div>
-                      ))}
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <div>
+                            <label className="text-[11px] text-muted-foreground mb-1 block">TTL (seconds)</label>
+                            <Input
+                              type="number"
+                              value={recordForm.ttl}
+                              onChange={e => setRecordForm(f => ({ ...f, ttl: parseInt(e.target.value) }))}
+                              placeholder="3600"
+                              className="h-9 text-sm bg-white/5 border-white/10"
+                            />
+                          </div>
+                          {(recordForm.type === 'MX' || recordForm.type === 'SRV') && (
+                            <div>
+                              <label className="text-[11px] text-muted-foreground mb-1 block">Priority</label>
+                              <Input
+                                type="number"
+                                value={recordForm.priority}
+                                onChange={e => setRecordForm(f => ({ ...f, priority: e.target.value }))}
+                                placeholder="10"
+                                className="h-9 text-sm bg-white/5 border-white/10"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-4 justify-end">
+                          <Button size="sm" type="button" variant="ghost" onClick={() => setShowAddRecord(false)}>Cancel</Button>
+                          <Button size="sm" type="submit" disabled={addingRecord}>
+                            {addingRecord ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+                            Add Record
+                          </Button>
+                        </div>
+                      </form>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+
+                  <CardContent className="px-0 pb-0">
+                    {(!(effectiveDomain.dns_records || effectiveDomain.dnsRecords) || (effectiveDomain.dns_records || effectiveDomain.dnsRecords).length === 0) ? (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <Server className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm font-medium mb-1">No DNS records yet</p>
+                        <p className="text-xs mb-4">Auto-create the essential records (A, CNAME, MX, SPF) for this domain</p>
+                        <Button size="sm" onClick={handleSetupDefaults} disabled={settingUpDefaults} className="gap-1.5">
+                          {settingUpDefaults ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                          Setup Default Records
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-white/5">
+                        {/* Header */}
+                        <div className="grid grid-cols-[80px_1fr_1fr_80px_40px] gap-3 px-6 py-2">
+                          {['Type', 'Name', 'Value', 'TTL', ''].map(h => (
+                            <span key={h} className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{h}</span>
+                          ))}
+                        </div>
+                        {(effectiveDomain.dns_records || effectiveDomain.dnsRecords).map(record => (
+                          <div key={record.id} className="grid grid-cols-[80px_1fr_1fr_80px_40px] gap-3 px-6 py-3 items-center hover:bg-white/[0.02] transition-colors group">
+                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-bold border ${recordTypeColor[record.type] || 'bg-muted text-muted-foreground border-transparent'}`}>
+                              {record.type}
+                            </span>
+                            <code className="text-sm font-mono text-white/80 truncate">{record.name}</code>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <code className="text-sm font-mono text-muted-foreground truncate flex-1">{record.value}</code>
+                              <CopyBtn value={record.value} />
+                            </div>
+                            <span className="text-xs text-muted-foreground">{record.ttl}s</span>
+                            <button
+                              onClick={() => handleDeleteRecord(record.id)}
+                              disabled={deletingRecord === record.id}
+                              className="p-1.5 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              {deletingRecord === record.id
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Trash2 className="h-3.5 w-3.5" />
+                              }
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
             );
           })()}
