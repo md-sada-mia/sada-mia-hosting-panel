@@ -27,4 +27,9 @@ class Customer extends Model
     {
         return $this->belongsTo(LoadBalancer::class, 'resource_id');
     }
+
+    public function deployment()
+    {
+        return $this->hasOne(CustomerDeployment::class)->latest();
+    }
 }

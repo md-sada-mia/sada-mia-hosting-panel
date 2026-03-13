@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerDeployment;
 use App\Models\App as AppModel;
 use App\Models\LoadBalancer;
 use App\Models\Setting;
@@ -112,6 +113,7 @@ class CustomerController extends Controller
             // If creating a new LB:
             'lb_name'          => 'nullable|string',
             'lb_method'        => 'nullable|in:round_robin,least_conn,ip_hash,random',
+            'domain_mode'      => 'nullable|string', // Support for tracking subdomain vs custom
         ]);
 
         if (!empty($validated['load_balancer_id'])) {
@@ -137,10 +139,22 @@ class CustomerController extends Controller
             $lb->update(['status' => 'active']);
         }
 
+        // Register DNS record (new/managed or subdomain under parent)
+        $this->dnsService->createManagedDomain($validated['domain']);
+
         $customer->update([
             'resource_type' => 'load_balancer',
             'resource_id'   => $lb->id,
             'status'        => 'active',
+        ]);
+
+        // Save historical deployment record
+        CustomerDeployment::create([
+            'customer_id'      => $customer->id,
+            'resource_type'    => 'load_balancer',
+            'load_balancer_id' => $lb->id,
+            'domain_mode'      => $validated['domain_mode'] ?? null,
+            'domain'           => $validated['domain'],
         ]);
 
         $data = $customer->fresh()->toArray();
@@ -163,7 +177,10 @@ class CustomerController extends Controller
             'auto_deploy'      => 'nullable|boolean',
             'env_vars'         => 'nullable|string',
             'auto_db_create'   => 'nullable|boolean',
+            'domain_mode'      => 'nullable|string',
         ]);
+
+        $dbInfo = [];
 
         if (!empty($validated['app_id'])) {
             // Link existing app
@@ -220,6 +237,11 @@ class CustomerController extends Controller
                     foreach ($envs as $k => $v) {
                         $app->envVariables()->updateOrCreate(['key' => $k], ['value' => $v]);
                     }
+                    $dbInfo = [
+                        'db_name' => $db->db_name,
+                        'db_user' => $db->db_user,
+                        'db_password' => $db->db_password,
+                    ];
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error("CRM Auto DB failed for app {$app->id}: " . $e->getMessage());
                 }
@@ -252,6 +274,24 @@ class CustomerController extends Controller
             'status'        => 'active',
         ]);
 
+        // Save historical deployment record
+        CustomerDeployment::create(array_merge([
+            'customer_id'      => $customer->id,
+            'resource_type'    => 'app',
+            'app_id'           => $app->id,
+            'domain_mode'      => $validated['domain_mode'] ?? null,
+            'domain'           => $validated['domain'] ?? null,
+            'app_type'         => $validated['type'] ?? 'nextjs',
+            'existing_app'     => !empty($validated['app_id']),
+            'git_url'          => $validated['git_url'] ?? null,
+            'branch'           => $validated['branch'] ?? 'main',
+            'github_full_name' => $validated['github_full_name'] ?? null,
+            'github_id'        => $validated['github_id'] ?? null,
+            'auto_deploy'      => $validated['auto_deploy'] ?? false,
+            'env_vars'         => $validated['env_vars'] ?? null,
+            'auto_db_create'   => $validated['auto_db_create'] ?? false,
+        ], $dbInfo));
+
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
 
@@ -267,13 +307,13 @@ class CustomerController extends Controller
         if ($customer->resource_type === 'app') {
             $app = AppModel::find($customer->resource_id);
             if (!$app) return null;
-            return ['type' => 'app', 'id' => $app->id, 'name' => $app->name, 'domain' => $app->domain, 'status' => $app->status];
+            return ['type' => 'app', 'id' => $app->id, 'name' => $app->name, 'domain' => $app->domain, 'status' => $app->status, 'deployment_info' => $customer->deployment];
         }
 
         if ($customer->resource_type === 'load_balancer') {
             $lb = LoadBalancer::with('domains')->find($customer->resource_id);
             if (!$lb) return null;
-            return ['type' => 'load_balancer', 'id' => $lb->id, 'name' => $lb->name, 'domains' => $lb->domains->pluck('domain'), 'status' => $lb->status];
+            return ['type' => 'load_balancer', 'id' => $lb->id, 'name' => $lb->name, 'domains' => $lb->domains->pluck('domain'), 'status' => $lb->status, 'deployment_info' => $customer->deployment];
         }
 
         return null;

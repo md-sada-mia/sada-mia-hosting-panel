@@ -53,8 +53,8 @@ class LoadBalancerController extends Controller
         if (!empty($validated['domains'])) {
             foreach ($validated['domains'] as $domain) {
                 $lb->domains()->create(['domain' => $domain]);
+                $this->dnsService->createManagedDomain($domain);
             }
-            $this->processDomainsDNS($validated['domains']);
         }
 
         // Explicitly load relations so the Nginx config generator sees the new apps and domains
@@ -106,8 +106,8 @@ class LoadBalancerController extends Controller
             $loadBalancer->domains()->delete();
             foreach ($validated['domains'] as $domain) {
                 $loadBalancer->domains()->create(['domain' => $domain]);
+                $this->dnsService->createManagedDomain($domain);
             }
-            $this->processDomainsDNS($validated['domains']);
         }
 
         // Explicitly load relations so the Nginx config generator sees the updated apps and domains
@@ -147,7 +147,7 @@ class LoadBalancerController extends Controller
         }
 
         $loadBalancer->domains()->create(['domain' => $domain]);
-        $this->processDomainsDNS([$domain]);
+        $this->dnsService->createManagedDomain($domain);
 
         $loadBalancer->load(['apps', 'domains']);
         $this->nginxService->generateLoadBalancer($loadBalancer);
@@ -217,75 +217,5 @@ class LoadBalancerController extends Controller
         $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
 
         return response()->json($resp);
-    }
-
-    private function processDomainsDNS(array $domains): void
-    {
-        $serverIp = trim(shell_exec("hostname -I 2>/dev/null | awk '{print $1}'") ?? '');
-        if (empty($serverIp) || $serverIp === '127.0.0.1') {
-            $serverIp = request()->server('SERVER_ADDR') ?? '127.0.0.1';
-        }
-
-        foreach ($domains as $domainName) {
-            // 1. Check if the domain itself is already a managed zone
-            $managedDomain = Domain::where('domain', $domainName)->where('dns_managed', true)->first();
-
-            if ($managedDomain) {
-                if (!DnsRecord::where('domain_id', $managedDomain->id)->where('type', 'A')->where('name', '@')->exists()) {
-                    DnsRecord::create([
-                        'domain_id' => $managedDomain->id,
-                        'type' => 'A',
-                        'name' => '@',
-                        'value' => $serverIp,
-                        'ttl' => 3600
-                    ]);
-                    $this->dnsService->syncRecords($managedDomain);
-                }
-                continue;
-            }
-
-            // 2. Traversal for subdomains (e.g. lb1.test or lb1.mysite.com)
-            $parts = explode('.', $domainName);
-            if (count($parts) < 2) continue;
-
-            $foundParent = false;
-            // Loop from the most specific parent to the least (e.g. sub.myapp.com -> check myapp.com then com)
-            for ($i = 1; $i < count($parts); $i++) {
-                $subdomainParts = array_slice($parts, 0, $i);
-                $parentParts = array_slice($parts, $i);
-
-                $subdomain = implode('.', $subdomainParts);
-                $parentDomainName = implode('.', $parentParts);
-
-                $parentDomain = Domain::where('domain', $parentDomainName)
-                    ->where('dns_managed', true)
-                    ->first();
-
-                if ($parentDomain) {
-                    $exists = DnsRecord::where('domain_id', $parentDomain->id)
-                        ->where('type', 'A')
-                        ->where('name', $subdomain)
-                        ->exists();
-
-                    if (!$exists) {
-                        DnsRecord::create([
-                            'domain_id' => $parentDomain->id,
-                            'type' => 'A',
-                            'name' => $subdomain,
-                            'value' => $serverIp,
-                            'ttl' => 3600
-                        ]);
-                        $this->dnsService->syncRecords($parentDomain);
-                    }
-                    $foundParent = true;
-                    break; // Stop climbing once we found the zone
-                }
-            }
-
-            // 3. Consistency: If NOT a subdomain of an existing zone, create a NEW managed domain record
-            if (!$foundParent) {
-                $this->dnsService->createManagedDomain($domainName);
-            }
-        }
     }
 }

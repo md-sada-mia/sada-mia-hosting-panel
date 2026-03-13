@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Plus, Search, Edit2, Trash2, RefreshCw, ExternalLink,
-  Phone, Mail, Building2, UserCheck, Target, TrendingUp, Network, Layers
+  Phone, Mail, Building2, UserCheck, Target, TrendingUp, Network, Layers, Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -243,12 +243,23 @@ export default function CrmPage() {
                               </div>
                             </div>
                           )}
+                          {(customer.resource.deployment_info?.domain || customer.resource.domain) && (
+                            <a
+                              href={`http://${customer.resource.deployment_info?.domain || customer.resource.domain}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted ml-0.5"
+                              title="Visit Site"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
                           <button
                             onClick={() => customer.resource_type === 'app' ? navigate(`/apps/${customer.resource.id}`) : navigate(`/load-balancers/${customer.resource.id}/manage`)}
                             className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted ml-0.5"
-                            title="View Resource"
+                            title="Manage Resource"
                           >
-                            <ExternalLink className="h-3.5 w-3.5" />
+                            <Settings className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       ) : (

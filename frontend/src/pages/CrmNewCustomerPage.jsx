@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Users, Building2, Mail, Phone, MapPin, StickyNote,
   Network, Layers, Plus, RefreshCw, Zap, Github, Terminal,
-  ChevronRight, CheckCircle2, AlertCircle
+  ChevronRight, CheckCircle2, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -177,15 +177,17 @@ export default function CrmNewCustomerPage() {
         if (crmType === 'load_balancer') {
           payload = { 
             ...lbForm, 
+            domain_mode: domainMode,
             domain: (domainMode === 'subdomain' && defaultDomain) 
               ? `${lbForm.domain}.${defaultDomain}` 
               : lbForm.domain 
           };
         } else if (appMode === 'existing') {
-          payload = { app_id: selectedAppId };
+          payload = { app_id: selectedAppId, domain_mode: 'existing' };
         } else {
           payload = { 
             ...appForm, 
+            domain_mode: domainMode,
             domain: (domainMode === 'subdomain' && defaultDomain) 
               ? `${appForm.domain}.${defaultDomain}` 
               : appForm.domain 
@@ -356,11 +358,128 @@ export default function CrmNewCustomerPage() {
             </div>
           </div>
 
-          {/* ── RIGHT: Sticky Deployment Panel ─────────────────────────── */}
-          <aside className="lg:sticky lg:top-6 space-y-4">
-            <div className={`rounded-2xl border-2 overflow-hidden transition-all shadow-xl bg-card/50 backdrop-blur-sm ${
-              skipDeployment ? 'opacity-60 grayscale-[0.5]' : ''
-            } ${crmType === 'load_balancer' ? 'border-blue-500/20' : 'border-violet-500/20'}`}>
+      {/* ── RIGHT: Sticky Deployment Panel ─────────────────────────── */}
+      <aside className="lg:sticky lg:top-6 space-y-4">
+        {isEdit && deployedResource ? (
+          <div className={`rounded-2xl border-2 overflow-hidden shadow-xl bg-card/50 backdrop-blur-sm ${
+            deployedResource.type === 'load_balancer' ? 'border-blue-500/20' : 'border-violet-500/20'
+          }`}>
+            <div className={`px-5 py-5 border-b flex items-center justify-between gap-3 ${
+              deployedResource.type === 'load_balancer' ? 'bg-blue-500/5 border-blue-500/20' : 'bg-violet-500/5 border-violet-500/20'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl scale-110 ${deployedResource.type === 'load_balancer' ? 'bg-blue-500/10' : 'bg-violet-500/10'}`}>
+                  {deployedResource.type === 'load_balancer'
+                    ? <Network className="h-5 w-5 text-blue-400" />
+                    : <Layers className="h-5 w-5 text-violet-400" />}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm tracking-tight text-foreground">
+                    Active Deployment
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                    {deployedResource.type === 'load_balancer' ? 'Load Balancer' : 'Application'}
+                  </p>
+                </div>
+              </div>
+              <div className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider">
+                Deployed
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="bg-muted/30 p-4 rounded-xl border border-dashed text-sm space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground uppercase tracking-wider font-bold">Name</span>
+                  <span className="font-semibold">{deployedResource.name}</span>
+                </div>
+                <div className="flex justify-between items-start text-xs border-b border-muted/50 pb-2">
+                  <span className="text-muted-foreground uppercase tracking-wider font-bold">Domain</span>
+                  <div className="flex flex-col items-end gap-1 text-right">
+                    {deployedResource.deployment_info?.domain ? (
+                      <span className="font-medium bg-muted/50 px-2 py-0.5 rounded-md border">{deployedResource.deployment_info.domain}</span>
+                    ) : deployedResource.domain ? (
+                      <span className="font-medium bg-muted/50 px-2 py-0.5 rounded-md border">{deployedResource.domain}</span>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Show detailed config if available */}
+                {deployedResource.deployment_info && (
+                  <div className="pt-1 flex flex-col gap-2">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-1">Configuration snapshot</p>
+                    
+                    {deployedResource.deployment_info.domain_mode && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground uppercase tracking-wider font-bold">Domain Mode</span>
+                        <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{deployedResource.deployment_info.domain_mode}</span>
+                      </div>
+                    )}
+
+                    {deployedResource.deployment_info.resource_type === 'app' && !deployedResource.deployment_info.existing_app && (
+                      <>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground uppercase tracking-wider font-bold">App Stack</span>
+                          <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{deployedResource.deployment_info.app_type}</span>
+                        </div>
+                        {deployedResource.deployment_info.github_full_name && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground uppercase tracking-wider font-bold">Repository</span>
+                            <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <Github className="h-3 w-3" /> {deployedResource.deployment_info.github_full_name}
+                            </span>
+                          </div>
+                        )}
+                        {deployedResource.deployment_info.branch && (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground uppercase tracking-wider font-bold">Branch</span>
+                            <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{deployedResource.deployment_info.branch}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {deployedResource.deployment_info.existing_app && (
+                       <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground uppercase tracking-wider font-bold">App Mode</span>
+                        <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">Linked Existing</span>
+                      </div>
+                    )}
+
+                    {deployedResource.deployment_info.db_name && (
+                      <div className="mt-2 p-2 border border-primary/20 bg-primary/5 rounded-lg space-y-1">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Generated Database</p>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-muted-foreground">Database</span>
+                          <span className="font-mono font-medium">{deployedResource.deployment_info.db_name}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-muted-foreground">Username</span>
+                          <span className="font-mono font-medium">{deployedResource.deployment_info.db_user}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-muted-foreground">Password</span>
+                          <span className="font-mono font-medium text-xs">••••••••</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <button type="button" 
+                onClick={() => deployedResource.type === 'app' ? navigate(`/apps/${deployedResource.id}`) : navigate(`/load-balancers/${deployedResource.id}/manage`)}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold text-sm transition-all hover:bg-primary/20">
+                Manage {deployedResource.type === 'load_balancer' ? 'Load Balancer' : 'App'} <ExternalLink className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={`rounded-2xl border-2 overflow-hidden transition-all shadow-xl bg-card/50 backdrop-blur-sm ${
+            skipDeployment ? 'opacity-60 grayscale-[0.5]' : ''
+          } ${crmType === 'load_balancer' ? 'border-blue-500/20' : 'border-violet-500/20'}`}>
               
               <div className={`px-5 py-5 border-b flex items-center justify-between gap-3 ${
                 crmType === 'load_balancer' ? 'bg-blue-500/5 border-blue-500/20' : 'bg-violet-500/5 border-violet-500/20'
@@ -623,43 +742,45 @@ export default function CrmNewCustomerPage() {
                     </div>
                   )}
 
-                  {/* Sidebar Action buttons */}
-                  <div className="pt-2 space-y-2">
-                    <button type="submit" disabled={submitting || isDeploying}
-                      className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20 active:translate-y-[0px] transition-all disabled:opacity-50 disabled:translate-y-0 shadow-sm relative overflow-hidden group">
-                      <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
-                      {submitting
-                        ? <><RefreshCw className="h-5 w-5 animate-spin" /> {isEdit ? 'Saving...' : 'Creating...'}</>
-                        : skipDeployment || (isEdit && deployedResource)
-                          ? <>{isEdit ? 'Update Details' : 'Create Customer'}</>
-                          : <><Zap className="h-5 w-5" /> {isEdit ? 'Save & Deploy' : 'Create & Deploy'}</>
-                      }
-                    </button>
-                    <button type="button" onClick={() => navigate('/crm')}
-                      className="w-full py-3.5 border-2 rounded-2xl text-xs font-bold hover:bg-muted/50 transition-all text-muted-foreground uppercase tracking-widest">
-                      Discard Changes
-                    </button>
-                  </div>
-                </div>
-              )}
+              </div>
+            )}
 
-              {skipDeployment && (
-                <div className="p-8 bg-card flex flex-col items-center text-center space-y-4">
-                  <div className="p-4 rounded-3xl bg-orange-500/10 border-2 border-orange-500/20">
-                    <AlertCircle className="h-10 w-10 text-orange-400 opacity-60" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Deployment Skipped</p>
-                    <p className="text-[11px] text-muted-foreground mt-1 px-4">
-                      No hosting resource will be created. You can deploy later from the CRM dashboard.
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => setSkipDeployment(false)} className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline transition-all">Enable Deployment</button>
+            {skipDeployment && (
+              <div className="p-8 bg-card flex flex-col items-center text-center space-y-4">
+                <div className="p-4 rounded-3xl bg-orange-500/10 border-2 border-orange-500/20">
+                  <AlertCircle className="h-10 w-10 text-orange-400 opacity-60" />
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Deployment Skipped</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 px-4">
+                    No hosting resource will be created. You can deploy later from the CRM dashboard.
+                  </p>
+                </div>
+                <button type="button" onClick={() => setSkipDeployment(false)} className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline transition-all">Enable Deployment</button>
+              </div>
+            )}
+          </div>
+        )}
 
-            {/* Support box */}
+        {/* Sidebar Action buttons */}
+        <div className="pt-2 space-y-2">
+          <button type="submit" disabled={submitting || isDeploying}
+            className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20 active:translate-y-[0px] transition-all disabled:opacity-50 disabled:translate-y-0 shadow-sm relative overflow-hidden group">
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
+            {submitting
+              ? <><RefreshCw className="h-5 w-5 animate-spin" /> {isEdit ? 'Saving...' : 'Creating...'}</>
+              : skipDeployment || (isEdit && deployedResource)
+                ? <>{isEdit ? 'Update Details' : 'Create Customer'}</>
+                : <><Zap className="h-5 w-5" /> {isEdit ? 'Save & Deploy' : 'Create & Deploy'}</>
+            }
+          </button>
+          <button type="button" onClick={() => navigate('/crm')}
+            className="w-full py-3.5 border-2 rounded-2xl text-xs font-bold hover:bg-muted/50 transition-all text-muted-foreground uppercase tracking-widest">
+            Discard Changes
+          </button>
+        </div>
+
+        {/* Support box */}
             <div className="p-5 rounded-2xl border bg-muted/30 border-dashed animate-pulse-slow">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] mb-1">Need Help?</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
