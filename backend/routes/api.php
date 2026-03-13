@@ -64,7 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // CRM Customers
     Route::apiResource('customers', CustomerController::class);
-    Route::post('/customers/{customer}/provision', [CustomerController::class, 'provision']);
+    Route::post('/customers/{customer}/deploy', [CustomerController::class, 'deploy']);
 
     // Load Balancers
     Route::apiResource('load-balancers', \App\Http\Controllers\Api\LoadBalancerController::class);

@@ -33,7 +33,7 @@ export default function SettingsPage() {
     dns_default_ns4: '',
     crm_creation_type: 'load_balancer',
     crm_default_lb_id: '',
-    crm_default_provision_domain: '',
+    crm_default_deployment_domain: '',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -345,7 +345,7 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    CRM Provisioning Type
+                    CRM Deployment Type
                   </CardTitle>
                   <CardDescription>
                     Choose how the CRM creates hosting resources for new customers.
@@ -412,12 +412,12 @@ export default function SettingsPage() {
                   <div className="pt-4 border-t space-y-3">
                     <label className="text-sm font-semibold flex items-center gap-2">
                       <Globe className="h-4 w-4 text-primary" />
-                      Default Provisioning Domain
+                      Default Deployment Domain
                     </label>
                     <div className="max-w-md">
                       <Select 
-                        value={githubSettings.crm_default_provision_domain || ''} 
-                        onValueChange={v => setGithubSettings({ ...githubSettings, crm_default_provision_domain: v })}
+                        value={githubSettings.crm_default_deployment_domain || ''} 
+                        onValueChange={v => setGithubSettings({ ...githubSettings, crm_default_deployment_domain: v })}
                       >
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="-- Select a domain from system --" />
@@ -437,7 +437,7 @@ export default function SettingsPage() {
                   <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
                     <ShieldCheck className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      This setting determines what happens when you click <strong>Provision</strong> on a CRM customer. 
+                      This setting determines what happens when you click <strong>Deploy</strong> on a CRM customer. 
                       You can change it at any time; existing customer resources are not affected.
                     </p>
                   </div>

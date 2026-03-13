@@ -85,7 +85,7 @@ export default function CrmPage() {
     total: customers.length,
     active: customers.filter(c => c.status === 'active').length,
     leads: customers.filter(c => c.status === 'lead').length,
-    provisioned: customers.filter(c => c.resource_type).length,
+    deployed: customers.filter(c => c.resource_type).length,
   };
 
   // ── Filtered customers ─────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ export default function CrmPage() {
         <StatCard icon={Users}      label="Total Customers"  value={stats.total}       color="bg-primary/10 text-primary" />
         <StatCard icon={UserCheck}  label="Active Clients"   value={stats.active}      color="bg-emerald-500/10 text-emerald-400" />
         <StatCard icon={Target}     label="Leads"            value={stats.leads}       color="bg-amber-500/10 text-amber-400" />
-        <StatCard icon={TrendingUp} label="Provisioned"      value={stats.provisioned} color="bg-violet-500/10 text-violet-400" />
+        <StatCard icon={TrendingUp} label="Deployed"         value={stats.deployed}    color="bg-violet-500/10 text-violet-400" />
       </div>
 
       {/* Filters */}
@@ -252,7 +252,7 @@ export default function CrmPage() {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground italic">Not provisioned</span>
+                        <span className="text-[11px] text-muted-foreground italic">Not deployed</span>
                       )}
                     </td>
                     <td className="px-6 py-4">

@@ -203,7 +203,7 @@ export default function DatabasesPage() {
           ) : databases.length === 0 ? (
             <Card className="border-dashed flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Database className="h-12 w-12 mb-4 opacity-20" />
-              <p>No databases provisioned yet.</p>
+              <p>No databases created yet.</p>
             </Card>
           ) : (
             databases

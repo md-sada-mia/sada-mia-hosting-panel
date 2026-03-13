@@ -89,22 +89,22 @@ class CustomerController extends Controller
     }
 
     /**
-     * Provision a hosting resource (App or Load Balancer) for this customer.
+     * Deploy a hosting resource (App or Load Balancer) for this customer.
      */
-    public function provision(Request $request, Customer $customer)
+    public function deploy(Request $request, Customer $customer)
     {
         $crmType = Setting::get('crm_creation_type', 'load_balancer');
 
         if ($crmType === 'load_balancer') {
-            return $this->provisionLoadBalancer($request, $customer);
+            return $this->deployLoadBalancer($request, $customer);
         }
 
-        return $this->provisionApp($request, $customer);
+        return $this->deployApp($request, $customer);
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private function provisionLoadBalancer(Request $request, Customer $customer)
+    private function deployLoadBalancer(Request $request, Customer $customer)
     {
         $validated = $request->validate([
             'load_balancer_id' => 'nullable|exists:load_balancers,id',
@@ -149,7 +149,7 @@ class CustomerController extends Controller
         return response()->json($data);
     }
 
-    private function provisionApp(Request $request, Customer $customer)
+    private function deployApp(Request $request, Customer $customer)
     {
         $validated = $request->validate([
             'app_id'           => 'nullable|exists:apps,id',  // existing app
