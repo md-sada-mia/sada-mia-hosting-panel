@@ -4,4 +4,4 @@ sudo nano /etc/hosts
 
 
 sudo chmod +x dns-check.sh
-sudo ./dns-check.sh digitcare.vip
+sudo ./dns-check.sh autoflow.best
