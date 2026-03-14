@@ -250,7 +250,7 @@ class DnsService
     private function buildZoneContent(Domain $domain): string
     {
         $records     = $domain->dnsRecords;
-        $serial      = now()->format('YmdHi');
+        $serial      = now()->getTimestamp();
         $zoneDomain  = rtrim($domain->domain, '.');
 
         $lines = [];
