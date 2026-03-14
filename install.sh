@@ -162,6 +162,8 @@ perform_cleanup() {
     # 6. Reset Database
     echo "==> Resetting database to original state"
     cd backend
+    # Ensure SERVER_IP is set if already on remote (using the IP detected at script start)
+    grep -q "SERVER_IP=" .env && sed -i "s|^SERVER_IP=.*|SERVER_IP=$IP_ADDRESS|" .env || echo "SERVER_IP=$IP_ADDRESS" >> .env
     php artisan migrate:fresh --seed --force
     cd ..
 
@@ -607,6 +609,11 @@ echo "==> 8. Setting up Panel Backend"
 cd backend
 composer install --no-interaction --optimize-autoloader
 cp .env.example .env || true
+
+# Update server_ip setting in backend .env BEFORE migrations/seeders
+echo "==> Setting SERVER_IP in backend .env"
+grep -q "SERVER_IP=" .env && sed -i "s|^SERVER_IP=.*|SERVER_IP=$IP_ADDRESS|" .env || echo "SERVER_IP=$IP_ADDRESS" >> .env
+
 php artisan key:generate
 # Update APP_URL in backend .env
 # Set correct variables for Sanctum and Sessions to work over IP:PORT
@@ -639,10 +646,6 @@ php artisan storage:link || true
 php artisan optimize:clear
 chown -R www-data:www-data storage bootstrap/cache database public
 chmod -R 775 storage bootstrap/cache public
-
-# Update server_ip setting in backend .env
-echo "==> Setting SERVER_IP in backend .env"
-grep -q "SERVER_IP=" .env && sed -i "s|^SERVER_IP=.*|SERVER_IP=$IP_ADDRESS|" .env || echo "SERVER_IP=$IP_ADDRESS" >> .env
 
 # Ensure database and file are owned by www-data for SQLite write access
 
