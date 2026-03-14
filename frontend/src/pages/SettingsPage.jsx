@@ -323,7 +323,13 @@ export default function SettingsPage() {
                         value={githubSettings.ns_default_domain || ''} 
                         onChange={handleGithubChange} 
                         placeholder="e.g. hostinger.com" 
+                        list="system-domains-list"
                       />
+                      <datalist id="system-domains-list">
+                        {systemDomains.map(d => (
+                          <option key={d.id} value={d.domain} />
+                        ))}
+                      </datalist>
                       <p className="text-[11px] text-muted-foreground leading-relaxed italic">
                         If nameservers are not manually set, they will be auto-generated using this domain (e.g. ns1.hostinger.com).
                       </p>
