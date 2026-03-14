@@ -10,5 +10,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(AdminUserSeeder::class);
         $this->call(GitHubSettingsSeeder::class);
+        $this->call(GeneralSettingsSeeder::class);
     }
 }

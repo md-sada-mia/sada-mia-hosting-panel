@@ -97,11 +97,8 @@ class DnsService
      */
     public function createDefaultRecords(Domain $domain): void
     {
-        // Detect server IP
-        $serverIp = trim(shell_exec("hostname -I 2>/dev/null | awk '{print $1}'") ?? '');
-        if (empty($serverIp)) {
-            $serverIp = '127.0.0.1';
-        }
+        // Get server IP from settings
+        $serverIp = \App\Models\Setting::get('server_ip', '127.0.0.1');
 
         $defaults = [
             ['type' => 'A',     'name' => '@',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
@@ -154,7 +151,7 @@ class DnsService
                 // We need to extract the "name" for the A record relative to parent
                 $hostname = str_replace('.' . $parent->domain, '', $domainName);
 
-                $serverIp = trim(shell_exec("hostname -I 2>/dev/null | awk '{print $1}'") ?? '127.0.0.1');
+                $serverIp = \App\Models\Setting::get('server_ip', '127.0.0.1');
 
                 // Create A record in parent's DNS records
                 DnsRecord::create([

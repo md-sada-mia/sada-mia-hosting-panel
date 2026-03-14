@@ -640,6 +640,10 @@ php artisan optimize:clear
 chown -R www-data:www-data storage bootstrap/cache database public
 chmod -R 775 storage bootstrap/cache public
 
+# Update server_ip setting in backend .env
+echo "==> Setting SERVER_IP in backend .env"
+grep -q "SERVER_IP=" .env && sed -i "s|^SERVER_IP=.*|SERVER_IP=$IP_ADDRESS|" .env || echo "SERVER_IP=$IP_ADDRESS" >> .env
+
 # Ensure database and file are owned by www-data for SQLite write access
 
 touch database/database.sqlite

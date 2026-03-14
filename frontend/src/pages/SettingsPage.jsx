@@ -35,6 +35,7 @@ export default function SettingsPage() {
     crm_default_lb_id: '',
     crm_default_deployment_domain: '',
     panel_url: '',
+    server_ip: '',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -597,16 +598,34 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
-                    <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold text-primary">Important Recommendation</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        If you are using a domain name, make sure to update your GitHub App's <strong>Redirect URL</strong> 
-                        to match this new address to avoid authentication issues.
-                      </p>
+                    <div className="grid gap-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Network className="h-4 w-4 text-primary" />
+                        Server IP Address
+                      </label>
+                      <div className="space-y-2">
+                        <Input 
+                          name="server_ip" 
+                          value={githubSettings.server_ip || ''} 
+                          onChange={handleGithubChange} 
+                          placeholder="e.g. 1.2.3.4" 
+                        />
+                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                          This IP address is used for all default DNS A records created by the panel.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
+                      <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-primary">Important Recommendation</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          If you are using a domain name, make sure to update your GitHub App's <strong>Redirect URL</strong> 
+                          to match this new address to avoid authentication issues.
+                        </p>
+                      </div>
+                    </div>
                 </CardContent>
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={loading}>
