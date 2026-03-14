@@ -107,6 +107,8 @@ class DnsService
             ['type' => 'A',     'name' => 'webmail',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autoconfig',   'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autodiscover', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'ns1',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'ns2',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'MX',    'name' => '@',      'value' => 'mail.' . $domain->domain . '.', 'ttl' => 3600, 'priority' => 10],
             ['type' => 'TXT',   'name' => '@',      'value' => "v=spf1 a mx ip4:{$serverIp} ~all", 'ttl' => 3600, 'priority' => null],
             ['type' => 'TXT',   'name' => '_dmarc', 'value' => 'v=DMARC1; p=none; sp=none; aspf=r; adkim=r', 'ttl' => 3600, 'priority' => null],
