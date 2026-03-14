@@ -250,7 +250,7 @@ class DnsService
     private function buildZoneContent(Domain $domain): string
     {
         $records     = $domain->dnsRecords;
-        $serial      = now()->getTimestamp();
+        $serial      = $this->generateNextSerial();
         $zoneDomain  = rtrim($domain->domain, '.');
 
         $lines = [];
@@ -338,5 +338,24 @@ ENTRY;
         }
 
         return null;
+    }
+
+    /**
+     * Generate the next SOA serial using YYYYMMDDNN format.
+     */
+    private function generateNextSerial(): string
+    {
+        $today = now()->format('Ymd');
+        $lastSerial = \App\Models\Setting::get('dns_last_serial');
+
+        if ($lastSerial && str_starts_with($lastSerial, $today)) {
+            $nextSerial = (int)$lastSerial + 1;
+        } else {
+            $nextSerial = $today . '01';
+        }
+
+        \App\Models\Setting::set('dns_last_serial', (string)$nextSerial);
+
+        return (string)$nextSerial;
     }
 }
