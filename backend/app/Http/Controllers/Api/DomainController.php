@@ -102,13 +102,30 @@ class DomainController extends Controller
 
         if ($domain->dns_managed && !$wasManagedBefore) {
             // Newly enabled DNS management
-            $this->dnsService->generateZone($domain->fresh());
+            $this->dnsService->syncRecords($domain->fresh());
         } elseif (!$domain->dns_managed && $wasManagedBefore) {
             // Disabled DNS management
             $this->dnsService->removeZone($domain);
         }
 
         return response()->json($domain->fresh()->load(['app:id,name', 'dnsRecords']));
+    }
+
+    /**
+     * POST /domains/{domain}/sync
+     */
+    public function sync(Domain $domain): JsonResponse
+    {
+        if (!$domain->dns_managed) {
+            return response()->json(['message' => 'DNS management is not enabled for this domain.'], 400);
+        }
+
+        $this->dnsService->syncRecords($domain);
+
+        return response()->json([
+            'message' => 'DNS zone synced successfully.',
+            'records' => $domain->fresh()->dnsRecords
+        ]);
     }
 
     /**

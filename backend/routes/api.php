@@ -90,6 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/domains/{domain}', [DomainController::class, 'show']);
     Route::put('/domains/{domain}', [DomainController::class, 'update']);
     Route::delete('/domains/{domain}', [DomainController::class, 'destroy']);
+    Route::post('/domains/{domain}/sync', [DomainController::class, 'sync']);
 
     // DNS Records (nested under domain)
     Route::get('/domains/{domain}/records', [DnsRecordController::class, 'index']);
@@ -112,20 +113,20 @@ Route::middleware('auth:sanctum')->group(function () {
             'priority' => 'nullable|integer',
         ]);
         $record = $domain->dnsRecords()->create($validated);
-        app(\App\Services\DnsService::class)->syncRecords($domain->fresh()->load('dnsRecords'));
+        app(\App\Services\DnsService::class)->syncRecords($domain->fresh());
         return response()->json($record, 201);
     });
     Route::delete('/apps/{app}/domain/records/{record}', function (\App\Models\App $app, \App\Models\DnsRecord $record) {
         $domain = $app->domainRecord;
         if (!$domain || $record->domain_id !== $domain->id) abort(404);
         $record->delete();
-        app(\App\Services\DnsService::class)->syncRecords($domain->fresh()->load('dnsRecords'));
+        app(\App\Services\DnsService::class)->syncRecords($domain->fresh());
         return response()->json(['message' => 'Deleted']);
     });
     Route::post('/apps/{app}/domain/sync', function (\App\Models\App $app) {
         $domain = $app->domainRecord;
         if (!$domain) return response()->json(['message' => 'No domain'], 404);
-        app(\App\Services\DnsService::class)->generateZone($domain->fresh()->load('dnsRecords'));
+        app(\App\Services\DnsService::class)->syncRecords($domain->fresh());
         return response()->json(['message' => 'DNS zone synced']);
     });
 

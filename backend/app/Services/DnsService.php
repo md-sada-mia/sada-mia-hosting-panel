@@ -87,7 +87,8 @@ class DnsService
     public function syncRecords(Domain $domain): void
     {
         if ($domain->dns_managed) {
-            $this->generateZone($domain);
+            $this->createDefaultRecords($domain);
+            $this->generateZone($domain->fresh()->load('dnsRecords'));
         }
     }
 

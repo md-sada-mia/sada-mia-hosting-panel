@@ -104,6 +104,7 @@ export default function DomainsPage() {
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [deletingDom, setDeletingDom] = useState(null);
   const [deletingRec, setDeletingRec] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('q') || '';
@@ -253,6 +254,20 @@ export default function DomainsPage() {
       toast.error('Failed to delete record');
     } finally {
       setDeletingRec(null);
+    }
+  };
+
+  const handleSyncZone = async () => {
+    if (!selected) return;
+    setSyncing(true);
+    try {
+      const { data } = await api.post(`/domains/${selected.id}/sync`);
+      setRecords(data.records || []);
+      toast.success('DNS zone synthesized and synced!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to sync DNS zone');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -454,8 +469,12 @@ export default function DomainsPage() {
                   </div>
                   {selected.dns_managed && (
                     <>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => fetchRecords(selected.id)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground mr-1" onClick={() => fetchRecords(selected.id)}>
                         <RefreshCw className={`h-3.5 w-3.5 ${loadingRecs ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-primary/20 hover:bg-primary/5 mr-2" 
+                        onClick={handleSyncZone} disabled={syncing}>
+                        {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sync
                       </Button>
                       <Button size="sm" onClick={() => setShowRecordDlg(true)}
                         className="gap-1.5 bg-primary/90 hover:bg-primary text-xs shadow shadow-primary/20">
