@@ -24,6 +24,7 @@ class SettingsController extends Controller
             'crm_default_deployment_domain' => Setting::get('crm_default_deployment_domain'),
             'panel_url' => Setting::get('panel_url'),
             'server_ip' => Setting::get('server_ip'),
+            'ns_default_domain' => Setting::get('ns_default_domain'),
         ]);
     }
 
@@ -42,6 +43,7 @@ class SettingsController extends Controller
             'crm_default_deployment_domain' => 'nullable|string',
             'panel_url' => 'nullable|string',
             'server_ip' => 'nullable|ip',
+            'ns_default_domain' => 'nullable|string',
         ]);
 
         if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {

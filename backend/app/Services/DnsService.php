@@ -110,10 +110,23 @@ class DnsService
             ['type' => 'A',     'name' => 'autodiscover', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'ns1',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'ns2',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'ns3',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'ns4',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'MX',    'name' => '@',      'value' => 'mail.' . $domain->domain . '.', 'ttl' => 3600, 'priority' => 10],
             ['type' => 'TXT',   'name' => '@',      'value' => "v=spf1 a mx ip4:{$serverIp} ~all", 'ttl' => 3600, 'priority' => null],
             ['type' => 'TXT',   'name' => '_dmarc', 'value' => 'v=DMARC1; p=none; sp=none; aspf=r; adkim=r', 'ttl' => 3600, 'priority' => null],
         ];
+
+        // Add 4 Nameservers as NS records in database
+        $ns1 = \App\Models\Setting::get('dns_default_ns1', "ns1.{$domain->domain}.");
+        $ns2 = \App\Models\Setting::get('dns_default_ns2', "ns2.{$domain->domain}.");
+        $ns3 = \App\Models\Setting::get('dns_default_ns3', "ns3.{$domain->domain}.");
+        $ns4 = \App\Models\Setting::get('dns_default_ns4', "ns4.{$domain->domain}.");
+
+        $defaults[] = ['type' => 'NS', 'name' => '@', 'value' => $ns1, 'ttl' => 3600, 'priority' => null];
+        $defaults[] = ['type' => 'NS', 'name' => '@', 'value' => $ns2, 'ttl' => 3600, 'priority' => null];
+        $defaults[] = ['type' => 'NS', 'name' => '@', 'value' => $ns3, 'ttl' => 3600, 'priority' => null];
+        $defaults[] = ['type' => 'NS', 'name' => '@', 'value' => $ns4, 'ttl' => 3600, 'priority' => null];
 
         // Try to add DKIM record if it exists on disk
         $dkimValue = $this->extractDkimValue($domain->domain);
@@ -123,11 +136,15 @@ class DnsService
 
         foreach ($defaults as $rec) {
             // Only create if not already present (idempotent)
-            $exists = DnsRecord::where('domain_id', $domain->id)
+            $query = DnsRecord::where('domain_id', $domain->id)
                 ->where('type', $rec['type'])
-                ->where('name', $rec['name'])
-                ->exists();
-            if (!$exists) {
+                ->where('name', $rec['name']);
+
+            if (in_array($rec['type'], ['NS', 'A', 'AAAA', 'TXT'])) {
+                $query->where('value', $rec['value']);
+            }
+
+            if (!$query->exists()) {
                 DnsRecord::create(array_merge($rec, ['domain_id' => $domain->id]));
             }
         }
@@ -181,6 +198,21 @@ class DnsService
                 'nameserver_3' => \App\Models\Setting::get('dns_default_ns3'),
                 'nameserver_4' => \App\Models\Setting::get('dns_default_ns4'),
             ];
+
+            // If it's the first execution and no nameservers are set, auto-initialize from this domain or setting
+            if (empty($ns['nameserver_1']) && empty($ns['nameserver_2'])) {
+                $baseDomain = \App\Models\Setting::get('ns_default_domain', $domainName);
+
+                $ns['nameserver_1'] = "ns1.{$baseDomain}.";
+                $ns['nameserver_2'] = "ns2.{$baseDomain}.";
+                $ns['nameserver_3'] = "ns3.{$baseDomain}.";
+                $ns['nameserver_4'] = "ns4.{$baseDomain}.";
+
+                \App\Models\Setting::set('dns_default_ns1', $ns['nameserver_1']);
+                \App\Models\Setting::set('dns_default_ns2', $ns['nameserver_2']);
+                \App\Models\Setting::set('dns_default_ns3', $ns['nameserver_3']);
+                \App\Models\Setting::set('dns_default_ns4', $ns['nameserver_4']);
+            }
 
             $domain = Domain::create(array_merge([
                 'domain'      => $domainName,
@@ -261,10 +293,6 @@ class DnsService
         $lines[] = "    1800       ; Retry";
         $lines[] = "    604800     ; Expire";
         $lines[] = "    86400 )    ; Minimum TTL";
-        $lines[] = '';
-        // Default NS records
-        $lines[] = "@ IN NS ns1.{$zoneDomain}.";
-        $lines[] = "@ IN NS ns2.{$zoneDomain}.";
         $lines[] = '';
 
         foreach ($records as $record) {

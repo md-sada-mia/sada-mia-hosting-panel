@@ -36,6 +36,7 @@ export default function SettingsPage() {
     crm_default_deployment_domain: '',
     panel_url: '',
     server_ip: '',
+    ns_default_domain: '',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -311,6 +312,24 @@ export default function SettingsPage() {
                   {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
                   {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
                   
+                  <div className="grid gap-3 mb-6">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Default Nameserver Domain
+                    </label>
+                    <div className="space-y-2">
+                      <Input 
+                        name="ns_default_domain" 
+                        value={githubSettings.ns_default_domain || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="e.g. hostinger.com" 
+                      />
+                      <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                        If nameservers are not manually set, they will be auto-generated using this domain (e.g. ns1.hostinger.com).
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid sm:grid-cols-2 gap-4">
                     {[1, 2, 3, 4].map(n => (
                       <div key={n} className="grid gap-2">
