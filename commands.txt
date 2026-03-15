@@ -8,3 +8,5 @@ sudo ./dns-check.sh autoflow.best
 
 
 php artisan app:nginx-sync
+
+php artisan app:panel-ssl digitcare.vip

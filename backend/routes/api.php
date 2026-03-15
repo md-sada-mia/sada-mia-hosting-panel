@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/ssl/setup', [AppController::class, 'setupSsl']);
     Route::post('/apps/{app}/ssl/remove', [AppController::class, 'removeSsl']);
     Route::get('/apps/{app}/ssl/details', [AppController::class, 'getSslDetails']);
+    Route::post('/apps/{app}/ssl/secure-panel', [AppController::class, 'setupPanelSsl']);
 
     // Environment variables
     Route::get('/apps/{app}/env', [EnvController::class, 'index']);

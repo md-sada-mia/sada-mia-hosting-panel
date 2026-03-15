@@ -338,6 +338,18 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleSecurePanel = async () => {
+    setSslLoading(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/ssl/secure-panel`);
+      toast.success(data.message || 'Panel secured!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to secure panel. Check if certificate exists.');
+    } finally {
+      setSslLoading(false);
+    }
+  };
+
   const fetchSslDetails = async () => {
     if (!app?.ssl_enabled && app?.ssl_status !== 'failed') return;
     setLoadingDetails(true);
@@ -1035,7 +1047,7 @@ export default function AppDetailPage() {
                 )}
               </div>
 
-              <div className="pt-4 border-t border-white/5 flex gap-3">
+              <div className="pt-4 border-t border-white/5 flex flex-wrap gap-3">
                 {!app.ssl_enabled ? (
                   <Button 
                     onClick={handleSetupSsl} 
@@ -1065,6 +1077,19 @@ export default function AppDetailPage() {
                       {sslLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       Remove SSL
                     </Button>
+
+                    {/* Conditional Panel SSL Button */}
+                    {app.domain === app.settings?.ns_default_domain && (
+                      <Button 
+                        onClick={handleSecurePanel} 
+                        disabled={sslLoading}
+                        variant="secondary"
+                        className="gap-2 bg-primary/20 text-primary hover:bg-primary/30 border-primary/20 transition-all font-bold"
+                      >
+                        {sslLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                        Secure Hosting Panel (Port 8083)
+                      </Button>
+                    )}
                   </>
                 )}
               </div>

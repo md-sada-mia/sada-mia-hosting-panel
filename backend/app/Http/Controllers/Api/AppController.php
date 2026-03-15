@@ -269,4 +269,16 @@ class AppController extends Controller
         $details = $this->sslService->getCertificateDetails($app);
         return response()->json($details);
     }
+
+    public function setupPanelSsl(AppModel $app)
+    {
+        // Safety check: only allow if domain matches setting
+        $panelDomain = Setting::get('ns_default_domain');
+        if ($app->domain !== $panelDomain) {
+            return response()->json(['success' => false, 'message' => "Panel domain mismatch. Expected: {$panelDomain}"], 403);
+        }
+
+        $result = $this->sslService->securePanel($app->domain);
+        return response()->json($result, $result['success'] ? 200 : 500);
+    }
 }
