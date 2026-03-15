@@ -27,6 +27,18 @@ class SslService
             return ['success' => false, 'message' => $msg];
         }
 
+        // Validate domain format for Let's Encrypt
+        if ($app->domain === 'localhost' || !str_contains($app->domain, '.')) {
+            $msg = "Cannot issue SSL for '{$app->domain}'. Let's Encrypt requires a valid domain name with at least one dot (e.g., example.com).";
+            Log::warning($msg);
+            $app->update([
+                'ssl_status' => 'failed',
+                'ssl_enabled' => false,
+                'ssl_log' => $msg,
+            ]);
+            return ['success' => false, 'message' => $msg];
+        }
+
         Log::info("Starting SSL setup for domain: {$app->domain}");
         $app->update(['ssl_status' => 'pending']);
 
