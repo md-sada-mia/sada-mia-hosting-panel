@@ -168,4 +168,38 @@ class SslService
             @unlink($tmpFile);
         }
     }
+
+    /**
+     * Run certbot renew to check/renew all certificates.
+     */
+    public function renewAll(): array
+    {
+        Log::info("Running Certbot renewal for all domains...");
+        $result = $this->shell->run("sudo certbot renew --non-interactive");
+        return $result;
+    }
+
+    /**
+     * Sync the SSL status of an app by checking its certificate file.
+     */
+    public function syncStatus(App $app): void
+    {
+        if (!$app->ssl_enabled) return;
+
+        $basePath = "/etc/letsencrypt/live/{$app->domain}";
+        $cert = $this->readSudoFile("{$basePath}/cert.pem");
+
+        if ($cert) {
+            $app->update([
+                'ssl_status' => 'active',
+                'ssl_last_check_at' => now(),
+            ]);
+        } else {
+            // If cert file is missing, it might have been deleted or expired
+            $app->update([
+                'ssl_status' => 'failed',
+                'ssl_enabled' => false,
+            ]);
+        }
+    }
 }

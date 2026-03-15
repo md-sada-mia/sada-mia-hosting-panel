@@ -703,6 +703,10 @@ EOF
 systemctl daemon-reload
 systemctl enable sada-mia-queue
 systemctl restart sada-mia-queue
+
+echo "==> 9.2 Setting up Laravel Scheduler (Cron)"
+(crontab -u www-data -l 2>/dev/null; echo "* * * * * /usr/bin/php $BACKEND_DIR/artisan schedule:run >> /dev/null 2>&1") | crontab -u www-data -
+
 cd ../frontend
 
 echo "==> 10. Configuring Nginx for the Panel"
