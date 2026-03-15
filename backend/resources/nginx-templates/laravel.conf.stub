@@ -21,6 +21,31 @@ server {
         deny all;
     }
 
+    # Global shortcuts
+    location /webmail {
+        alias /var/www/webmail;
+        index index.php;
+        try_files $uri $uri/ /webmail/index.php?$args;
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:{{php_fpm_sock}};
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+
+    location /phpmyadmin {
+        alias /usr/share/phpmyadmin;
+        index index.php;
+        try_files $uri $uri/ /phpmyadmin/index.php?$args;
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:{{php_fpm_sock}};
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+
     client_max_body_size 100M;
 
     access_log /var/log/nginx/{{domain}}-access.log;
