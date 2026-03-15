@@ -13,6 +13,7 @@ class DeploymentService
         private NginxConfigService $nginxService,
         private PM2Service $pm2Service,
         private DnsService $dnsService,
+        private SslService $sslService,
     ) {}
 
     public function createDeploymentRecord(App $app): Deployment
@@ -141,10 +142,15 @@ class DeploymentService
             $this->pm2Service->save();
         }
 
-        // === Step 8: BIND Reload (New) ===
-        $log("[DNS] Reloading BIND9...");
         $dnsOutput = $this->dnsService->reloadBind($app->domainRecord);
         $log($dnsOutput);
+
+        // === Step 9: SSL Setup (New) ===
+        if ($app->ssl_enabled) {
+            $log("[SSL] Re-verifying SSL setup...");
+            $sslResult = $this->sslService->setupSsl($app);
+            $log($sslResult['message']);
+        }
 
         $log("✅ Deployment complete! Domain: {$app->domain}");
     }

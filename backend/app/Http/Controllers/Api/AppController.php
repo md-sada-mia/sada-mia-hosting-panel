@@ -11,6 +11,7 @@ use App\Services\PM2Service;
 use App\Services\NginxConfigService;
 use App\Services\GitHubService;
 use App\Services\DnsService;
+use App\Services\SslService;
 use App\Models\Setting;
 use App\Jobs\DeployApp;
 use App\Jobs\DeleteApp;
@@ -25,7 +26,8 @@ class AppController extends Controller
         private NginxConfigService $nginxService,
         private GitHubService $github,
         private \App\Services\DatabaseService $dbService,
-        private DnsService $dnsService
+        private DnsService $dnsService,
+        private SslService $sslService
     ) {}
 
     public function index()
@@ -244,5 +246,21 @@ class AppController extends Controller
     {
         $app->update(['hide_guidelines' => true]);
         return response()->json(['success' => true]);
+    }
+
+    public function setupSsl(AppModel $app)
+    {
+        $result = $this->sslService->setupSsl($app);
+        return response()->json(array_merge($result, [
+            'app' => $app->fresh()
+        ]), $result['success'] ? 200 : 500);
+    }
+
+    public function removeSsl(AppModel $app)
+    {
+        $result = $this->sslService->removeSsl($app);
+        return response()->json(array_merge($result, [
+            'app' => $app->fresh()
+        ]));
     }
 }

@@ -179,7 +179,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo "==> 1. Updating packages"
 apt-get update
 # Install basic utilities if missing
-for pkg in curl wget git unzip sqlite3 libsqlite3-dev opendkim opendkim-tools; do
+for pkg in curl wget git unzip sqlite3 libsqlite3-dev opendkim opendkim-tools certbot python3-certbot-nginx; do
     if ! dpkg -s $pkg >/dev/null 2>&1; then
         apt-get install -y $pkg
     fi
@@ -604,6 +604,9 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/opendkim/keys/*/default.txt
 # Dovecot management
 www-data ALL=(ALL) NOPASSWD: /usr/bin/doveadm *
+# Certbot / SSL
+www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot
+www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot *
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel

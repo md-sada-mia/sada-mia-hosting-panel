@@ -4,7 +4,7 @@ import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Server, Github, ExternalLink } from 'lucide-react';
+import { Plus, Server, Github, ExternalLink, Shield } from 'lucide-react';
 
 export default function AppsPage() {
   const navigate = useNavigate();
@@ -95,7 +95,17 @@ export default function AppsPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    {getStatusBadge(app.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(app.status)}
+                      <div title={app.ssl_status || 'No SSL'}>
+                        <Shield className={`h-3.5 w-3.5 ${
+                          app.ssl_enabled ? 'text-emerald-400' : 
+                          app.ssl_status === 'failed' ? 'text-red-400' :
+                          app.ssl_status === 'pending' ? 'text-amber-400 animate-pulse' :
+                          'text-muted-foreground opacity-30'
+                        }`} />
+                      </div>
+                    </div>
                     <span className="flex items-center text-muted-foreground text-xs" title={app.git_url}>
                       <Github className="mr-1 h-3 w-3" />
                       {app.branch}

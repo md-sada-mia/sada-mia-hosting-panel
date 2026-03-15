@@ -23,12 +23,18 @@ class App extends Model
         'webhook_secret',
         'auto_deploy',
         'hide_guidelines',
+        'ssl_status',
+        'ssl_enabled',
+        'ssl_last_check_at',
+        'ssl_log',
     ];
 
     protected $casts = [
         'port' => 'integer',
         'auto_deploy' => 'boolean',
         'hide_guidelines' => 'boolean',
+        'ssl_enabled' => 'boolean',
+        'ssl_last_check_at' => 'datetime',
     ];
 
     public function deployments(): HasMany

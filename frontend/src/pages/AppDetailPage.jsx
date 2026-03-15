@@ -105,6 +105,7 @@ export default function AppDetailPage() {
   const [parentDomain, setParentDomain] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingAction, setPendingAction] = useState(null);
+  const [sslLoading, setSslLoading] = useState(false);
 
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
@@ -175,6 +176,9 @@ export default function AppDetailPage() {
   useEffect(() => {
     if (activeTab === 'dns') {
       fetchDomain();
+    }
+    if (activeTab === 'ssl') {
+      fetchApp();
     }
   }, [activeTab]);
 
@@ -301,6 +305,36 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleSetupSsl = async () => {
+    setSslLoading(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/ssl/setup`);
+      toast.success(data.message || 'SSL setup initiated!');
+      if (data.app) setApp(data.app);
+      else fetchApp();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'SSL setup failed. Certbot might be busy or domain not pointing to IP.');
+      fetchApp();
+    } finally {
+      setSslLoading(false);
+    }
+  };
+
+  const handleRemoveSsl = async () => {
+    setSslLoading(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/ssl/remove`);
+      toast.success(data.message || 'SSL removed!');
+      if (data.app) setApp(data.app);
+      else fetchApp();
+    } catch (err) {
+      toast.error('Failed to remove SSL');
+      fetchApp();
+    } finally {
+      setSslLoading(false);
+    }
+  };
+
   const handleManageDatabase = async (dbId) => {
     try {
       const { data } = await api.get(`/databases/${dbId}/credentials`);
@@ -406,15 +440,17 @@ export default function AppDetailPage() {
         if (v === 'deployments') loadDeployments();
         if (v === 'overview') fetchApp();
         if (v === 'logs') loadLogs();
-        if (v === 'env') loadEnv();
         if (v === 'dns') fetchDomain();
       }}>
-        <TabsList className="grid w-full grid-cols-5 md:w-auto md:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 md:w-auto md:inline-flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="env">Environment</TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-1.5">
             <Network className="h-3.5 w-3.5" /> DNS
+          </TabsTrigger>
+          <TabsTrigger value="ssl" className="flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" /> SSL
           </TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
@@ -470,6 +506,16 @@ export default function AppDetailPage() {
                 color="amber"
                 onClick={() => navigate(`/terminal?path=/${app.domain}`)}
               />
+
+              {app.ssl_status !== 'active' && (
+                <NavCard 
+                  icon={Shield}
+                  title="Setup SSL"
+                  description="Secure your app"
+                  color="blue"
+                  onClick={() => setActiveTab('ssl')}
+                />
+              )}
               
               {app.databases?.length > 0 && (
                 <div className="flex items-center justify-between p-4 rounded-xl border bg-card/40 hover:bg-accent/40 transition-all border-white/5">
@@ -906,6 +952,129 @@ export default function AppDetailPage() {
             </>
             );
           })()}
+        </TabsContent>
+
+        {/* ── SSL Management ───────────────────────────────────── */}
+        <TabsContent value="ssl" className="mt-6 space-y-4">
+          <Card className="border-white/10 bg-white/[0.02]">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> SSL Management (Let's Encrypt)
+                  </CardTitle>
+                  <CardDescription>Secure your application with an automatic SSL certificate</CardDescription>
+                </div>
+                <Badge variant={
+                  app.ssl_status === 'active' ? 'success' :
+                  app.ssl_status === 'pending' ? 'warning' :
+                  app.ssl_status === 'failed' ? 'destructive' : 'secondary'
+                }>
+                  <span className={`h-1.5 w-1.5 rounded-full mr-2 ${
+                    app.ssl_status === 'active' ? 'bg-emerald-500' :
+                    app.ssl_status === 'pending' ? 'bg-amber-500 animate-pulse' :
+                    app.ssl_status === 'failed' ? 'bg-red-500' : 'bg-slate-500'
+                  }`} />
+                  {app.ssl_status?.toUpperCase() || 'NONE'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 flex gap-4">
+                <div className="p-2 bg-primary/10 rounded-full h-fit">
+                  <Info className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-sm space-y-1">
+                  <p className="font-semibold text-foreground">Important Prerequisites</p>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    1. Ensure your domain <strong>{app.domain}</strong> is pointing to this server's IP.<br />
+                    2. DNS propagation can take some time. If it fails, wait and try again.<br />
+                    3. Let's Encrypt has rate limits. Avoid repeated failed attempts.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">SSL Status</span>
+                  <div className="flex items-center gap-2">
+                    {app.ssl_enabled ? (
+                      <span className="text-emerald-400 flex items-center gap-1.5 text-sm font-semibold">
+                        <Check className="h-4 w-4" /> Secure (HTTPS Enabled)
+                      </span>
+                    ) : (
+                      <span className="text-amber-400 flex items-center gap-1.5 text-sm font-semibold">
+                        <AlertTriangle className="h-4 w-4" /> Not Secure (HTTP Only)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {app.ssl_last_check_at && (
+                  <div className="space-y-1">
+                    <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Last Sync</span>
+                    <div className="text-sm text-foreground flex items-center gap-2 font-mono">
+                      <Clock className="h-3.5 w-3.5" /> {new Date(app.ssl_last_check_at).toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-white/5 flex gap-3">
+                {!app.ssl_enabled ? (
+                  <Button 
+                    onClick={handleSetupSsl} 
+                    disabled={sslLoading || app.ssl_status === 'pending'}
+                    className="gap-2"
+                  >
+                    {sslLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                    Setup SSL Certificate
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      onClick={handleSetupSsl} 
+                      disabled={sslLoading || app.ssl_status === 'pending'}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      {sslLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                      Re-issue Certificate
+                    </Button>
+                    <Button 
+                      onClick={handleRemoveSsl} 
+                      disabled={sslLoading}
+                      variant="destructive"
+                      className="gap-2"
+                    >
+                      {sslLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      Remove SSL
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              { (sslLoading || app.ssl_log) && (
+                <div className="space-y-3 pt-6 border-t border-white/5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                      {sslLoading ? 'Operation in Progress...' : 'Last SSL Operation Log'}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] h-5">Certbot Output</Badge>
+                  </div>
+                  <div className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[11px] leading-relaxed text-slate-400 overflow-x-auto whitespace-pre-wrap max-h-[300px] overflow-y-auto min-h-[100px] flex flex-col">
+                    {sslLoading ? (
+                      <div className="flex flex-col items-center justify-center py-8 gap-3 text-primary/60 animate-pulse">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <p className="text-xs font-medium">Provisioning Let's Encrypt certificate... This may take up to a minute.</p>
+                      </div>
+                    ) : (
+                      app.ssl_log
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── Logs ─────────────────────────────────────────────── */}
