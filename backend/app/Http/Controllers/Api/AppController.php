@@ -263,4 +263,10 @@ class AppController extends Controller
             'app' => $app->fresh()
         ]));
     }
+
+    public function getSslDetails(AppModel $app)
+    {
+        $details = $this->sslService->getCertificateDetails($app);
+        return response()->json($details);
+    }
 }

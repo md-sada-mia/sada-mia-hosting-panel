@@ -74,6 +74,81 @@ class SslService
             'ssl_enabled' => false,
         ]);
 
+
         return ['success' => true, 'message' => "SSL removed successfully."];
+    }
+
+    /**
+     * Get certificate details including raw contents and metadata.
+     */
+    public function getCertificateDetails(App $app): array
+    {
+        if (!$app->ssl_enabled && $app->ssl_status !== 'failed') {
+            return [];
+        }
+
+        $domain = $app->domain;
+        $basePath = "/etc/letsencrypt/live/{$domain}";
+
+        // We need sudo to read these files
+        $cert = $this->readSudoFile("{$basePath}/cert.pem");
+        $key = $this->readSudoFile("{$basePath}/privkey.pem");
+        $chain = $this->readSudoFile("{$basePath}/chain.pem");
+        $fullchain = $this->readSudoFile("{$basePath}/fullchain.pem");
+
+        if (!$cert) {
+            return [];
+        }
+
+        // Parse metadata using openssl
+        $metadata = $this->parseCertificate($cert);
+
+        return [
+            'cert' => $cert,
+            'key' => $key,
+            'chain' => $chain,
+            'fullchain' => $fullchain,
+            'metadata' => $metadata,
+        ];
+    }
+
+    private function readSudoFile(string $path): ?string
+    {
+        $result = $this->shell->run("sudo cat " . escapeshellarg($path));
+        return $result['exit_code'] === 0 ? $result['output'] : null;
+    }
+
+    private function parseCertificate(string $certContent): array
+    {
+        // Use temporary file to parse with openssl command
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert_');
+        file_put_contents($tmpFile, $certContent);
+
+        try {
+            $subject = $this->shell->run("openssl x509 -noout -subject -in " . escapeshellarg($tmpFile))['output'] ?? '';
+            $issuer = $this->shell->run("openssl x509 -noout -issuer -in " . escapeshellarg($tmpFile))['output'] ?? '';
+            $dates = $this->shell->run("openssl x509 -noout -dates -in " . escapeshellarg($tmpFile))['output'] ?? '';
+            $fingerprint = $this->shell->run("openssl x509 -noout -fingerprint -in " . escapeshellarg($tmpFile))['output'] ?? '';
+
+            // Clean up output
+            $subject = trim(str_replace('subject=', '', $subject));
+            $issuer = trim(str_replace('issuer=', '', $issuer));
+
+            preg_match('/notBefore=(.*)/', $dates, $beforeMatch);
+            preg_match('/notAfter=(.*)/', $dates, $afterMatch);
+
+            $notBefore = isset($beforeMatch[1]) ? date('M d H:i:s Y T', strtotime($beforeMatch[1])) : '';
+            $notAfter = isset($afterMatch[1]) ? date('M d H:i:s Y T', strtotime($afterMatch[1])) : '';
+
+            return [
+                'subject' => $subject,
+                'issuer' => $issuer,
+                'not_before' => $notBefore,
+                'not_after' => $notAfter,
+                'fingerprint' => trim(str_replace('SHA1 Fingerprint=', '', $fingerprint)),
+            ];
+        } finally {
+            @unlink($tmpFile);
+        }
     }
 }

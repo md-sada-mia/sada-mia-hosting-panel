@@ -106,6 +106,8 @@ export default function AppDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [pendingAction, setPendingAction] = useState(null);
   const [sslLoading, setSslLoading] = useState(false);
+  const [sslDetails, setSslDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
@@ -179,6 +181,7 @@ export default function AppDetailPage() {
     }
     if (activeTab === 'ssl') {
       fetchApp();
+      fetchSslDetails();
     }
   }, [activeTab]);
 
@@ -332,6 +335,19 @@ export default function AppDetailPage() {
       fetchApp();
     } finally {
       setSslLoading(false);
+    }
+  };
+
+  const fetchSslDetails = async () => {
+    if (!app?.ssl_enabled && app?.ssl_status !== 'failed') return;
+    setLoadingDetails(true);
+    try {
+      const { data } = await api.get(`/apps/${id}/ssl/details`);
+      setSslDetails(data);
+    } catch { 
+      setSslDetails(null);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -1070,6 +1086,88 @@ export default function AppDetailPage() {
                     ) : (
                       app.ssl_log
                     )}
+                  </div>
+                </div>
+              )}
+
+              {sslDetails && Object.keys(sslDetails).length > 0 && (
+                <div className="space-y-6 pt-6 border-t border-white/5 animate-in fade-in duration-500">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                       <FileText className="h-4 w-4 text-primary" /> Certificate Details
+                    </h4>
+                    <p className="text-xs text-muted-foreground">Detailed information and raw PEM data for the installed certificate.</p>
+                  </div>
+
+                  {sslDetails.metadata && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Subject</span>
+                          <span className="text-sm font-medium text-foreground truncate" title={sslDetails.metadata.subject}>{sslDetails.metadata.subject}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Issuer</span>
+                          <span className="text-sm font-medium text-foreground truncate" title={sslDetails.metadata.issuer}>{sslDetails.metadata.issuer}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Signature Algorithm</span>
+                          <span className="text-sm font-mono text-foreground">sha256WithRSAEncryption</span>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Valid From</span>
+                          <span className="text-sm font-medium text-foreground">{sslDetails.metadata.not_before}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Valid Until</span>
+                          <span className="text-sm font-medium text-foreground">{sslDetails.metadata.not_after}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60">Fingerprint (SHA1)</span>
+                          <span className="text-[11px] font-mono text-muted-foreground truncate" title={sslDetails.metadata.fingerprint}>{sslDetails.metadata.fingerprint}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">SSL Certificate (CRT)</span>
+                         <CopyBtn value={sslDetails.cert} />
+                      </div>
+                      <textarea 
+                        readOnly 
+                        className="w-full h-32 bg-black/40 border border-white/5 rounded-xl p-3 font-mono text-[10px] text-slate-400 resize-none focus:outline-none"
+                        value={sslDetails.cert}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">SSL Private Key (KEY)</span>
+                         <CopyBtn value={sslDetails.key} />
+                      </div>
+                      <textarea 
+                        readOnly 
+                        className="w-full h-32 bg-black/40 border border-white/5 rounded-xl p-3 font-mono text-[10px] text-slate-400 resize-none focus:outline-none"
+                        value={sslDetails.key}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">SSL Certificate Authority / Intermediate (CABUNDLE)</span>
+                         <CopyBtn value={sslDetails.chain} />
+                      </div>
+                      <textarea 
+                        readOnly 
+                        className="w-full h-32 bg-black/40 border border-white/5 rounded-xl p-3 font-mono text-[10px] text-slate-400 resize-none focus:outline-none"
+                        value={sslDetails.chain}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
