@@ -461,6 +461,11 @@ if command -v setfacl >/dev/null 2>&1; then
     setfacl -R -m d:u:www-data:rwx,d:g:www-data:rwx $APPS_DIR
 fi
 
+echo "==> 6b. Initializing www-data Home Directories (.npm, .pm2, .cache)"
+mkdir -p /var/www/.npm /var/www/.pm2 /var/www/.cache /var/www/.config
+chown -R www-data:www-data /var/www/.npm /var/www/.pm2 /var/www/.cache /var/www/.config
+chmod -R 775 /var/www/.npm /var/www/.pm2 /var/www/.cache /var/www/.config
+
 echo "==> 7. Installing Adminer"
 ADMINER_DIR="/var/www/adminer"
 mkdir -p $ADMINER_DIR

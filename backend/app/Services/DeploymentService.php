@@ -77,6 +77,13 @@ class DeploymentService
 
         // === Step 3: Install dependencies ===
         $log("[3/6] Installing dependencies...");
+
+        // Ensure www-data owns the files before we try to install dependencies (important for npm/composer)
+        $currentUser = trim(shell_exec('whoami'));
+        if ($currentUser !== 'www-data') {
+            $this->shell->run("sudo chown -R www-data:www-data " . escapeshellarg($deployPath));
+        }
+
         if ($app->type === 'laravel') {
             $exitCode = $this->shell->stream(
                 "composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev",
@@ -87,8 +94,10 @@ class DeploymentService
         } else {
             $exitCode = $this->shell->stream("npm ci --production=false", $deployPath, $log, 300);
         }
+
         if ($exitCode !== 0) {
-            throw new \RuntimeException("Dependency installation failed");
+            $errorMsg = ($app->type === 'laravel') ? "Composer installation failed" : "NPM dependency installation failed";
+            throw new \RuntimeException("{$errorMsg} with exit code {$exitCode}. Check that /var/www/.npm is owned by www-data if this is an EACCES error.");
         }
 
         // === Step 4: Build & Bootstrap ===
