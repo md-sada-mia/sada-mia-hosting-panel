@@ -77,10 +77,21 @@ class DnsDefaultRecordsTest extends TestCase
 
         $dnsService->createManagedDomain('my-app.com');
 
-        $this->assertEquals('ns1.global-ns.net.', Setting::get('dns_default_ns1'));
-        $this->assertEquals('ns2.global-ns.net.', Setting::get('dns_default_ns2'));
         $this->assertEquals('ns3.global-ns.net.', Setting::get('dns_default_ns3'));
         $this->assertEquals('ns4.global-ns.net.', Setting::get('dns_default_ns4'));
+    }
+
+    public function test_it_falls_back_to_app_domain_if_ns_default_domain_is_empty_string()
+    {
+        $dnsService = app(DnsService::class);
+
+        Setting::whereIn('key', ['dns_default_ns1', 'dns_default_ns2'])->delete();
+        Setting::set('ns_default_domain', ''); // Exists but empty
+
+        $dnsService->createManagedDomain('fallback.com');
+
+        $this->assertEquals('ns1.fallback.com.', Setting::get('dns_default_ns1'));
+        $this->assertEquals('ns2.fallback.com.', Setting::get('dns_default_ns2'));
     }
 
     public function test_zone_content_includes_four_nameservers()

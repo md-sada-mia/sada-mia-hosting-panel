@@ -201,7 +201,11 @@ class DnsService
 
             // If it's the first execution and no nameservers are set, auto-initialize from this domain or setting
             if (empty($ns['nameserver_1']) && empty($ns['nameserver_2'])) {
-                $baseDomain = \App\Models\Setting::get('ns_default_domain', $domainName);
+                $baseDomain = \App\Models\Setting::get('ns_default_domain');
+                if (empty($baseDomain)) {
+                    $baseDomain = $domainName;
+                }
+                $baseDomain = rtrim($baseDomain, '.');
 
                 $ns['nameserver_1'] = "ns1.{$baseDomain}.";
                 $ns['nameserver_2'] = "ns2.{$baseDomain}.";
