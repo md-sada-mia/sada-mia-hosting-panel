@@ -35,7 +35,7 @@ class DnsService
         $this->ensureNamedConfEntry($domain);
 
         // Validate and reload BIND9
-        $output = $this->reloadBind();
+        $output = $this->reloadBind($domain);
 
         $domain->update(['status' => 'active', 'dns_managed' => true]);
 
@@ -367,18 +367,29 @@ ENTRY;
         );
     }
 
-    public function reloadBind(): string
+    public function reloadBind(?Domain $domain = null): string
     {
         $output = "";
 
+        $output .= "> sudo named-checkconf\n";
         $res = $this->shell->run('sudo named-checkconf');
-        $output .= $res['output'] . "\n";
+        $output .= ($res['output'] ?: " (ok - no output)") . "\n\n";
 
+        if ($domain) {
+            $zoneFile = "{$this->zonesDir}/db.{$domain->domain}";
+            $cmd = "sudo named-checkzone " . escapeshellarg($domain->domain) . " " . escapeshellarg($zoneFile);
+            $output .= "> {$cmd}\n";
+            $res = $this->shell->run($cmd);
+            $output .= ($res['output'] ?: " (ok - no output)") . "\n\n";
+        }
+
+        $output .= "> sudo rndc reload\n";
         $res = $this->shell->run('sudo rndc reload');
-        $output .= $res['output'] . "\n";
+        $output .= ($res['output'] ?: " (no output)") . "\n\n";
 
+        $output .= "> sudo systemctl reload bind9\n";
         $res = $this->shell->run('sudo systemctl reload bind9');
-        $output .= $res['output'] . "\n";
+        $output .= ($res['output'] ?: " (ok - no output)") . "\n";
 
         return trim($output);
     }

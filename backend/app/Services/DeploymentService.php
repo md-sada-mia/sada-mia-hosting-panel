@@ -143,7 +143,7 @@ class DeploymentService
 
         // === Step 8: BIND Reload (New) ===
         $log("[DNS] Reloading BIND9...");
-        $dnsOutput = $this->dnsService->reloadBind();
+        $dnsOutput = $this->dnsService->reloadBind($app->domainRecord);
         $log($dnsOutput);
 
         $log("✅ Deployment complete! Domain: {$app->domain}");
