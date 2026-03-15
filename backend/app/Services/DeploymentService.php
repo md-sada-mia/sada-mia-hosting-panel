@@ -12,6 +12,7 @@ class DeploymentService
         private PortAssignmentService $portService,
         private NginxConfigService $nginxService,
         private PM2Service $pm2Service,
+        private DnsService $dnsService,
     ) {}
 
     public function createDeploymentRecord(App $app): Deployment
@@ -139,6 +140,11 @@ class DeploymentService
             }
             $this->pm2Service->save();
         }
+
+        // === Step 8: BIND Reload (New) ===
+        $log("[DNS] Reloading BIND9...");
+        $dnsOutput = $this->dnsService->reloadBind();
+        $log($dnsOutput);
 
         $log("✅ Deployment complete! Domain: {$app->domain}");
     }

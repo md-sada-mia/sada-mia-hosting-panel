@@ -19,7 +19,7 @@ class DnsService
     /**
      * Generate or regenerate a BIND9 zone file for the domain.
      */
-    public function generateZone(Domain $domain): void
+    public function generateZone(Domain $domain): string
     {
         $zoneContent = $this->buildZoneContent($domain);
         $zoneFile    = "{$this->zonesDir}/db.{$domain->domain}";
@@ -35,15 +35,17 @@ class DnsService
         $this->ensureNamedConfEntry($domain);
 
         // Validate and reload BIND9
-        $this->reloadBind();
+        $output = $this->reloadBind();
 
         $domain->update(['status' => 'active', 'dns_managed' => true]);
+
+        return $output;
     }
 
     /**
      * Remove zone from BIND9.
      */
-    public function removeZone(Domain $domain): void
+    public function removeZone(Domain $domain): string
     {
         $parent = $this->findParentDomain($domain->domain);
 
@@ -53,9 +55,9 @@ class DnsService
                 ->where('app_id', $domain->app_id)
                 ->delete();
 
-            $this->generateZone($parent->fresh()->load('dnsRecords'));
+            $output = $this->generateZone($parent->fresh()->load('dnsRecords'));
             $domain->update(['status' => 'inactive']);
-            return;
+            return $output;
         }
 
         $zoneFile = "{$this->zonesDir}/db.{$domain->domain}";
@@ -66,30 +68,34 @@ class DnsService
         // Remove from named.conf.local
         $this->removeNamedConfEntry($domain);
 
-        $this->reloadBind();
+        $output = $this->reloadBind();
 
         $domain->update(['status' => 'inactive', 'dns_managed' => false]);
+
+        return $output;
     }
 
     /**
      * Re-run default record creation and regenerate zone file.
      * Useful when new infra-level records (like DKIM) are generated.
      */
-    public function refreshEmailDnsRecords(Domain $domain): void
+    public function refreshEmailDnsRecords(Domain $domain): string
     {
         $this->createDefaultRecords($domain);
-        $this->generateZone($domain->fresh()->load('dnsRecords'));
+        return $this->generateZone($domain->fresh()->load('dnsRecords'));
     }
 
     /**
      * Sync records (re-generate zone file from DB records).
      */
-    public function syncRecords(Domain $domain): void
+    public function syncRecords(Domain $domain): string
     {
         if ($domain->dns_managed) {
             $this->createDefaultRecords($domain);
-            $this->generateZone($domain->fresh()->load('dnsRecords'));
+            return $this->generateZone($domain->fresh()->load('dnsRecords'));
         }
+
+        return '';
     }
 
     /**
@@ -361,9 +367,20 @@ ENTRY;
         );
     }
 
-    private function reloadBind(): void
+    public function reloadBind(): string
     {
-        $this->shell->run('sudo named-checkconf 2>/dev/null && sudo rndc reload 2>/dev/null && sudo systemctl reload bind9 2>/dev/null || true');
+        $output = "";
+
+        $res = $this->shell->run('sudo named-checkconf');
+        $output .= $res['output'] . "\n";
+
+        $res = $this->shell->run('sudo rndc reload');
+        $output .= $res['output'] . "\n";
+
+        $res = $this->shell->run('sudo systemctl reload bind9');
+        $output .= $res['output'] . "\n";
+
+        return trim($output);
     }
 
     private function extractDkimValue(string $domainName): ?string
