@@ -215,7 +215,10 @@ class SslService
         // Check if certificate exists (using ls via sudo)
         $result = $this->shell->run("sudo ls " . escapeshellarg($fullchain));
         if ($result['exit_code'] !== 0) {
-            return ['success' => false, 'message' => "SSL certificate for {$domain} not found in {$basePath}"];
+            return [
+                'success' => false,
+                'message' => "SSL certificate for {$domain} not found in {$basePath}. (Code: {$result['exit_code']}, Output: " . trim($result['output']) . ")"
+            ];
         }
 
         $panelConfigPath = '/etc/nginx/sites-available/sada-mia-panel';
