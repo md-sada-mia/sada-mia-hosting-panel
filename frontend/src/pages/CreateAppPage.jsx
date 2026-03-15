@@ -182,7 +182,7 @@ export default function CreateAppPage() {
                   title="Only alphanumeric, underscores, hyphens allowed"
                   disabled={loading || createdApp}
                 />
-                <p className="text-xs text-muted-foreground">Alphanumeric, underscores, hyphens, and dots allowed.</p>
+                <p className="text-xs text-muted-foreground">Alphanumeric, underscores, hyphens allowed.</p>
               </div>
 
               <div className="grid gap-2">
