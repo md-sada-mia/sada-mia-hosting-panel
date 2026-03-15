@@ -609,13 +609,16 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/opendkim/keys/*/default.txt
 # Dovecot management
 www-data ALL=(ALL) NOPASSWD: /usr/bin/doveadm *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/nginx/sites-available/*
+www-data ALL=(ALL) NOPASSWD: /bin/cat /etc/nginx/sites-available/*
 # Certbot / SSL
 www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot
 www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot *
-www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/letsencrypt/live/*
-www-data ALL=(ALL) NOPASSWD: /bin/cat /etc/letsencrypt/live/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/letsencrypt/live/*/*
+www-data ALL=(ALL) NOPASSWD: /bin/cat /etc/letsencrypt/live/*/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/ls /etc/letsencrypt/live/*/*
+www-data ALL=(ALL) NOPASSWD: /bin/ls /etc/letsencrypt/live/*/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ls /etc/letsencrypt/live/*
-www-data ALL=(ALL) NOPASSWD: /bin/ls /etc/letsencrypt/live/*
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel
