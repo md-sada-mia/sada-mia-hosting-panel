@@ -99,23 +99,33 @@ class DnsService
     public function createDefaultRecords(Domain $domain): void
     {
         // Get server IP from settings
+        // Get server IP from settings
         $serverIp = \App\Models\Setting::get('server_ip', '127.0.0.1');
+        $nsDefaultDomain = \App\Models\Setting::get('ns_default_domain');
+        // If ns_default_domain is not set, or it matches the current domain, create ns1-ns4 A records
+        $isDefaultNsDomain = empty($nsDefaultDomain) || $domain->domain === rtrim($nsDefaultDomain, '.');
 
         $defaults = [
-            ['type' => 'A',     'name' => '@',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
-            ['type' => 'A',     'name' => 'www',    'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => '@',            'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+            ['type' => 'A',     'name' => 'www',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'mail',         'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'webmail',      'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autoconfig',   'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
             ['type' => 'A',     'name' => 'autodiscover', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
-            ['type' => 'A',     'name' => 'ns1',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
-            ['type' => 'A',     'name' => 'ns2',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
-            ['type' => 'A',     'name' => 'ns3',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
-            ['type' => 'A',     'name' => 'ns4',          'value' => $serverIp, 'ttl' => 3600, 'priority' => null],
+        ];
+
+        if ($isDefaultNsDomain) {
+            $defaults[] = ['type' => 'A', 'name' => 'ns1', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null];
+            $defaults[] = ['type' => 'A', 'name' => 'ns2', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null];
+            $defaults[] = ['type' => 'A', 'name' => 'ns3', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null];
+            $defaults[] = ['type' => 'A', 'name' => 'ns4', 'value' => $serverIp, 'ttl' => 3600, 'priority' => null];
+        }
+
+        $defaults = array_merge($defaults, [
             ['type' => 'MX',    'name' => '@',      'value' => 'mail.' . $domain->domain . '.', 'ttl' => 3600, 'priority' => 10],
             ['type' => 'TXT',   'name' => '@',      'value' => "v=spf1 a mx ip4:{$serverIp} ~all", 'ttl' => 3600, 'priority' => null],
             ['type' => 'TXT',   'name' => '_dmarc', 'value' => 'v=DMARC1; p=none; sp=none; aspf=r; adkim=r', 'ttl' => 3600, 'priority' => null],
-        ];
+        ]);
 
         // Add 4 Nameservers as NS records in database
         $ns1 = \App\Models\Setting::get('dns_default_ns1', "ns1.{$domain->domain}.");

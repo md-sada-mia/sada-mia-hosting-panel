@@ -126,4 +126,31 @@ class DnsDefaultRecordsTest extends TestCase
         $this->assertStringContainsString('IN NS ns3.mypanel.com.', $content);
         $this->assertStringContainsString('IN NS ns4.mypanel.com.', $content);
     }
+    public function test_it_does_not_create_ns_a_records_if_another_domain_is_set_as_default()
+    {
+        $dnsService = app(DnsService::class);
+
+        Setting::set('ns_default_domain', 'primary.com');
+
+        $domain = Domain::create([
+            'domain' => 'secondary.com',
+            'status' => 'pending',
+            'dns_managed' => true,
+        ]);
+
+        $dnsService->createDefaultRecords($domain);
+
+        $this->assertDatabaseMissing('dns_records', [
+            'domain_id' => $domain->id,
+            'type' => 'A',
+            'name' => 'ns1',
+        ]);
+
+        // Should still have NS records
+        $this->assertDatabaseHas('dns_records', [
+            'domain_id' => $domain->id,
+            'type' => 'NS',
+            'name' => '@',
+        ]);
+    }
 }
