@@ -43,10 +43,6 @@ class SslService
         $app->update(['ssl_status' => 'pending']);
 
         // Run certbot --nginx
-        // --non-interactive: No prompts
-        // --agree-tos: Agree to Terms of Service
-        // --register-unsafely-without-email: Skip email registration for simplicity, 
-        // fallback to a configured email if available in the future.
         $command = "sudo certbot --nginx -d " . escapeshellarg($app->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
 
         $result = $this->shell->run($command);
@@ -230,23 +226,39 @@ class SslService
 
         // Add SSL directives if not present
         if (!str_contains($currentConfig, 'ssl_certificate')) {
-            $sslDirectives = "\n" .
-                "    listen 8083 ssl;\n" .
+            $sslCertDirectives = "\n" .
                 "    ssl_certificate {$fullchain};\n" .
                 "    ssl_certificate_key {$privkey};\n" .
                 "    include /etc/letsencrypt/options-ssl-nginx.conf;\n" .
                 "    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;\n";
 
-            // Insert after first listen 8083;
-            $newConfig = preg_replace('/listen 8083;/', 'listen 8083;' . $sslDirectives, $currentConfig, 1);
+            $newConfig = $currentConfig;
 
-            // Handle IPv6 if present
-            $newConfig = preg_replace('/listen \[::\]:8083;/', 'listen [::]:8083 ssl;' . $sslDirectives, $newConfig, 1);
+            // Update first IPv4 listen to include ssl
+            $newConfig = preg_replace('/listen\s+8083(\s+default_server)?\s*;/', 'listen 8083$1 ssl;', $newConfig, 1);
+            // Update first IPv6 listen to include ssl
+            $newConfig = preg_replace('/listen\s+\[::\]:8083(\s+default_server)?\s*;/', 'listen [::]:8083$1 ssl;', $newConfig, 1);
+
+            // Append certificate directives after the first listen directive
+            $newConfig = preg_replace('/listen\s+8083(\s+default_server)?\s+ssl\s*;/', "listen 8083$1 ssl;" . $sslCertDirectives, $newConfig, 1);
 
             // Save back
             $escapedConfig = escapeshellarg($newConfig);
             $this->shell->run("echo {$escapedConfig} | sudo tee {$panelConfigPath} > /dev/null");
-            $this->shell->run("sudo nginx -t && sudo nginx -s reload");
+
+            // Test Nginx configuration
+            $test = $this->shell->run("sudo nginx -t");
+            if ($test['exit_code'] !== 0) {
+                // Rollback if failed
+                $escapedOriginal = escapeshellarg($currentConfig);
+                $this->shell->run("echo {$escapedOriginal} | sudo tee {$panelConfigPath} > /dev/null");
+                return [
+                    'success' => false,
+                    'message' => "Nginx configuration test failed. Rollback applied. Error: " . trim($test['output'])
+                ];
+            }
+
+            $this->shell->run("sudo nginx -s reload");
 
             return ['success' => true, 'message' => "Panel secured with SSL for {$domain}"];
         }
