@@ -320,13 +320,28 @@ class DnsService
         $lines[] = "    86400 )    ; Minimum TTL";
         $lines[] = '';
 
-        foreach ($records as $record) {
+        // Separate NS records and others
+        $nsRecords = $records->where('type', 'NS');
+        $otherRecords = $records->where('type', '!=', 'NS');
+
+        // Add NS records after SOA, without TTL
+        foreach ($nsRecords as $record) {
+            $name  = $record->name === '@' ? '@' : rtrim($record->name, '.');
+            $value = rtrim($record->value, '.') . '.';
+            $lines[] = "{$name} IN NS {$value}";
+        }
+
+        if ($nsRecords->isNotEmpty()) {
+            $lines[] = '';
+        }
+
+        foreach ($otherRecords as $record) {
             $name  = $record->name === '@' ? '@' : rtrim($record->name, '.');
             $value = rtrim($record->value, '.');
 
             if ($record->type === 'TXT') {
                 $value = '"' . $record->value . '"';
-            } elseif (in_array($record->type, ['CNAME', 'MX', 'NS', 'PTR'])) {
+            } elseif (in_array($record->type, ['CNAME', 'MX', 'PTR'])) {
                 $value = rtrim($record->value, '.') . '.';
             }
 

@@ -111,20 +111,26 @@ class DnsDefaultRecordsTest extends TestCase
 
         $dnsService->createDefaultRecords($domain);
 
-        // Mock buildZoneContent if it were public, but it's private. 
-        // We'll test via generateZone if we can mock ShellService or just use reflection.
-        // For simplicity, let's just use reflection to test buildZoneContent.
-
         $reflection = new \ReflectionClass(DnsService::class);
         $method = $reflection->getMethod('buildZoneContent');
         $method->setAccessible(true);
 
         $content = $method->invoke($dnsService, $domain);
 
-        $this->assertStringContainsString('IN NS ns1.mypanel.com.', $content);
-        $this->assertStringContainsString('IN NS ns2.mypanel.com.', $content);
-        $this->assertStringContainsString('IN NS ns3.mypanel.com.', $content);
-        $this->assertStringContainsString('IN NS ns4.mypanel.com.', $content);
+        // Should not have TTL in NS records (e.g., "@ 3600 IN NS")
+        $this->assertStringNotContainsString('3600 IN NS', $content);
+        $this->assertStringContainsString("@ IN NS ns1.mypanel.com.\n", $content);
+        $this->assertStringContainsString("@ IN NS ns2.mypanel.com.\n", $content);
+        $this->assertStringContainsString("@ IN NS ns3.mypanel.com.\n", $content);
+        $this->assertStringContainsString("@ IN NS ns4.mypanel.com.\n", $content);
+
+        // Check placement: NS records should be after the SOA block and before A records
+        $soaEndPos = strpos($content, 'Minimum TTL');
+        $nsPos = strpos($content, '@ IN NS');
+        $aPos = strpos($content, '3600 IN A');
+
+        $this->assertGreaterThan($soaEndPos, $nsPos, 'NS records should be after SOA');
+        $this->assertGreaterThan($nsPos, $aPos, 'A records should be after NS records');
     }
     public function test_it_does_not_create_ns_a_records_if_another_domain_is_set_as_default()
     {
