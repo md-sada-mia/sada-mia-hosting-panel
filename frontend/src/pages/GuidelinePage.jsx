@@ -38,9 +38,19 @@ export default function GuidelinePage() {
         } catch (err) {
             toast.error("Failed to update preference.");
         } finally {
-            setLoading(true);
+            setLoading(false);
         }
     };
+
+    const normalizeDomain = (domain) => domain ? domain.replace(/\.$/, '').toLowerCase() : '';
+    const isDefaultNsDomain = !!app?.domain && !!app?.settings?.ns_default_domain && 
+                             normalizeDomain(app.domain) === normalizeDomain(app.settings.ns_default_domain);
+    const nameservers = [
+        app?.settings?.dns_default_ns1,
+        app?.settings?.dns_default_ns2,
+        app?.settings?.dns_default_ns3,
+        app?.settings?.dns_default_ns4
+    ].filter(Boolean);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-12">
@@ -57,6 +67,50 @@ export default function GuidelinePage() {
             </div>
 
             <div className="grid gap-6">
+                {/* Advanced DNS Setup (Conditional) */}
+                {isDefaultNsDomain && (
+                    <Card className="border-blue-500/50 bg-blue-500/5 shadow-lg shadow-blue-500/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-blue-400">
+                                <Globe className="h-5 w-5" /> Own Name Server Setup
+                            </CardTitle>
+                            <CardDescription className="text-blue-400/70">
+                                This domain is configured as your panel's default nameserver provider.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                        <Shield className="h-4 w-4 text-blue-400" /> Required Child Nameservers
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                        Go to your domain registrar (e.g., Namecheap, Cloudflare) and add these "Child Nameservers" or "Glue Records":
+                                    </p>
+                                    <div className="bg-background/50 p-3 rounded-md border border-blue-500/20 font-mono text-xs space-y-1">
+                                        {nameservers.map((ns, i) => (
+                                            <div key={i} className="flex justify-between">
+                                                <span>{ns}</span>
+                                                <span className="text-blue-400">{app?.settings?.server_ip}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                        <Info className="h-4 w-4 text-blue-400" /> DNS Propagation Tips
+                                    </h4>
+                                    <ul className="text-xs text-muted-foreground space-y-2 list-disc pl-4">
+                                        <li>Child nameservers take longer to propagate than standard records.</li>
+                                        <li>Verify your current Server IP: <Badge variant="outline" className="text-blue-400 border-blue-400/30">{app?.settings?.server_ip}</Badge></li>
+                                        <li>Ensure port 53 (UDP/TCP) is open on your firewall.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Core Guidelines */}
                 <Card className="border-primary/20 bg-primary/5">
                     <CardHeader>

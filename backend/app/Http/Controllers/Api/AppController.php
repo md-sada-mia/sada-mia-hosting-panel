@@ -146,7 +146,18 @@ class AppController extends Controller
     public function show(AppModel $app)
     {
         $app->load(['latestDeployment', 'databases', 'envVariables', 'domainRecord.dnsRecords']);
-        return response()->json($app);
+
+        // Add relevant global settings for the app dashboard
+        $settings = [
+            'server_ip' => \App\Models\Setting::get('server_ip'),
+            'ns_default_domain' => \App\Models\Setting::get('ns_default_domain'),
+            'dns_default_ns1' => \App\Models\Setting::get('dns_default_ns1'),
+            'dns_default_ns2' => \App\Models\Setting::get('dns_default_ns2'),
+            'dns_default_ns3' => \App\Models\Setting::get('dns_default_ns3'),
+            'dns_default_ns4' => \App\Models\Setting::get('dns_default_ns4'),
+        ];
+
+        return response()->json(array_merge($app->toArray(), ['settings' => $settings]));
     }
 
     public function destroy(AppModel $app)
