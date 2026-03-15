@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
+import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -400,6 +400,16 @@ export default function CreateAppPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     You can watch the logs above or head to the dashboard to manage environment variables.
                   </p>
+                  <div className="mt-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => navigate(`/apps/${createdApp.id}/guidelines`)}
+                      className="h-8 text-[11px] gap-1.5 border-success/20 text-success hover:bg-success/10"
+                    >
+                      <Shield className="h-3.5 w-3.5" /> View Guidelines
+                    </Button>
+                  </div>
                 </div>
               </div>
               <Button onClick={() => navigate(`/apps/${createdApp.id}`)} className="w-full py-6 text-lg group">

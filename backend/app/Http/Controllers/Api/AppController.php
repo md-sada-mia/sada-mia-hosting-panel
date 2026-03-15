@@ -228,4 +228,10 @@ class AppController extends Controller
     {
         return response()->json($app->deployments()->orderByDesc('created_at')->get());
     }
+
+    public function hideGuidelines(AppModel $app)
+    {
+        $app->update(['hide_guidelines' => true]);
+        return response()->json(['success' => true]);
+    }
 }

@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
     Route::post('/apps/{app}/toggle-auto-deploy', [AppController::class, 'toggleAutoDeploy']);
+    Route::post('/apps/{app}/hide-guidelines', [AppController::class, 'hideGuidelines']);
 
     // Environment variables
     Route::get('/apps/{app}/env', [EnvController::class, 'index']);

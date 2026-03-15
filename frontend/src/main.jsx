@@ -24,6 +24,7 @@ import LoadBalancerManagePage from './pages/LoadBalancerManagePage';
 import CrmPage from './pages/CrmPage';
 import CrmNewCustomerPage from './pages/CrmNewCustomerPage';
 import TerminalPage from './pages/TerminalPage';
+import GuidelinePage from './pages/GuidelinePage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/apps" element={<AppsPage />} />
             <Route path="/apps/create" element={<CreateAppPage />} />
             <Route path="/apps/:id" element={<AppDetailPage />} />
+            <Route path="/apps/:id/guidelines" element={<GuidelinePage />} />
             <Route path="/load-balancers" element={<LoadBalancersPage />} />
             <Route path="/load-balancers/:id/manage" element={<LoadBalancerManagePage />} />
             <Route path="/databases" element={<DatabasesPage />} />

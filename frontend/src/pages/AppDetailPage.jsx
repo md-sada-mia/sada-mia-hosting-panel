@@ -422,6 +422,33 @@ export default function AppDetailPage() {
         {/* ── Overview ─────────────────────────────────────────── */}
         <TabsContent value="overview" className="mt-6 space-y-6">
           
+          {!app.hide_guidelines && (
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                    <Shield className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Application Management Guidelines</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+                      Welcome to your new app! To ensure everything works perfectly, please review our UI/UX and operational guidelines. This includes DNS setup, deployment workflows, and performance tips.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => navigate(`/apps/${app.id}/guidelines`)}
+                  className="shrink-0 gap-2 shadow-lg shadow-primary/20"
+                >
+                  View Detailed Guidelines <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              {/* Decorative backgrounds */}
+              <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl opacity-50" />
+              <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl opacity-50" />
+            </div>
+          )}
+
           {/* Resource Shortcuts Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 px-1">

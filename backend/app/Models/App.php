@@ -22,11 +22,13 @@ class App extends Model
         'github_id',
         'webhook_secret',
         'auto_deploy',
+        'hide_guidelines',
     ];
 
     protected $casts = [
         'port' => 'integer',
         'auto_deploy' => 'boolean',
+        'hide_guidelines' => 'boolean',
     ];
 
     public function deployments(): HasMany
