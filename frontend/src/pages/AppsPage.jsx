@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Server, Github, ExternalLink } from 'lucide-react';
 
 export default function AppsPage() {
+  const navigate = useNavigate();
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -67,8 +68,11 @@ export default function AppsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {apps.map((app) => (
-            <Link key={app.id} to={`/apps/${app.id}`} className="block transition-transform hover:-translate-y-1">
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <div key={app.id} className="block transition-transform hover:-translate-y-1">
+              <Card 
+                className="hover:border-primary/50 transition-colors cursor-pointer h-full"
+                onClick={() => navigate(`/apps/${app.id}`)}
+              >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="space-y-1">
@@ -99,7 +103,7 @@ export default function AppsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </Link>
+            </div>
           ))}
         </div>
       )}

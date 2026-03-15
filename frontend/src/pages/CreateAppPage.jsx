@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -178,7 +178,7 @@ export default function CreateAppPage() {
                   name="name" 
                   value={form.name} 
                   onChange={handleChange} 
-                  pattern="[a-zA-Z0-9_-]+" 
+                  pattern="[a-zA-Z0-9_\-]+" 
                   disabled={loading || createdApp}
                 />
               </div>

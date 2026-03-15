@@ -446,14 +446,14 @@ export default function SettingsPage() {
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-primary">
                     <ShieldCheck className="h-4 w-4" /> Registrar Location
                   </h4>
-                  <p className="text-[11px] text-muted-foreground leading-loose">
+                  <div className="text-[11px] text-muted-foreground leading-loose">
                     Glue records are usually found under:
                     <ul className="list-disc ml-4 mt-1 space-y-1">
                       <li><strong>Namecheap:</strong> Advanced DNS → Personal DNS Server</li>
                       <li><strong>GoDaddy:</strong> DNS → Host Names</li>
                       <li><strong>Cloudflare:</strong> DNS → Records → Custom Nameservers</li>
                     </ul>
-                  </p>
+                  </div>
                 </div>
                 <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-2 text-primary">

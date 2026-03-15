@@ -370,10 +370,10 @@ export default function DomainsPage() {
                 const sm = STATUS_META[d.status] || STATUS_META.pending;
                 const ns = [d.nameserver_1, d.nameserver_2, d.nameserver_3, d.nameserver_4].filter(Boolean);
                 return (
-                  <button
+                  <div
                     key={d.id}
                     onClick={() => setSelected(d)}
-                    className={`w-full text-left rounded-xl border p-4 transition-all duration-200 group
+                    className={`w-full text-left rounded-xl border p-4 transition-all duration-200 group cursor-pointer
                       ${isActive
                         ? 'border-primary/60 bg-primary/8 shadow-lg shadow-primary/10'
                         : 'border-white/8 bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.04]'}`}
@@ -423,7 +423,7 @@ export default function DomainsPage() {
                         <Database className="h-2.5 w-2.5" /> {d.app.name}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })
             )}
