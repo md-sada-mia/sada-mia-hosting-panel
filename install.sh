@@ -567,6 +567,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/bind/named.conf.local
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/bind/zones/*
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/named-checkconf
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/named-checkzone *
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/rndc reload
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload bind9
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bind9
 www-data ALL=(ALL) NOPASSWD: /usr/bin/grep -q *
