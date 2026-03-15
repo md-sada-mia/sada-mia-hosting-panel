@@ -202,4 +202,52 @@ class SslService
             ]);
         }
     }
+
+    /**
+     * Secure the panel port (8083) using an existing domain certificate.
+     */
+    public function securePanel(string $domain): array
+    {
+        $basePath = "/etc/letsencrypt/live/{$domain}";
+        $fullchain = "{$basePath}/fullchain.pem";
+        $privkey = "{$basePath}/privkey.pem";
+
+        // Check if certificate exists (using -f check via sudo)
+        $result = $this->shell->run("sudo [ -f " . escapeshellarg($fullchain) . " ] && echo 'exists' || echo 'missing'");
+        if (trim($result['output']) !== 'exists') {
+            return ['success' => false, 'message' => "SSL certificate for {$domain} not found in {$basePath}"];
+        }
+
+        $panelConfigPath = '/etc/nginx/sites-available/sada-mia-panel';
+        $currentConfig = $this->readSudoFile($panelConfigPath);
+
+        if (!$currentConfig) {
+            return ['success' => false, 'message' => "Panel Nginx configuration not found at {$panelConfigPath}"];
+        }
+
+        // Add SSL directives if not present
+        if (!str_contains($currentConfig, 'ssl_certificate')) {
+            $sslDirectives = "\n" .
+                "    listen 8083 ssl;\n" .
+                "    ssl_certificate {$fullchain};\n" .
+                "    ssl_certificate_key {$privkey};\n" .
+                "    include /etc/letsencrypt/options-ssl-nginx.conf;\n" .
+                "    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;\n";
+
+            // Insert after first listen 8083;
+            $newConfig = preg_replace('/listen 8083;/', 'listen 8083;' . $sslDirectives, $currentConfig, 1);
+
+            // Handle IPv6 if present
+            $newConfig = preg_replace('/listen \[::\]:8083;/', 'listen [::]:8083 ssl;' . $sslDirectives, $newConfig, 1);
+
+            // Save back
+            $escapedConfig = escapeshellarg($newConfig);
+            $this->shell->run("echo {$escapedConfig} | sudo tee {$panelConfigPath} > /dev/null");
+            $this->shell->run("sudo nginx -t && sudo nginx -s reload");
+
+            return ['success' => true, 'message' => "Panel secured with SSL for {$domain}"];
+        }
+
+        return ['success' => true, 'message' => "Panel is already secured."];
+    }
 }

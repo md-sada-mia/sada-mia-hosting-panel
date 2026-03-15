@@ -5,3 +5,6 @@ sudo nano /etc/hosts
 
 sudo chmod +x dns-check.sh
 sudo ./dns-check.sh autoflow.best
+
+
+php artisan app:nginx-sync
