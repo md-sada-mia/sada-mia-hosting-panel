@@ -526,9 +526,9 @@ if [ ! -f "$WEBMAIL_DIR/index.php" ]; then
     
     # Basic configuration
     cp $WEBMAIL_DIR/config/config.inc.php.sample $WEBMAIL_DIR/config/config.inc.php
-    sed -i "s|\$config\['db_dsnw'\] = .*|\$config\['db_dsnw'\] = 'pgsql://roundcube:$RC_PASS@localhost/roundcube';|" $WEBMAIL_DIR/config/config.inc.php
-    sed -i "s|\$config\['imap_host'\] = .*|\$config\['imap_host'\] = 'localhost:143';|" $WEBMAIL_DIR/config/config.inc.php
-    sed -i "s|\$config\['smtp_host'\] = .*|\$config\['smtp_host'\] = 'localhost:587';|" $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['db_dsnw'\] = .*|\$config\['db_dsnw'\] = 'pgsql://roundcube:$RC_PASS@127.0.0.1/roundcube';|" $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['imap_host'\] = .*|\$config\['imap_host'\] = '127.0.0.1:143';|" $WEBMAIL_DIR/config/config.inc.php
+    sed -i "s|\$config\['smtp_host'\] = .*|\$config\['smtp_host'\] = '127.0.0.1:587';|" $WEBMAIL_DIR/config/config.inc.php
     echo "\$config['smtp_conn_options'] = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];" >> $WEBMAIL_DIR/config/config.inc.php
     echo "\$config['imap_conn_options'] = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];" >> $WEBMAIL_DIR/config/config.inc.php
 
