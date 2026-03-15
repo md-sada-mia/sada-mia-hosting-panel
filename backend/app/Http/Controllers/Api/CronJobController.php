@@ -67,4 +67,14 @@ class CronJobController extends Controller
 
         return response()->json($cronJob);
     }
+
+    public function logs(CronJob $cronJob): JsonResponse
+    {
+        return response()->json($cronJob->logs()->limit(100)->get());
+    }
+
+    public function systemLogs(): JsonResponse
+    {
+        return response()->json(\App\Models\CronLog::whereNull('cron_job_id')->orderByDesc('created_at')->limit(100)->get());
+    }
 }

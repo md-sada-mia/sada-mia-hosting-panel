@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\App;
 use App\Services\SslService;
+use App\Services\CronLogService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -26,29 +27,40 @@ class SslRenewCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(SslService $sslService)
+    public function handle(SslService $sslService, CronLogService $logService)
     {
         $this->info('Starting SSL renewal process...');
         Log::info('Artisan: app:ssl-renew started.');
 
-        $result = $sslService->renewAll();
+        $cronLog = $logService->start(null, 'app:ssl-renew');
 
-        if ($result['exit_code'] === 0) {
-            $this->info('Certbot renewal command executed successfully.');
-            Log::info('Certbot renewal command output: ' . ($result['output'] ?? 'No output'));
-        } else {
-            $this->error('Certbot renewal command failed with exit code ' . $result['exit_code']);
-            Log::error('Certbot renewal error: ' . ($result['output'] ?? 'Unknown error'));
+        try {
+            $result = $sslService->renewAll();
+            $output = $result['output'] ?? 'No output';
+
+            if ($result['exit_code'] === 0) {
+                $status = 'success';
+                $this->info('Certbot renewal command executed successfully.');
+                Log::info('Certbot renewal command output: ' . $output);
+            } else {
+                $status = 'failed';
+                $this->error('Certbot renewal command failed with exit code ' . $result['exit_code']);
+                Log::error('Certbot renewal error: ' . $output);
+            }
+
+            // Sync all apps with enabled SSL to update their last check/expiry
+            $apps = App::where('ssl_enabled', true)->get();
+            foreach ($apps as $app) {
+                $this->info("Syncing SSL status for {$app->domain}...");
+                $sslService->syncStatus($app);
+            }
+
+            $logService->finish($cronLog, $status, $output);
+            $this->info('SSL renewal process completed.');
+            Log::info('Artisan: app:ssl-renew completed.');
+        } catch (\Exception $e) {
+            $logService->finish($cronLog, 'failed', "Exception: " . $e->getMessage());
+            throw $e;
         }
-
-        // Sync all apps with enabled SSL to update their last check/expiry
-        $apps = App::where('ssl_enabled', true)->get();
-        foreach ($apps as $app) {
-            $this->info("Syncing SSL status for {$app->domain}...");
-            $sslService->syncStatus($app);
-        }
-
-        $this->info('SSL renewal process completed.');
-        Log::info('Artisan: app:ssl-renew completed.');
     }
 }

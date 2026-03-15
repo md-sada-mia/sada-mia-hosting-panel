@@ -86,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cron-jobs/{cronJob}', [CronJobController::class, 'update']);
     Route::delete('/cron-jobs/{cronJob}', [CronJobController::class, 'destroy']);
     Route::post('/cron-jobs/{cronJob}/toggle', [CronJobController::class, 'toggle']);
+    Route::get('/cron-jobs/system-logs', [CronJobController::class, 'systemLogs']);
+    Route::get('/cron-jobs/{cronJob}/logs', [CronJobController::class, 'logs']);
 
     // DNS Domains
     Route::get('/domains/find-parent', [DomainController::class, 'findParent']);

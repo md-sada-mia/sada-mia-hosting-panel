@@ -26,7 +26,7 @@ class RunCronJob extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(\App\Services\CronLogService $logService)
     {
         $id = $this->argument('id');
         $job = CronJob::find($id);
@@ -43,9 +43,9 @@ class RunCronJob extends Command
 
         $this->info("Starting cron job: {$job->description} ({$job->command})");
 
+        $cronLog = $logService->start($job->id);
         $job->update(['last_status' => 'running']);
 
-        $startTime = microtime(true);
         $process = Process::fromShellCommandline($job->command);
         $process->setTimeout(3600); // 1 hour timeout
 
@@ -56,26 +56,23 @@ class RunCronJob extends Command
                 $outputBuffer .= $buffer;
             });
 
-            $endTime = microtime(true);
-            $duration = round($endTime - $startTime, 2);
+            $status = $process->isSuccessful() ? 'success' : 'failed';
+            $logService->finish($cronLog, $status, $outputBuffer ?: ($status === 'failed' ? "Process exited with code " . $process->getExitCode() : ""));
 
-            if ($process->isSuccessful()) {
-                $job->update([
-                    'last_status' => 'success',
-                    'last_run_at' => now(),
-                    'last_output' => $outputBuffer,
-                ]);
-                $this->info("Cron job completed successfully in {$duration}s.");
+            $job->update([
+                'last_status' => $status,
+                'last_run_at' => now(),
+                'last_output' => $outputBuffer,
+            ]);
+
+            if ($status === 'success') {
+                $this->info("Cron job completed successfully.");
             } else {
-                $job->update([
-                    'last_status' => 'failed',
-                    'last_run_at' => now(),
-                    'last_output' => $outputBuffer ?: "Process exited with code " . $process->getExitCode(),
-                ]);
                 $this->error("Cron job failed with exit code " . $process->getExitCode());
             }
         } catch (\Exception $e) {
             Log::error("Error executing cron job {$id}: " . $e->getMessage());
+            $logService->finish($cronLog, 'failed', "Exception occurred: " . $e->getMessage());
             $job->update([
                 'last_status' => 'failed',
                 'last_run_at' => now(),

@@ -19,6 +19,10 @@ export default function CronPage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [selectedExecution, setSelectedExecution] = useState(null);
+  const [isSystemView, setIsSystemView] = useState(false);
   const [formData, setFormData] = useState({
     command: '',
     schedule: '* * * * *',
@@ -118,9 +122,40 @@ export default function CronPage() {
     setEditingJob(null);
   };
 
-  const openLogs = (job) => {
+  const openLogs = async (job) => {
     setSelectedJob(job);
+    setHistoryLogs([]);
+    setSelectedExecution(null);
+    setIsSystemView(false);
     setShowLogs(true);
+    setLoadingLogs(true);
+    try {
+      const { data } = await api.get(`/cron-jobs/${job.id}/logs`);
+      setHistoryLogs(data);
+      if (data.length > 0) setSelectedExecution(data[0]);
+    } catch (err) {
+      toast.error('Failed to fetch historical logs');
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  const openSystemLogs = async () => {
+    setSelectedJob({ description: 'System Management Tasks' });
+    setHistoryLogs([]);
+    setSelectedExecution(null);
+    setIsSystemView(true);
+    setShowLogs(true);
+    setLoadingLogs(true);
+    try {
+      const { data } = await api.get('/cron-jobs/system-logs');
+      setHistoryLogs(data);
+      if (data.length > 0) setSelectedExecution(data[0]);
+    } catch (err) {
+      toast.error('Failed to fetch system logs');
+    } finally {
+      setLoadingLogs(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -140,6 +175,10 @@ export default function CronPage() {
           <p className="text-muted-foreground mt-1">Manage scheduled background tasks for your server.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openSystemLogs()} className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            System Tasks
+          </Button>
           <Button variant="outline" size="icon" onClick={() => { setLoading(true); fetchJobs(); }} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -224,24 +263,81 @@ export default function CronPage() {
       </Dialog>
 
       <Dialog open={showLogs} onOpenChange={setShowLogs}>
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-              Execution Logs: {selectedJob?.description || 'Job'}
-            </DialogTitle>
-            <DialogDescription>
-              Output of the most recent execution. Status: {selectedJob?.last_status || 'Never run'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto mt-4">
-            <pre className="bg-slate-950 text-slate-50 p-4 rounded-md font-mono text-sm min-h-[200px] whitespace-pre-wrap border border-slate-800 shadow-inner">
-              {selectedJob?.last_output || 'No logs available for this job.'}
-            </pre>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
+          <div className="p-6 border-b">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                {isSystemView ? 'System Task History' : `Execution History: ${selectedJob?.description || 'Job'}`}
+              </DialogTitle>
+              <DialogDescription>
+                Viewing historical records for scheduled tasks.
+              </DialogDescription>
+            </DialogHeader>
           </div>
-          <DialogFooter className="mt-4">
+          
+          <div className="flex-1 flex overflow-hidden min-h-[400px]">
+            {/* Sidebar with log list */}
+            <div className="w-1/3 border-r overflow-auto bg-muted/20">
+              {loadingLogs ? (
+                <div className="flex items-center justify-center p-8">
+                  <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : historyLogs.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  No records found.
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {historyLogs.map((log) => (
+                    <button
+                      key={log.id}
+                      onClick={() => setSelectedExecution(log)}
+                      className={`w-full text-left p-3 hover:bg-muted transition-colors flex flex-col gap-1 ${selectedExecution?.id === log.id ? 'bg-muted border-l-2 border-primary' : ''}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-mono text-muted-foreground truncate">
+                          {isSystemView ? log.command_name : `#${log.id}`}
+                        </span>
+                        <Badge variant={log.status === 'success' ? 'success' : 'destructive'} className="h-4 text-[9px] px-1 capitalize">
+                          {log.status}
+                        </Badge>
+                      </div>
+                      <span className="text-xs font-medium">
+                        {new Date(log.started_at).toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Duration: {log.duration}s
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Content area with output */}
+            <div className="flex-1 overflow-auto bg-slate-950 flex flex-col">
+              {selectedExecution ? (
+                <>
+                  <div className="p-3 border-b border-slate-800 flex items-center justify-between text-slate-400 text-[11px] bg-slate-900/50">
+                    <span>{new Date(selectedExecution.started_at).toLocaleString()} — {selectedExecution.status.toUpperCase()}</span>
+                    <span>{selectedExecution.duration}s</span>
+                  </div>
+                  <pre className="p-4 text-slate-50 font-mono text-sm whitespace-pre-wrap flex-1">
+                    {selectedExecution.output || 'No output captured for this run.'}
+                  </pre>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-slate-500 text-sm italic">
+                  Select a record to view details
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-4 border-t bg-muted/20 flex justify-end">
             <Button variant="outline" onClick={() => setShowLogs(false)}>Close</Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

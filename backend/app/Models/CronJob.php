@@ -20,4 +20,8 @@ class CronJob extends Model
         'is_active' => 'boolean',
         'last_run_at' => 'datetime',
     ];
+    public function logs()
+    {
+        return $this->hasMany(CronLog::class)->orderByDesc('created_at');
+    }
 }
