@@ -363,7 +363,7 @@ ENTRY;
 
     private function reloadBind(): void
     {
-        $this->shell->run('sudo named-checkconf 2>/dev/null && sudo systemctl reload bind9 2>/dev/null || true');
+        $this->shell->run('sudo named-checkconf 2>/dev/null && sudo rndc reload 2>/dev/null && sudo systemctl reload bind9 2>/dev/null || true');
     }
 
     private function extractDkimValue(string $domainName): ?string
