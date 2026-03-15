@@ -612,6 +612,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/doveadm *
 # Certbot / SSL
 www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot
 www-data ALL=(ALL) NOPASSWD: /usr/bin/certbot *
+www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/letsencrypt/live/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/ls /etc/letsencrypt/live/*
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel

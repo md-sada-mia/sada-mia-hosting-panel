@@ -212,9 +212,9 @@ class SslService
         $fullchain = "{$basePath}/fullchain.pem";
         $privkey = "{$basePath}/privkey.pem";
 
-        // Check if certificate exists (using -f check via sudo)
-        $result = $this->shell->run("sudo [ -f " . escapeshellarg($fullchain) . " ] && echo 'exists' || echo 'missing'");
-        if (trim($result['output']) !== 'exists') {
+        // Check if certificate exists (using ls via sudo)
+        $result = $this->shell->run("sudo ls " . escapeshellarg($fullchain));
+        if ($result['exit_code'] !== 0) {
             return ['success' => false, 'message' => "SSL certificate for {$domain} not found in {$basePath}"];
         }
 
