@@ -52,7 +52,12 @@ class SslService
         $result = $this->shell->run($command);
         $output = $result['output'] ?? '';
 
-        if (($result['exit_code'] === 0) && (str_contains(strtolower($output), 'successfully received certificate') || str_contains(strtolower($output), 'certificate is already active'))) {
+        if ($result['exit_code'] === 0 && (
+            str_contains(strtolower($output), 'successfully received certificate') ||
+            str_contains(strtolower($output), 'certificate is already active') ||
+            str_contains(strtolower($output), 'congratulations') ||
+            str_contains(strtolower($output), 'successfully enabled https')
+        )) {
             $app->update([
                 'ssl_status' => 'active',
                 'ssl_enabled' => true,
