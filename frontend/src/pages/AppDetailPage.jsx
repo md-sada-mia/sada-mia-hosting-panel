@@ -12,7 +12,7 @@ import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
-  Mail, Info, Terminal
+  Mail, Info, Terminal, FileText
 } from 'lucide-react';
 import {
   Select,
