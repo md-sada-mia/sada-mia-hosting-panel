@@ -179,7 +179,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo "==> 1. Updating packages"
 apt-get update
 # Install basic utilities if missing
-for pkg in curl wget git unzip sqlite3 libsqlite3-dev opendkim opendkim-tools certbot python3-certbot-nginx; do
+for pkg in curl wget git unzip sqlite3 libsqlite3-dev opendkim opendkim-tools certbot python3-certbot-nginx cron; do
     if ! dpkg -s $pkg >/dev/null 2>&1; then
         apt-get install -y $pkg
     fi
@@ -705,7 +705,13 @@ systemctl enable sada-mia-queue
 systemctl restart sada-mia-queue
 
 echo "==> 9.2 Setting up Laravel Scheduler (Cron)"
-(crontab -u www-data -l 2>/dev/null; echo "* * * * * /usr/bin/php $BACKEND_DIR/artisan schedule:run >> /dev/null 2>&1") | crontab -u www-data -
+# Ensure cron is running
+systemctl enable cron
+systemctl start cron
+
+# Add the cron job if it doesn't exist
+CRON_JOB="* * * * * /usr/bin/php $BACKEND_DIR/artisan schedule:run >> /dev/null 2>&1"
+(crontab -u www-data -l 2>/dev/null | grep -v "artisan schedule:run"; echo "$CRON_JOB") | crontab -u www-data -
 
 cd ../frontend
 
