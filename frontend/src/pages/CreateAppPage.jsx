@@ -179,8 +179,10 @@ export default function CreateAppPage() {
                   value={form.name} 
                   onChange={handleChange} 
                   pattern="[a-zA-Z0-9_\-]+" 
+                  title="Only alphanumeric, underscores, hyphens allowed"
                   disabled={loading || createdApp}
                 />
+                <p className="text-xs text-muted-foreground">Alphanumeric, underscores, hyphens, and dots allowed.</p>
               </div>
 
               <div className="grid gap-2">

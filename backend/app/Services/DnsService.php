@@ -199,6 +199,11 @@ class DnsService
                 'nameserver_4' => \App\Models\Setting::get('dns_default_ns4'),
             ];
 
+            // If ns_default_domain is empty, set it to the current domain
+            if (!\App\Models\Setting::get('ns_default_domain')) {
+                \App\Models\Setting::set('ns_default_domain', $domainName);
+            }
+
             // If it's the first execution and no nameservers are set, auto-initialize from this domain or setting
             if (empty($ns['nameserver_1']) && empty($ns['nameserver_2'])) {
                 $baseDomain = \App\Models\Setting::get('ns_default_domain');
