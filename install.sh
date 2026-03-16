@@ -592,7 +592,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_mailbox_maps
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/postfix/virtual_alias_maps
 www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/postfix/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /var/mail/vhosts/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail:vmail /var/mail/vhosts/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R vmail\:vmail /var/mail/vhosts/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -rf /var/mail/vhosts/*
 # Dovecot / Email account management
 www-data ALL=(ALL) NOPASSWD: /usr/bin/touch /etc/dovecot/users
@@ -605,7 +605,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/sbin/opendkim-genkey *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /etc/opendkim/keys/*
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R opendkim:opendkim /etc/opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R opendkim\:opendkim /etc/opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 750 /etc/opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
