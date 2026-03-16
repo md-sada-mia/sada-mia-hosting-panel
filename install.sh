@@ -371,10 +371,13 @@ chmod 640 "$DOVECOT_USERS"
 DOVECOT_AUTH=/etc/dovecot/conf.d/10-auth.conf
 if [ -f "$DOVECOT_AUTH" ]; then
     # Disable default system auth and enable passwd-file
-    sed -i 's/^!#include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
-    sed -i 's/^!include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
-    sed -i 's/^#!include auth-system.conf.ext/# !include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
-    grep -q 'auth-passwdfile.conf.ext' "$DOVECOT_AUTH" || echo '!include auth-passwdfile.conf.ext' >> "$DOVECOT_AUTH"
+    sed -i 's/^!include auth-system.conf.ext/#!include auth-system.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    
+    # Enable passwd-file based auth
+    sed -i 's/^#!include auth-passwdfile.conf.ext/!include auth-passwdfile.conf.ext/' "$DOVECOT_AUTH" 2>/dev/null || true
+    
+    # If for some reason it's not there at all, append it
+    grep -q '^!include auth-passwdfile.conf.ext' "$DOVECOT_AUTH" || echo '!include auth-passwdfile.conf.ext' >> "$DOVECOT_AUTH"
 fi
 
 # Write Dovecot passwd-file auth backend
