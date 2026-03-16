@@ -429,7 +429,8 @@ echo "==> 5c. Configuring OpenDKIM"
 mkdir -p /etc/opendkim/keys
 touch /etc/opendkim/KeyTable /etc/opendkim/SigningTable /etc/opendkim/TrustedHosts
 chown -R opendkim:opendkim /etc/opendkim
-chmod -R 750 /etc/opendkim
+chmod 750 /etc/opendkim
+chmod -R 700 /etc/opendkim/keys
 
 cat > /etc/opendkim.conf <<EOF
 Syslog          yes

@@ -202,7 +202,8 @@ class EmailService
         if (trim($this->runOutput("sudo ls {$keyDir}/default.private 2>/dev/null; echo \$?")) !== '0') {
             $this->shell->run("sudo opendkim-genkey -b 2048 -d {$domain} -D {$keyDir} -s default");
             $this->shell->run("sudo chown -R opendkim:opendkim /etc/opendkim");
-            $this->shell->run("sudo chmod -R 750 /etc/opendkim");
+            $this->shell->run("sudo chmod 600 {$keyDir}/default.private");
+            $this->shell->run("sudo chmod 700 {$keyDir}");
         }
 
         // 3. Update KeyTable: default._domainkey.example.com example.com:default:/etc/opendkim/keys/example.com/default.private
