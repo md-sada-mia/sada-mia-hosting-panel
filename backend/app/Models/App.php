@@ -66,4 +66,9 @@ class App extends Model
     {
         return $this->belongsToMany(\App\Models\LoadBalancer::class, 'load_balancer_apps');
     }
+
+    public function services()
+    {
+        return $this->hasMany(\App\Models\AppService::class);
+    }
 }

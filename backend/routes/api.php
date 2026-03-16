@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\FileManagerController;
 use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\AppServiceController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -44,6 +45,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/ssl/remove', [AppController::class, 'removeSsl']);
     Route::get('/apps/{app}/ssl/details', [AppController::class, 'getSslDetails']);
     Route::post('/apps/{app}/ssl/secure-panel', [AppController::class, 'setupPanelSsl']);
+
+    // Background Services
+    Route::get('/apps/{app}/services/recommended', [AppServiceController::class, 'recommended']);
+    Route::get('/apps/{app}/services', [AppServiceController::class, 'index']);
+    Route::post('/apps/{app}/services', [AppServiceController::class, 'store']);
+    Route::post('/apps/{app}/services/install-recommended', [AppServiceController::class, 'installRecommended']);
+    Route::post('/apps/{app}/services/{service}/start', [AppServiceController::class, 'start']);
+    Route::post('/apps/{app}/services/{service}/stop', [AppServiceController::class, 'stop']);
+    Route::post('/apps/{app}/services/{service}/restart', [AppServiceController::class, 'restart']);
+    Route::get('/apps/{app}/services/{service}/logs', [AppServiceController::class, 'logs']);
+    Route::delete('/apps/{app}/services/{service}', [AppServiceController::class, 'destroy']);
 
     // Environment variables
     Route::get('/apps/{app}/env', [EnvController::class, 'index']);

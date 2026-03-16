@@ -12,7 +12,7 @@ import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
-  Mail, Info, Terminal, FileText
+  Mail, Info, Terminal, FileText, Cpu, Activity, XCircle, ScrollText
 } from 'lucide-react';
 import {
   Select,
@@ -109,6 +109,18 @@ export default function AppDetailPage() {
   const [sslDetails, setSslDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Services state
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [serviceActions, setServiceActions] = useState({});
+  const [serviceLogs, setServiceLogs] = useState({});
+  const [serviceLogsOpen, setServiceLogsOpen] = useState({});
+  const [serviceLogsLoading, setServiceLogsLoading] = useState({});
+  const [showAddService, setShowAddService] = useState(false);
+  const [addServiceForm, setAddServiceForm] = useState({ name: '', command: '', description: '', type: 'custom' });
+  const [addingService, setAddingService] = useState(false);
+  const [installingRecommended, setInstallingRecommended] = useState(false);
+
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
 
@@ -182,6 +194,9 @@ export default function AppDetailPage() {
     if (activeTab === 'ssl') {
       fetchApp();
       fetchSslDetails();
+    }
+    if (activeTab === 'services') {
+      fetchServices();
     }
   }, [activeTab]);
 
@@ -401,6 +416,82 @@ export default function AppDetailPage() {
 
   const statusColor = app.status === 'running' ? 'bg-emerald-500' : app.status === 'deploying' ? 'bg-amber-500 animate-pulse' : app.status === 'error' ? 'bg-red-500' : 'bg-slate-500';
 
+  // ─── Services handlers ─────────────────────────────────────────────────────
+
+  const fetchServices = async () => {
+    setServicesLoading(true);
+    try {
+      const { data } = await api.get(`/apps/${id}/services`);
+      setServices(data);
+    } catch { /* may be empty */ }
+    finally { setServicesLoading(false); }
+  };
+
+  const serviceAction = async (serviceId, action) => {
+    setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+    try {
+      const { data } = await api.post(`/apps/${id}/services/${serviceId}/${action}`);
+      setServices(prev => prev.map(s => s.id === serviceId ? data.service : s));
+      toast.success(`Service ${action}ed successfully`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || `Failed to ${action} service`);
+    } finally {
+      setServiceActions(prev => ({ ...prev, [serviceId]: null }));
+    }
+  };
+
+  const toggleServiceLogs = async (serviceId) => {
+    const isOpen = serviceLogsOpen[serviceId];
+    setServiceLogsOpen(prev => ({ ...prev, [serviceId]: !isOpen }));
+    if (!isOpen) {
+      await fetchServiceLogs(serviceId);
+    }
+  };
+
+  const fetchServiceLogs = async (serviceId) => {
+    setServiceLogsLoading(prev => ({ ...prev, [serviceId]: true }));
+    try {
+      const { data } = await api.get(`/apps/${id}/services/${serviceId}/logs`);
+      setServiceLogs(prev => ({ ...prev, [serviceId]: data.logs }));
+    } catch { /* ignore */ }
+    finally { setServiceLogsLoading(prev => ({ ...prev, [serviceId]: false })); }
+  };
+
+  const deleteService = async (serviceId) => {
+    if (!window.confirm('Remove this service?')) return;
+    try {
+      await api.delete(`/apps/${id}/services/${serviceId}`);
+      setServices(prev => prev.filter(s => s.id !== serviceId));
+      toast.success('Service removed');
+    } catch { toast.error('Failed to remove service'); }
+  };
+
+  const handleAddService = async (e) => {
+    e.preventDefault();
+    setAddingService(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/services`, addServiceForm);
+      setServices(prev => [...prev, data]);
+      setAddServiceForm({ name: '', command: '', description: '', type: 'custom' });
+      setShowAddService(false);
+      toast.success('Service added!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add service');
+    } finally { setAddingService(false); }
+  };
+
+  const handleInstallRecommended = async () => {
+    setInstallingRecommended(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/services/install-recommended`);
+      setServices(data);
+      toast.success('Recommended services installed!');
+    } catch { toast.error('Failed to install recommended services'); }
+    finally { setInstallingRecommended(false); }
+  };
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -469,8 +560,9 @@ export default function AppDetailPage() {
         if (v === 'overview') fetchApp();
         if (v === 'logs') loadLogs();
         if (v === 'dns') fetchDomain();
+        if (v === 'services') fetchServices();
       }}>
-        <TabsList className="grid w-full grid-cols-6 md:w-auto md:inline-flex">
+        <TabsList className="grid w-full grid-cols-7 md:w-auto md:inline-flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="env">Environment</TabsTrigger>
@@ -479,6 +571,12 @@ export default function AppDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="ssl" className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5" /> SSL
+          </TabsTrigger>
+          <TabsTrigger value="services" className="flex items-center gap-1.5">
+            <Cpu className="h-3.5 w-3.5" /> Services
+            {services.some(s => s.status === 'running') && (
+              <span className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            )}
           </TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
@@ -1194,6 +1292,279 @@ export default function AppDetailPage() {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Background Services ───────────────────────────────── */}
+        <TabsContent value="services" className="mt-6 space-y-4">
+          {/* Header card */}
+          <Card className="border-white/10 bg-white/[0.02]">
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-primary" /> Background Services
+                </CardTitle>
+                <CardDescription>
+                  Manage persistent workers, queue processors, and schedulers for this app
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleInstallRecommended}
+                  disabled={installingRecommended}
+                  className="gap-1.5 text-xs border-amber-500/20 text-amber-400 hover:bg-amber-500/10"
+                >
+                  {installingRecommended
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Zap className="h-3.5 w-3.5" />}
+                  Recommended
+                </Button>
+                <Button size="sm" variant="outline" onClick={fetchServices} disabled={servicesLoading} className="gap-1.5 text-xs">
+                  <RefreshCw className={`h-3.5 w-3.5 ${servicesLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button size="sm" onClick={() => setShowAddService(v => !v)} className="gap-1.5 text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Add Service
+                </Button>
+              </div>
+            </CardHeader>
+
+            {/* Add custom service form */}
+            {showAddService && (
+              <div className="mx-6 mb-4 p-4 rounded-xl border border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <form onSubmit={handleAddService}>
+                  <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-primary" /> New Background Service
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Name</label>
+                      <Input
+                        value={addServiceForm.name}
+                        onChange={e => setAddServiceForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="Queue Worker"
+                        className="h-9 text-sm bg-white/5 border-white/10"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Type</label>
+                      <Select value={addServiceForm.type} onValueChange={v => setAddServiceForm(f => ({ ...f, type: v }))}>
+                        <SelectTrigger className="h-9 text-sm bg-white/5 border-white/10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="php-worker">PHP Worker</SelectItem>
+                          <SelectItem value="node-worker">Node Worker</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Command</label>
+                      <Input
+                        value={addServiceForm.command}
+                        onChange={e => setAddServiceForm(f => ({ ...f, command: e.target.value }))}
+                        placeholder="php artisan queue:work --sleep=3 --tries=3"
+                        className="h-9 text-sm bg-white/5 border-white/10 font-mono"
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] text-muted-foreground mb-1 block">Description (optional)</label>
+                      <Input
+                        value={addServiceForm.description}
+                        onChange={e => setAddServiceForm(f => ({ ...f, description: e.target.value }))}
+                        placeholder="What does this service do?"
+                        className="h-9 text-sm bg-white/5 border-white/10"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4 justify-end">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setShowAddService(false)}>Cancel</Button>
+                    <Button size="sm" type="submit" disabled={addingService}>
+                      {addingService ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Plus className="h-3.5 w-3.5 mr-1.5" />}
+                      Add Service
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <CardContent className="px-0 pb-0">
+              {servicesLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : services.length === 0 ? (
+                <div className="text-center py-14 px-6">
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 inline-block mb-4">
+                    <Cpu className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-1">No background services yet</p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Add custom workers or install recommended services for your app type
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <Button size="sm" variant="outline" onClick={handleInstallRecommended} disabled={installingRecommended} className="gap-1.5">
+                      {installingRecommended ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-amber-400" />}
+                      Install Recommended
+                    </Button>
+                    <Button size="sm" onClick={() => setShowAddService(true)} className="gap-1.5">
+                      <Plus className="h-3.5 w-3.5" /> Add Custom
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {services.map(service => {
+                    const isActing = !!serviceActions[service.id];
+                    const isRunning = service.status === 'running';
+                    const isFailed = service.status === 'failed';
+                    const logsOpen = !!serviceLogsOpen[service.id];
+                    const logsLoading = !!serviceLogsLoading[service.id];
+
+                    const statusCfg = {
+                      running: { color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-400 animate-pulse' },
+                      stopped: { color: 'bg-slate-500/10 text-slate-400 border-slate-500/20', dot: 'bg-slate-500' },
+                      failed:  { color: 'bg-red-500/10 text-red-400 border-red-500/20', dot: 'bg-red-500 animate-pulse' },
+                      unknown: { color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', dot: 'bg-zinc-500' },
+                    }[service.status] || { color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20', dot: 'bg-zinc-500' };
+
+                    return (
+                      <div key={service.id} className="px-6 py-4">
+                        {/* Service row */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                          {/* Status dot + info */}
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="mt-1 flex-shrink-0">
+                              <span className={`h-2 w-2 rounded-full block ${statusCfg.dot}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-semibold text-foreground truncate">{service.name}</p>
+                                {service.recommended && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                                    Recommended
+                                  </span>
+                                )}
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${statusCfg.color}`}>
+                                  {service.status}
+                                </span>
+                              </div>
+                              {service.description && (
+                                <p className="text-[11px] text-muted-foreground mt-0.5">{service.description}</p>
+                              )}
+                              <code className="text-[10px] text-muted-foreground/60 font-mono mt-1 block truncate">
+                                $ {service.command}
+                              </code>
+                            </div>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {/* Start */}
+                            <button
+                              onClick={() => serviceAction(service.id, 'start')}
+                              disabled={isActing || isRunning}
+                              title="Start"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            >
+                              {isActing && serviceActions[service.id] === 'start'
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Play className="h-3.5 w-3.5" />}
+                            </button>
+                            {/* Stop */}
+                            <button
+                              onClick={() => serviceAction(service.id, 'stop')}
+                              disabled={isActing || !isRunning}
+                              title="Stop"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            >
+                              {isActing && serviceActions[service.id] === 'stop'
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Square className="h-3.5 w-3.5" />}
+                            </button>
+                            {/* Restart */}
+                            <button
+                              onClick={() => serviceAction(service.id, 'restart')}
+                              disabled={isActing}
+                              title="Restart"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            >
+                              {isActing && serviceActions[service.id] === 'restart'
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <RotateCcw className="h-3.5 w-3.5" />}
+                            </button>
+                            {/* Toggle logs */}
+                            <button
+                              onClick={() => toggleServiceLogs(service.id)}
+                              title="View Logs"
+                              className={`h-8 w-8 flex items-center justify-center rounded-lg border transition-all ${logsOpen ? 'border-primary/30 text-primary bg-primary/10' : 'border-white/10 text-muted-foreground hover:text-primary hover:bg-primary/5'}`}
+                            >
+                              <ScrollText className="h-3.5 w-3.5" />
+                            </button>
+                            {/* Delete */}
+                            <button
+                              onClick={() => deleteService(service.id)}
+                              title="Remove service"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg border border-white/10 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 transition-all"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Live Logs Panel */}
+                        {logsOpen && (
+                          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="rounded-xl border border-white/5 overflow-hidden">
+                              {/* Log toolbar */}
+                              <div className="flex items-center justify-between px-4 py-2 bg-black/60 border-b border-white/5">
+                                <div className="flex items-center gap-2">
+                                  <Activity className="h-3.5 w-3.5 text-primary" />
+                                  <span className="text-[11px] font-mono text-muted-foreground font-semibold uppercase tracking-wider">
+                                    {service.name} — Live Output
+                                  </span>
+                                  {isRunning && (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => fetchServiceLogs(service.id)}
+                                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-white transition-colors"
+                                  disabled={logsLoading}
+                                >
+                                  <RefreshCw className={`h-3 w-3 ${logsLoading ? 'animate-spin' : ''}`} />
+                                  Refresh
+                                </button>
+                              </div>
+                              {/* Log body */}
+                              <div className="h-56 overflow-y-auto bg-black/40 p-4 font-mono text-[11px] leading-relaxed">
+                                {logsLoading ? (
+                                  <div className="flex items-center justify-center h-full gap-2 text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Loading logs...</span>
+                                  </div>
+                                ) : (
+                                  <pre className="whitespace-pre-wrap text-slate-300">
+                                    {stripAnsi(serviceLogs[service.id] || '(no logs yet)')}
+                                  </pre>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

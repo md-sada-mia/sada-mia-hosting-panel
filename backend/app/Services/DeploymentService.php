@@ -14,6 +14,7 @@ class DeploymentService
         private PM2Service $pm2Service,
         private DnsService $dnsService,
         private SslService $sslService,
+        private BackgroundServiceManager $bgServiceManager,
     ) {}
 
     public function createDeploymentRecord(App $app): Deployment
@@ -159,6 +160,15 @@ class DeploymentService
             $log("[SSL] Re-verifying SSL setup...");
             $sslResult = $this->sslService->setupSsl($app);
             $log($sslResult['message']);
+        }
+
+        // === Step 10: Install recommended background services ===
+        $log("[BG] Registering recommended background services...");
+        try {
+            $this->bgServiceManager->installRecommended($app);
+            $log("[BG] Background services registered. Start them from the Services tab.");
+        } catch (\Throwable $e) {
+            $log("[BG] Warning: could not register background services: " . $e->getMessage());
         }
 
         $log("✅ Deployment complete! Domain: {$app->domain}");
