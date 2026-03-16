@@ -601,7 +601,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/sed -i /etc/dovecot/users
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload dovecot
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart dovecot
 # OpenDKIM management
-www-data ALL=(ALL) NOPASSWD: /usr/bin/opendkim-genkey *
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/opendkim-genkey *
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /etc/opendkim/keys/*
