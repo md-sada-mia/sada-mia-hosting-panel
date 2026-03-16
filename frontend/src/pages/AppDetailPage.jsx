@@ -14,6 +14,7 @@ import {
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
   Mail, Info, Terminal, FileText, Cpu, Activity, XCircle, ScrollText
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -1191,6 +1192,39 @@ export default function AppDetailPage() {
                   </>
                 )}
               </div>
+
+              {app.ssl_enabled && (
+                <div className="pt-4 border-t border-white/5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                         <Shield className="h-4 w-4 text-primary" /> Force HTTPS
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed italic mt-1 max-w-xl">
+                        Redirects all HTTP traffic for this app to HTTPS.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <Switch
+                         checked={app.force_https}
+                         onCheckedChange={async (checked) => {
+                           try {
+                             setSslLoading(true);
+                             const { data } = await api.post(`/apps/${id}/ssl/force-https`);
+                             if (data.app) {
+                                window.location.reload();
+                             }
+                           } catch (err) {
+                             toast.error(err.response?.data?.message || 'Failed to toggle Force HTTPS');
+                             setSslLoading(false);
+                           }
+                         }}
+                         disabled={sslLoading}
+                       />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               { (sslLoading || app.ssl_log) && (
                 <div className="space-y-3 pt-6 border-t border-white/5">

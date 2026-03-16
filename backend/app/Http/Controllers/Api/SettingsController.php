@@ -25,6 +25,7 @@ class SettingsController extends Controller
             'panel_url' => Setting::get('panel_url'),
             'server_ip' => Setting::get('server_ip'),
             'ns_default_domain' => Setting::get('ns_default_domain'),
+            'panel_force_https' => (bool) Setting::get('panel_force_https', false),
         ]);
     }
 
@@ -44,6 +45,7 @@ class SettingsController extends Controller
             'panel_url' => 'nullable|string',
             'server_ip' => 'nullable|ip',
             'ns_default_domain' => 'nullable|string',
+            'panel_force_https' => 'nullable|boolean',
         ]);
 
         if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {

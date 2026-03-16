@@ -265,4 +265,133 @@ class SslService
 
         return ['success' => true, 'message' => "Panel is already secured."];
     }
+
+    /**
+     * Enable or disable Force HTTPS (HTTP→HTTPS redirect) for an app.
+     * Uses clearly-delimited comment markers so the block can be added/removed safely.
+     */
+    public function toggleForceHttps(App $app, bool $enable): array
+    {
+        if ($enable && $app->ssl_status !== 'active') {
+            return ['success' => false, 'message' => 'SSL must be active before enabling Force HTTPS.'];
+        }
+
+        $configPath = "/etc/nginx/sites-available/{$app->domain}";
+        $currentConfig = $this->readSudoFile($configPath);
+
+        if (!$currentConfig) {
+            return ['success' => false, 'message' => "Nginx configuration not found for {$app->domain}"];
+        }
+
+        // Strip any existing force-https block
+        $cleanConfig = $this->removeForceHttpsBlock($currentConfig);
+
+        if ($enable) {
+            $redirectBlock = "\n# BEGIN FORCE HTTPS\n" .
+                "server {\n" .
+                "    listen 80;\n" .
+                "    server_name {$app->domain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n" .
+                "# END FORCE HTTPS\n";
+
+            $newConfig = $redirectBlock . $cleanConfig;
+        } else {
+            $newConfig = $cleanConfig;
+        }
+
+        $escapedConfig = escapeshellarg($newConfig);
+        $this->shell->run("echo {$escapedConfig} | sudo tee {$configPath} > /dev/null");
+
+        $test = $this->shell->run("sudo nginx -t");
+        if ($test['exit_code'] !== 0) {
+            // Rollback
+            $escapedOriginal = escapeshellarg($currentConfig);
+            $this->shell->run("echo {$escapedOriginal} | sudo tee {$configPath} > /dev/null");
+            return [
+                'success' => false,
+                'message' => "Nginx test failed. Rolled back. Error: " . trim($test['output'])
+            ];
+        }
+
+        $this->shell->run("sudo nginx -s reload");
+        $app->update(['force_https' => $enable]);
+
+        return [
+            'success' => true,
+            'message' => $enable ? 'Force HTTPS enabled.' : 'Force HTTPS disabled.',
+            'force_https' => $enable,
+        ];
+    }
+
+    /**
+     * Enable or disable Force HTTPS for the control panel (port 8083).
+     */
+    public function togglePanelForceHttps(bool $enable): array
+    {
+        $panelConfigPath = '/etc/nginx/sites-available/sada-mia-panel';
+        $currentConfig = $this->readSudoFile($panelConfigPath);
+
+        if (!$currentConfig) {
+            return ['success' => false, 'message' => "Panel Nginx configuration not found at {$panelConfigPath}"];
+        }
+
+        if ($enable && !str_contains($currentConfig, 'ssl_certificate')) {
+            return ['success' => false, 'message' => 'Panel SSL must be active before enabling Force HTTPS.'];
+        }
+
+        // Strip any existing force-https block
+        $cleanConfig = $this->removeForceHttpsBlock($currentConfig);
+
+        if ($enable) {
+            // Add a plain HTTP listener on 8083 that redirects to HTTPS
+            $redirectBlock = "\n# BEGIN FORCE HTTPS\n" .
+                "server {\n" .
+                "    listen 8083;\n" .
+                "    listen [::]:8083;\n" .
+                "    return 301 https://\$host:8083\$request_uri;\n" .
+                "}\n" .
+                "# END FORCE HTTPS\n";
+
+            $newConfig = $redirectBlock . $cleanConfig;
+        } else {
+            $newConfig = $cleanConfig;
+        }
+
+        $escapedConfig = escapeshellarg($newConfig);
+        $this->shell->run("echo {$escapedConfig} | sudo tee {$panelConfigPath} > /dev/null");
+
+        $test = $this->shell->run("sudo nginx -t");
+        if ($test['exit_code'] !== 0) {
+            // Rollback
+            $escapedOriginal = escapeshellarg($currentConfig);
+            $this->shell->run("echo {$escapedOriginal} | sudo tee {$panelConfigPath} > /dev/null");
+            return [
+                'success' => false,
+                'message' => "Nginx test failed. Rolled back. Error: " . trim($test['output'])
+            ];
+        }
+
+        $this->shell->run("sudo nginx -s reload");
+
+        \App\Models\Setting::set('panel_force_https', $enable ? '1' : '0');
+
+        return [
+            'success' => true,
+            'message' => $enable ? 'Panel Force HTTPS enabled.' : 'Panel Force HTTPS disabled.',
+            'panel_force_https' => $enable,
+        ];
+    }
+
+    /**
+     * Remove the # BEGIN FORCE HTTPS ... # END FORCE HTTPS block from a config string.
+     */
+    private function removeForceHttpsBlock(string $config): string
+    {
+        return preg_replace(
+            '/\n?# BEGIN FORCE HTTPS.*?# END FORCE HTTPS\n?/s',
+            '',
+            $config
+        );
+    }
 }

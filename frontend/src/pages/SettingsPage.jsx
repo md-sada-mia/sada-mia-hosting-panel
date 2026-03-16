@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -50,6 +51,7 @@ export default function SettingsPage() {
     try {
       const { data } = await api.get('/settings');
       setGithubSettings(data);
+      setInitialGithubSettings(data); // Store initial settings
       
       const lbRes = await api.get('/load-balancers');
       setLoadBalancers(lbRes.data);
@@ -641,7 +643,29 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3">
+                    <div className="grid gap-3 pt-4 border-t">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <label className="text-sm font-semibold flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            Force HTTPS for Control Panel
+                          </label>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed italic mt-1 max-w-xl">
+                            Redirects all HTTP traffic on port 8083 to HTTPS. <strong>Requires panel SSL to be active first.</strong>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={githubSettings.panel_force_https}
+                            onCheckedChange={(checked) => {
+                              setGithubSettings(s => ({ ...s, panel_force_https: checked }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 mt-2">
                       <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                       <div className="space-y-1">
                         <p className="text-xs font-semibold text-primary">Important Recommendation</p>

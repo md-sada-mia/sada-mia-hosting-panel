@@ -27,6 +27,7 @@ class App extends Model
         'ssl_enabled',
         'ssl_last_check_at',
         'ssl_log',
+        'force_https',
     ];
 
     protected $casts = [
@@ -34,6 +35,7 @@ class App extends Model
         'auto_deploy' => 'boolean',
         'hide_guidelines' => 'boolean',
         'ssl_enabled' => 'boolean',
+        'force_https' => 'boolean',
         'ssl_last_check_at' => 'datetime',
     ];
 

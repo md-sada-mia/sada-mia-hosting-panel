@@ -281,4 +281,28 @@ class AppController extends Controller
         $result = $this->sslService->securePanel($app->domain);
         return response()->json($result, $result['success'] ? 200 : 500);
     }
+
+    public function toggleForceHttps(AppModel $app)
+    {
+        if (!$app->ssl_enabled || $app->ssl_status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'SSL must be active before toggling Force HTTPS.',
+            ], 422);
+        }
+
+        $enable = !$app->force_https;
+        $result = $this->sslService->toggleForceHttps($app, $enable);
+
+        return response()->json(array_merge($result, [
+            'app' => $app->fresh(),
+        ]), $result['success'] ? 200 : 500);
+    }
+
+    public function togglePanelForceHttps(Request $request)
+    {
+        $enable = (bool) $request->input('enable', true);
+        $result = $this->sslService->togglePanelForceHttps($enable);
+        return response()->json($result, $result['success'] ? 200 : 500);
+    }
 }

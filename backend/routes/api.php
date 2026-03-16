@@ -45,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/ssl/remove', [AppController::class, 'removeSsl']);
     Route::get('/apps/{app}/ssl/details', [AppController::class, 'getSslDetails']);
     Route::post('/apps/{app}/ssl/secure-panel', [AppController::class, 'setupPanelSsl']);
+    Route::post('/apps/{app}/ssl/force-https', [AppController::class, 'toggleForceHttps']);
+    Route::post('/panel/ssl/force-https', [AppController::class, 'togglePanelForceHttps']);
 
     // Background Services
     Route::get('/apps/{app}/services/recommended', [AppServiceController::class, 'recommended']);
