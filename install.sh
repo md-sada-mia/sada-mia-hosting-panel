@@ -657,6 +657,17 @@ www-data ALL=(ALL) NOPASSWD: /bin/cat /etc/letsencrypt/live/*/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ls /etc/letsencrypt/live/*/*
 www-data ALL=(ALL) NOPASSWD: /bin/ls /etc/letsencrypt/live/*/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/ls /etc/letsencrypt/live/*
+# Background Services (svc-* systemd units per app)
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl start svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl enable svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl disable svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/systemd/system/svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/rm -f /etc/systemd/system/svc-*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u svc-* *
 EOF
 # Append the installer user entry separately as it needs variable expansion
 echo "$sudo_user_name ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/sadamiapanel

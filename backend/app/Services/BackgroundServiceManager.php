@@ -6,8 +6,23 @@ use App\Models\App;
 use App\Models\AppService;
 
 /**
- * Manages background service processes for apps.
- * Uses PM2 to run arbitrary shell commands as named processes.
+ * Manages background service processes for apps via systemd.
+ *
+ * Each service runs as a systemd unit: svc-{app_id}-{service_id}.service
+ * Unit files are written to /etc/systemd/system/ via sudo.
+ * journalctl is used for log streaming.
+ *
+ * Required sudoers (add to /etc/sudoers.d/www-data-services):
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl start svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl enable svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl disable svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
+ *   www-data ALL=(ALL) NOPASSWD: /bin/systemctl is-active svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/systemd/system/svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /bin/rm -f /etc/systemd/system/svc-*
+ *   www-data ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u svc-* *
  */
 class BackgroundServiceManager
 {
@@ -16,8 +31,7 @@ class BackgroundServiceManager
     // ─── Recommended services per app type ───────────────────────────────────
 
     /**
-     * Returns an array of recommended service definitions for the given app type.
-     * Each item: ['name', 'slug', 'type', 'command', 'description']
+     * Returns recommended service definitions for the given app type.
      */
     public static function recommendedFor(string $appType): array
     {
@@ -54,7 +68,7 @@ class BackgroundServiceManager
                     'slug'        => 'nextjs-server',
                     'type'        => 'node-worker',
                     'command'     => 'npm run start',
-                    'description' => 'The primary Next.js production process (managed via PM2)',
+                    'description' => 'The primary Next.js production process',
                     'recommended' => true,
                 ],
             ],
@@ -62,22 +76,126 @@ class BackgroundServiceManager
         };
     }
 
-    // ─── Process management via PM2 ──────────────────────────────────────────
+    // ─── systemd helpers ─────────────────────────────────────────────────────
+
+    private function unitName(AppService $service): string
+    {
+        return "svc-{$service->app_id}-{$service->id}";
+    }
+
+    private function unitFilePath(AppService $service): string
+    {
+        return '/etc/systemd/system/' . $this->unitName($service) . '.service';
+    }
+
+    /**
+     * Build the systemd [Unit] / [Service] / [Install] file content.
+     */
+    private function buildUnitFile(AppService $service): string
+    {
+        $app         = $service->app;
+        $workingDir  = $app->deploy_path;
+        $command     = $service->command;
+        $description = $service->description ?: $service->name;
+        $unitName    = $this->unitName($service);
+
+        // Resolve the executable correctly ─ prepend PHP / Node path if needed
+        $execStart = $this->resolveExecStart($command, $workingDir);
+
+        return <<<INI
+[Unit]
+Description={$description} (App: {$app->name})
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory={$workingDir}
+ExecStart={$execStart}
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={$unitName}
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
+INI;
+    }
+
+    /**
+     * Prefix artisan / npm / node commands with their full paths so systemd
+     * (which has a minimal PATH) can find them.
+     */
+    private function resolveExecStart(string $command, string $cwd): string
+    {
+        $phpBin  = trim(shell_exec('which php') ?: '/usr/bin/php');
+        $npmBin  = trim(shell_exec('which npm') ?: '/usr/bin/npm');
+        $nodeBin = trim(shell_exec('which node') ?: '/usr/bin/node');
+
+        // php artisan ...
+        if (str_starts_with($command, 'php ')) {
+            return $phpBin . ' ' . ltrim(substr($command, 3));
+        }
+        // npm run ...
+        if (str_starts_with($command, 'npm ')) {
+            return $npmBin . ' ' . ltrim(substr($command, 3));
+        }
+        // node ...
+        if (str_starts_with($command, 'node ')) {
+            return $nodeBin . ' ' . ltrim(substr($command, 4));
+        }
+        return $command;
+    }
+
+    /**
+     * Write the unit file and reload the daemon.
+     */
+    private function writeUnitFile(AppService $service): array
+    {
+        $content  = $this->buildUnitFile($service);
+        $path     = $this->unitFilePath($service);
+        $escaped  = escapeshellarg($content);
+
+        $result = $this->shell->run("echo {$escaped} | sudo tee {$path} > /dev/null");
+        if ($result['exit_code'] !== 0) {
+            return $result;
+        }
+
+        return $this->shell->run("sudo systemctl daemon-reload");
+    }
+
+    /**
+     * Remove the unit file and reload daemon (called on delete).
+     */
+    private function removeUnitFile(AppService $service): void
+    {
+        $path = $this->unitFilePath($service);
+        $this->shell->run("sudo rm -f {$path}");
+        $this->shell->run("sudo systemctl daemon-reload");
+    }
+
+    // ─── Public API ──────────────────────────────────────────────────────────
 
     public function start(AppService $service): array
     {
-        $app     = $service->app;
-        $pname   = $service->getProcessName();
-        $cwd     = $app->deploy_path;
-        $cmd     = $service->command;
+        if (!$service->app->deploy_path) {
+            return ['exit_code' => 1, 'output' => 'App has not been deployed yet.'];
+        }
 
-        // First delete any stale process with same name
-        $this->shell->run("pm2 delete \"{$pname}\" 2>/dev/null; true");
+        // Write / update unit file first
+        $write = $this->writeUnitFile($service);
+        if ($write['exit_code'] !== 0) {
+            return ['exit_code' => 1, 'output' => 'Failed to write systemd unit: ' . $write['output']];
+        }
 
-        $fullCmd = "pm2 start --name \"{$pname}\" sh -- -c " . escapeshellarg($cmd);
-        $result  = $this->shell->run($fullCmd, $cwd);
-
-        $this->shell->run("pm2 save");
+        // Enable + start
+        $unitName = $this->unitName($service);
+        $this->shell->run("sudo systemctl enable {$unitName}");
+        $result = $this->shell->run("sudo systemctl start {$unitName}");
 
         $status = $result['exit_code'] === 0 ? 'running' : 'failed';
         $service->update([
@@ -90,8 +208,8 @@ class BackgroundServiceManager
 
     public function stop(AppService $service): array
     {
-        $pname  = $service->getProcessName();
-        $result = $this->shell->run("pm2 stop \"{$pname}\"");
+        $unitName = $this->unitName($service);
+        $result   = $this->shell->run("sudo systemctl stop {$unitName}");
 
         $service->update(['status' => $result['exit_code'] === 0 ? 'stopped' : 'failed']);
         return $result;
@@ -99,8 +217,15 @@ class BackgroundServiceManager
 
     public function restart(AppService $service): array
     {
-        $pname  = $service->getProcessName();
-        $result = $this->shell->run("pm2 restart \"{$pname}\"");
+        if (!$service->app->deploy_path) {
+            return ['exit_code' => 1, 'output' => 'App has not been deployed yet.'];
+        }
+
+        // Refresh unit file in case command changed
+        $this->writeUnitFile($service);
+
+        $unitName = $this->unitName($service);
+        $result   = $this->shell->run("sudo systemctl restart {$unitName}");
 
         $status = $result['exit_code'] === 0 ? 'running' : 'failed';
         $service->update(['status' => $status]);
@@ -109,63 +234,54 @@ class BackgroundServiceManager
 
     public function delete(AppService $service): void
     {
-        $pname = $service->getProcessName();
-        $this->shell->run("pm2 delete \"{$pname}\" 2>/dev/null; true");
-        $this->shell->run("pm2 save");
-    }
-
-    public function logs(AppService $service, int $lines = 150): string
-    {
-        $pname  = $service->getProcessName();
-        $result = $this->shell->run("pm2 logs \"{$pname}\" --nostream --lines {$lines} 2>&1");
-        return $result['output'] ?: '(no logs yet)';
+        $unitName = $this->unitName($service);
+        $this->shell->run("sudo systemctl stop {$unitName} 2>/dev/null; true");
+        $this->shell->run("sudo systemctl disable {$unitName} 2>/dev/null; true");
+        $this->removeUnitFile($service);
     }
 
     /**
-     * Sync live PM2 status into the DB records for an App's services.
+     * Fetch journal logs for the service.
+     */
+    public function logs(AppService $service, int $lines = 150): string
+    {
+        $unitName = $this->unitName($service);
+        // journalctl needs sudo to read system journals for www-data unit
+        $result = $this->shell->run("sudo journalctl -u {$unitName} --no-pager -n {$lines} --output=short-iso 2>&1");
+        return $result['output'] ?: '(no journal logs yet — service may not have started)';
+    }
+
+    /**
+     * Sync live systemd status into DB records for the app's services.
      */
     public function syncStatus(App $app): void
     {
-        $result = $this->shell->run("pm2 jlist");
-        if ($result['exit_code'] !== 0) return;
-
-        $processes = json_decode($result['output'], true) ?? [];
-        $byName = collect($processes)->keyBy('name');
-
         foreach ($app->services as $service) {
-            $pname  = $service->getProcessName();
-            $proc   = $byName->get($pname);
-            if ($proc) {
-                $pm2Status = $proc['pm2_env']['status'] ?? 'unknown';
-                // Map pm2 statuses to our enum
-                $status = match ($pm2Status) {
-                    'online'    => 'running',
-                    'stopped'   => 'stopped',
-                    'errored'   => 'failed',
-                    'stopping'  => 'stopped',
-                    default     => 'unknown',
-                };
+            $unitName = $this->unitName($service);
+            $result   = $this->shell->run("sudo systemctl is-active {$unitName} 2>/dev/null");
+            $state    = trim($result['output']);
+
+            $status = match ($state) {
+                'active'     => 'running',
+                'inactive'   => 'stopped',
+                'failed'     => 'failed',
+                'activating' => 'running',
+                default      => 'unknown',
+            };
+
+            if ($service->status !== $status) {
                 $service->update(['status' => $status]);
-            } else {
-                // Not found in PM2 — mark as stopped/unknown only if it was expected to run
-                if ($service->status === 'running') {
-                    $service->update(['status' => 'stopped']);
-                }
             }
         }
     }
 
     /**
-     * Install all recommended services for an app (called post-deploy).
-     * Only creates DB records; doesn't auto-start to give user control.
+     * Install recommended services for the app type (idempotent, does not start them).
      */
     public function installRecommended(App $app): void
     {
-        $recommendations = self::recommendedFor($app->type);
-
-        foreach ($recommendations as $rec) {
-            $exists = $app->services()->where('slug', $rec['slug'])->exists();
-            if (!$exists) {
+        foreach (self::recommendedFor($app->type) as $rec) {
+            if (!$app->services()->where('slug', $rec['slug'])->exists()) {
                 $app->services()->create([
                     'name'        => $rec['name'],
                     'slug'        => $rec['slug'],
