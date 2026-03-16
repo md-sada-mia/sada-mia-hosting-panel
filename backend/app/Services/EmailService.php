@@ -34,7 +34,7 @@ class EmailService
         $this->shell->run("sudo mkdir -p {$this->mailbaseDir}/{$domain}");
         $this->shell->run("sudo chown -R vmail:vmail {$this->mailbaseDir}/{$domain} 2>/dev/null || true");
 
-        $this->appendLine($this->virtualDomainsFile, $domain);
+        $this->appendLine($this->virtualDomainsFile, $domain . " OK");
         $this->postmapAndReload($this->virtualDomainsFile);
 
         // Ensure DKIM is set up

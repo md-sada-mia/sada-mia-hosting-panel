@@ -462,6 +462,24 @@ systemctl enable opendkim 2>/dev/null || true
 systemctl restart opendkim 2>/dev/null || true
 postfix reload 2>/dev/null || true
 
+# --- Recovery / Auto-fix Section ---
+echo "==> Applying Email delivery fixes and security lockdown"
+# 1. Fix existing virtual_mailbox_domains format (ensure "domain OK")
+if [ -f /etc/postfix/virtual_mailbox_domains ]; then
+    # If a line doesn't have "OK", add it
+    sed -i '/ [A-Z]/!s/$/ OK/' /etc/postfix/virtual_mailbox_domains 2>/dev/null || true
+    postmap /etc/postfix/virtual_mailbox_domains 2>/dev/null || true
+fi
+
+# 2. Fix existing DKIM private key permissions (lockdown to 0600)
+if [ -d /etc/opendkim/keys ]; then
+    find /etc/opendkim/keys -name "*.private" -exec chmod 600 {} \; 2>/dev/null || true
+    find /etc/opendkim/keys -type d -exec chmod 700 {} \; 2>/dev/null || true
+fi
+
+postfix reload 2>/dev/null || true
+systemctl restart opendkim 2>/dev/null || true
+
 echo "==> Postfix + Dovecot + OpenDKIM configured."
 
 echo "==> 6. Creating Apps Directory"
