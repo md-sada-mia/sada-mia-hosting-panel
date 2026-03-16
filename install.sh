@@ -368,6 +368,9 @@ POSTFIXEOF
     # Ensure Postfix listens on all interfaces and avoid domain conflicts
     postconf -e "inet_interfaces = all" 2>/dev/null || true
     postconf -e "mydestination = localhost" 2>/dev/null || true
+    # Set correct server identity for outbound mail (required for PTR/HELO validation)
+    postconf -e "myhostname = $(hostname -f)" 2>/dev/null || true
+    postconf -e "smtp_helo_name = $(hostname -f)" 2>/dev/null || true
     
     systemctl restart postfix 2>/dev/null || true
 fi
@@ -591,7 +594,7 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sada-mia-queue
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sada-mia-queue
 # App directory permissions
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data.www-data /var/www/hosting-apps/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
 # Server control
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/shutdown -r *
@@ -637,6 +640,8 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/mkdir -p /etc/opendkim/keys/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R opendkim\:opendkim /etc/opendkim
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 750 /etc/opendkim
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod 600 /etc/opendkim/keys/*/*
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod 700 /etc/opendkim/keys/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/tee -a /etc/opendkim/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/cat /etc/opendkim/keys/*/default.txt
@@ -875,4 +880,24 @@ echo "  ---------------------------------------------------"
 echo "  DNS (BIND9):     /etc/bind/zones/              "
 echo "  Email (Postfix): /var/mail/vhosts/              "
 echo "  Queue worker:    systemctl status sada-mia-queue"
+echo "==================================================="
+echo ""
+echo "  *** POST-INSTALL DNS CHECKLIST ***"
+echo "  For email to work, add these DNS records at your domain registrar:"
+echo ""
+echo "  1. MX Record:"
+echo "       @ MX 10 mail.<your-domain>.<tld>"
+echo "       mail A $IP_ADDRESS"
+echo ""
+echo "  2. SPF Record (TXT):"
+echo "       v=spf1 ip4:$IP_ADDRESS ~all"
+echo ""
+echo "  3. DKIM Record (TXT): (after enabling email in panel)"
+echo "       Run: sudo cat /etc/opendkim/keys/<domain>/default.txt"
+echo ""
+echo "  4. DMARC Record (TXT):"
+echo "       _dmarc.<your-domain> TXT \"v=DMARC1; p=none; rua=mailto:admin@<your-domain>\""
+echo ""
+echo "  5. PTR (Reverse DNS): Set at your hosting provider panel."
+echo "       $IP_ADDRESS -> mail.<your-domain>"
 echo "==================================================="

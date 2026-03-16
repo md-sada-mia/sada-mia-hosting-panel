@@ -45,6 +45,7 @@ class EmailService
     {
         $domain = $emailDomain->domain->domain;
 
+        // Remove both plain and 'domain OK' format
         $this->removeLine($this->virtualDomainsFile, $domain);
         $this->postmapAndReload($this->virtualDomainsFile);
 
