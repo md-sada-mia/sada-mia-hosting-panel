@@ -358,6 +358,17 @@ smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, rej
 POSTFIXEOF
 
     systemctl enable postfix 2>/dev/null || true
+    
+    # Enable submission (587) in master.cf
+    sed -i '/^#submission inet n/s/^#//' /etc/postfix/master.cf 2>/dev/null || true
+    sed -i '/^#  -o syslog_name=postfix\/submission/s/^#//' /etc/postfix/master.cf 2>/dev/null || true
+    sed -i '/^#  -o smtpd_tls_security_level=encrypt/s/^#//; s/security_level=encrypt/security_level=may/' /etc/postfix/master.cf 2>/dev/null || true
+    sed -i '/^#  -o smtpd_sasl_auth_enable=yes/s/^#//' /etc/postfix/master.cf 2>/dev/null || true
+    
+    # Ensure Postfix listens on all interfaces and avoid domain conflicts
+    postconf -e "inet_interfaces = all" 2>/dev/null || true
+    postconf -e "mydestination = localhost" 2>/dev/null || true
+    
     systemctl restart postfix 2>/dev/null || true
 fi
 
