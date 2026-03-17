@@ -45,6 +45,7 @@ export default function CrmLoadBalancerDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [domainLoading, setDomainLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [parentDomain, setParentDomain] = useState(null);
 
   // Domain edit state
   const [isEditingDomain, setIsEditingDomain] = useState(false);
@@ -62,6 +63,7 @@ export default function CrmLoadBalancerDetailPage() {
       setCustomer(data);
       if (data.resource?.deployment_info?.domain) {
         fetchDomainRecord(data.resource.deployment_info.domain);
+        fetchParentDomain(data.resource.deployment_info.domain);
       }
     } catch {
       toast.error('Failed to load customer resource');
@@ -82,6 +84,15 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
+  const fetchParentDomain = async (domainName) => {
+    try {
+      const { data } = await api.get(`/domains/find-parent?domain=${domainName}`);
+      setParentDomain(data);
+    } catch {
+      setParentDomain(null);
+    }
+  };
+
   const handleUpdateDomain = async () => {
     if (!newDomain.trim()) return toast.error('Domain cannot be empty');
     setIsUpdatingDomain(true);
@@ -92,6 +103,7 @@ export default function CrmLoadBalancerDetailPage() {
       toast.success('Domain updated');
       if (data.customer?.resource?.deployment_info?.domain) {
         fetchDomainRecord(data.customer.resource.deployment_info.domain);
+        fetchParentDomain(data.customer.resource.deployment_info.domain);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update domain');
@@ -178,9 +190,6 @@ export default function CrmLoadBalancerDetailPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-1.5">
             <Globe className="h-3.5 w-3.5" /> DNS
-          </TabsTrigger>
-          <TabsTrigger value="loadbalancer" className="flex items-center gap-1.5">
-            <Server className="h-3.5 w-3.5" /> Load Balancer
           </TabsTrigger>
           <TabsTrigger value="ssl" className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5" /> SSL
@@ -291,7 +300,7 @@ export default function CrmLoadBalancerDetailPage() {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-2">Response Data</p>
-                  <div className="bg-black/30 rounded-xl p-3 font-mono text-xs text-primary/80 border border-white/5 max-h-28 overflow-y-auto whitespace-pre-wrap">
+                  <div className="bg-black/30 rounded-xl p-3 font-mono text-xs text-primary/80 border border-white/5 max-h-80 overflow-y-auto whitespace-pre-wrap">
                     {typeof apiStatus.response === 'string' ? apiStatus.response : JSON.stringify(apiStatus.response, null, 2)}
                   </div>
                 </div>
@@ -359,7 +368,7 @@ export default function CrmLoadBalancerDetailPage() {
                     variant="outline" 
                     size="sm" 
                     className="w-full border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/30 text-xs font-medium h-9"
-                    onClick={() => navigate('/domains')}
+                    onClick={() => navigate(`/domains${parentDomain ? `?q=${parentDomain.domain}` : ''}`)}
                   >
                     Go to Domains Panel <ChevronRight className="h-3 w-3 ml-2" />
                   </Button>
@@ -376,7 +385,7 @@ export default function CrmLoadBalancerDetailPage() {
                     The domain <strong>{deploymentDomain}</strong> is not found in the DNS panel.
                     It may be managed under a parent domain or set up externally.
                   </p>
-                  <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate('/domains')}>
+                  <Button size="sm" variant="outline" className="mt-3" onClick={() => navigate(`/domains${parentDomain ? `?q=${parentDomain.domain}` : ''}`)}>
                     <Globe className="h-3.5 w-3.5 mr-2" /> Open DNS Panel <ChevronRight className="h-3.5 w-3.5 ml-1" />
                   </Button>
                 </div>
@@ -451,101 +460,6 @@ export default function CrmLoadBalancerDetailPage() {
               </Card>
             </>
           )}
-        </TabsContent>
-
-        {/* ────────────── LOAD BALANCER TAB ─────────────────────────────── */}
-        <TabsContent value="loadbalancer" className="mt-6 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Network className="h-4 w-4 text-blue-400" /> {lb?.name}
-                </CardTitle>
-                <CardDescription>
-                  Shared load balancer · Method: {lb?.deployment_info?.method || lb?.method || 'round_robin'}
-                </CardDescription>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => navigate(`/load-balancers/${lb?.id}/manage`)}>
-                <Network className="h-3.5 w-3.5 mr-2" /> Manage LB
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Customer's domain in this LB */}
-              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60 mb-2">
-                  This Customer's Assigned Domain
-                </p>
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-blue-400" />
-                  <span className="font-mono font-semibold text-sm">{deploymentDomain || '—'}</span>
-                  {deploymentDomain && <CopyBtn value={deploymentDomain} />}
-                </div>
-              </div>
-
-              {/* Backend apps */}
-              <div>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60 mb-3">
-                  Backend Applications ({lb?.apps?.length || 0})
-                </p>
-                {!lb?.apps || lb?.apps?.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed rounded-xl text-sm text-muted-foreground italic">
-                    No backend apps attached to this load balancer yet.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {lb?.apps?.map(app => (
-                      <div key={app.id} className="flex items-center justify-between p-3.5 rounded-xl border bg-card/50 hover:bg-accent/30 transition-all">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 rounded-lg bg-emerald-500/10">
-                            <Box className="h-4 w-4 text-emerald-500" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold truncate">{app.name}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{app.domain}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                            app.status === 'running' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {app.status}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/apps/${app.id}`)}
-                            className="h-7 px-2 text-muted-foreground hover:text-primary"
-                          >
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* All domains on LB */}
-              {lb?.domains && lb.domains.length > 0 && (
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60 mb-3">
-                    All Domains on this Load Balancer ({lb.domains.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {lb.domains.map((d, i) => (
-                      <span key={i} className={`text-xs px-3 py-1 rounded-full border font-mono ${
-                        d === deploymentDomain
-                          ? 'bg-blue-500/15 border-blue-500/30 text-blue-300 font-bold'
-                          : 'bg-muted/30 border-muted text-muted-foreground'
-                      }`}>
-                        {d === deploymentDomain && '★ '}{d}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ────────────── SSL TAB ────────────────────────────────────────── */}
