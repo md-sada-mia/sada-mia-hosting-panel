@@ -99,18 +99,12 @@ export default function SettingsPage() {
       setGithubSaving(true);
       setError(''); // Clear previous errors
       setMessage(''); // Clear previous messages
-      const { data } = await api.post('/settings', {
+      await api.post('/settings', {
         github_client_id: githubSettings.github_client_id, // Use existing state names
         github_client_secret: githubSettings.github_client_secret, // Use existing state names
         github_webhook_secret: githubSettings.github_webhook_secret, // Add webhook secret
       });
-      setGithubSettings(prev => ({
-        ...prev,
-        github_client_id: data.github_client_id,
-        github_client_secret: data.github_client_secret,
-        github_webhook_secret: data.github_webhook_secret,
-      }));
-      setInitialGithubSettings(data);
+      fetchSettings();
       toast.success('GitHub settings saved successfully');
       setMessage('GitHub settings saved successfully.');
     } catch (err) {
@@ -130,20 +124,13 @@ export default function SettingsPage() {
       setNameserverSaving(true);
       setError(''); // Clear previous errors
       setMessage(''); // Clear previous messages
-      const { data } = await api.post('/settings', {
+      await api.post('/settings', {
         dns_default_ns1: githubSettings.dns_default_ns1,
         dns_default_ns2: githubSettings.dns_default_ns2,
         dns_default_ns3: githubSettings.dns_default_ns3, // Include all NS fields
         dns_default_ns4: githubSettings.dns_default_ns4, // Include all NS fields
       });
-      setGithubSettings(prev => ({
-        ...prev,
-        dns_default_ns1: data.dns_default_ns1,
-        dns_default_ns2: data.dns_default_ns2,
-        dns_default_ns3: data.dns_default_ns3,
-        dns_default_ns4: data.dns_default_ns4,
-      }));
-      setInitialGithubSettings(data);
+      fetchSettings();
       toast.success('Nameserver settings saved successfully');
       setMessage('Nameserver settings saved successfully.');
     } catch (err) {
@@ -163,18 +150,12 @@ export default function SettingsPage() {
       setCrmSaving(true);
       setError(''); // Clear previous errors
       setMessage(''); // Clear previous messages
-      const { data } = await api.post('/settings', {
+      await api.post('/settings', {
         crm_creation_type: githubSettings.crm_creation_type,
         crm_default_lb_id: githubSettings.crm_default_lb_id,
         crm_default_deployment_domain: githubSettings.crm_default_deployment_domain,
       });
-      setGithubSettings(prev => ({
-        ...prev,
-        crm_creation_type: data.crm_creation_type,
-        crm_default_lb_id: data.crm_default_lb_id,
-        crm_default_deployment_domain: data.crm_default_deployment_domain,
-      }));
-      setInitialGithubSettings(data);
+      fetchSettings();
       toast.success('CRM settings saved successfully');
       setMessage('CRM settings saved successfully.');
     } catch (err) {
