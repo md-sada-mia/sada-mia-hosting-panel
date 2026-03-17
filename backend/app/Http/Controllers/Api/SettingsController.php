@@ -29,10 +29,10 @@ class SettingsController extends Controller
             'crm_api_enabled' => (bool) Setting::get('crm_api_enabled', false),
             'crm_api_url' => Setting::get('crm_api_url'),
             'crm_api_method' => Setting::get('crm_api_method', 'POST'),
-            'crm_api_payload_template' => Setting::get('crm_api_payload_template'),
+            'crm_api_payload_template' => Setting::get('crm_api_payload_template', "{\n  \"id\": \"{id}\",\n  \"name\": \"{name}\",\n  \"email\": \"{email}\",\n  \"domain\": \"{domain}\",\n  \"status\": \"{status}\"\n}"),
             'crm_api_auth_enabled' => (bool) Setting::get('crm_api_auth_enabled', false),
             'crm_api_auth_url' => Setting::get('crm_api_auth_url'),
-            'crm_api_auth_payload' => Setting::get('crm_api_auth_payload'),
+            'crm_api_auth_payload' => Setting::get('crm_api_auth_payload', "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}"),
             'crm_api_auth_token_key' => Setting::get('crm_api_auth_token_key', 'access_token'),
         ]);
     }
