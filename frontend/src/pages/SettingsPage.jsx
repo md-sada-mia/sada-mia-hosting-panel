@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -93,8 +93,8 @@ export default function SettingsPage() {
 
   // --- TAB-SPECIFIC SAVE HANDLERS ---
 
-  const handleSaveGithubTab = async (e) => {
-    e.preventDefault();
+  const handleSaveGithubTab = async (e, shouldConnect = false) => {
+    e?.preventDefault();
     try {
       setGithubSaving(true);
       setError(''); // Clear previous errors
@@ -107,6 +107,10 @@ export default function SettingsPage() {
       fetchSettings();
       toast.success('GitHub settings saved successfully');
       setMessage('GitHub settings saved successfully.');
+
+      if (shouldConnect) {
+        handleConnectGithub();
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.errors 
         ? Object.values(err.response.data.errors).flat().join(', ')
@@ -125,6 +129,7 @@ export default function SettingsPage() {
       setError(''); // Clear previous errors
       setMessage(''); // Clear previous messages
       await api.post('/settings', {
+        ns_default_domain: githubSettings.ns_default_domain,
         dns_default_ns1: githubSettings.dns_default_ns1,
         dns_default_ns2: githubSettings.dns_default_ns2,
         dns_default_ns3: githubSettings.dns_default_ns3, // Include all NS fields
@@ -179,7 +184,6 @@ export default function SettingsPage() {
       const { data } = await api.post('/settings', {
         panel_url: githubSettings.panel_url,
         server_ip: githubSettings.server_ip,
-        ns_default_domain: githubSettings.ns_default_domain,
         panel_force_https: githubSettings.panel_force_https
       });
 
@@ -195,7 +199,6 @@ export default function SettingsPage() {
           await api.post('/settings', { 
             panel_url: githubSettings.panel_url,
             server_ip: githubSettings.server_ip,
-            ns_default_domain: githubSettings.ns_default_domain,
             panel_force_https: false 
           });
           setGithubSettings(prev => ({ ...prev, panel_force_https: false }));
@@ -367,20 +370,35 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="pt-4 flex items-center justify-between border-t mt-4">
-                    <div>
-                      <p className="text-sm font-medium">GitHub Connection</p>
-                      <p className="text-xs text-muted-foreground">
-                        {githubSettings.github_connected ? 'Connected to GitHub account.' : 'Not connected yet.'}
-                      </p>
+                      <div>
+                        <p className="font-medium">GitHub Connection</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {githubSettings.github_connected ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <p className="text-sm text-muted-foreground">Connected to GitHub account.</p>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4 text-destructive" />
+                              <p className="text-sm text-muted-foreground">Not connected to GitHub.</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <Button type="button" variant={githubSettings.github_connected ? "outline" : "default"} onClick={handleConnectGithub}>
-                      {githubSettings.github_connected ? 'Reconnect GitHub' : 'Connect GitHub'}
-                    </Button>
-                  </div>
                 </CardContent>
-                <CardFooter className="flex justify-end border-t pt-6 mt-2">
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Settings'}
+                <CardFooter className="flex justify-end border-t pt-6 mt-2 gap-3">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={(e) => handleSaveGithubTab(e, true)} 
+                    disabled={githubSaving}
+                  >
+                    {githubSaving ? 'Saving...' : (githubSettings.github_connected ? 'Save & Reconnect' : 'Save & Connect')}
+                  </Button>
+                  <Button type="submit" disabled={githubSaving}>
+                    {githubSaving ? 'Saving...' : 'Save Settings'}
                   </Button>
                 </CardFooter>
               </form>
