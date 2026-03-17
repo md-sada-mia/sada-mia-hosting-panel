@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -23,6 +24,10 @@ export default function SettingsPage() {
     password_confirmation: '',
   });
 
+  const [githubSaving, setGithubSaving] = useState(false);
+  const [nameserverSaving, setNameserverSaving] = useState(false);
+  const [crmSaving, setCrmSaving] = useState(false);
+  const [initialGithubSettings, setInitialGithubSettings] = useState(null);
   const [githubSettings, setGithubSettings] = useState({
     github_client_id: '',
     github_client_secret: '',
@@ -49,7 +54,7 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const { data } = await api.get('/settings');
+      const { data } = await api.get('/settings'); // Changed to GET as per original code
       setGithubSettings(data);
       setInitialGithubSettings(data); // Store initial settings
       
@@ -65,6 +70,7 @@ export default function SettingsPage() {
 
   const handleChange = (e) => setPasswords({ ...passwords, [e.target.name]: e.target.value });
   const handleGithubChange = (e) => setGithubSettings({ ...githubSettings, [e.target.name]: e.target.value });
+  const handleSwitchChange = (name, checked) => setGithubSettings(prev => ({ ...prev, [name]: checked })); // New handler for switches
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -76,25 +82,165 @@ export default function SettingsPage() {
       await api.post('/auth/change-password', passwords);
       setMessage('Password updated successfully.');
       setPasswords({ current_password: '', password: '', password_confirmation: '' });
+      toast.success('Password updated successfully.');
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data?.errors?.password?.[0] || 'Failed to update password');
+      toast.error(err.response?.data?.message || err.response?.data?.errors?.password?.[0] || 'Failed to update password');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGithubSettingsUpdate = async (e) => {
+  // --- TAB-SPECIFIC SAVE HANDLERS ---
+
+  const handleSaveGithubTab = async (e) => {
+    e.preventDefault();
+    try {
+      setGithubSaving(true);
+      setError(''); // Clear previous errors
+      setMessage(''); // Clear previous messages
+      const { data } = await api.post('/settings', {
+        github_client_id: githubSettings.github_client_id, // Use existing state names
+        github_client_secret: githubSettings.github_client_secret, // Use existing state names
+        github_webhook_secret: githubSettings.github_webhook_secret, // Add webhook secret
+      });
+      setGithubSettings(prev => ({
+        ...prev,
+        github_client_id: data.github_client_id,
+        github_client_secret: data.github_client_secret,
+        github_webhook_secret: data.github_webhook_secret,
+      }));
+      setInitialGithubSettings(data);
+      toast.success('GitHub settings saved successfully');
+      setMessage('GitHub settings saved successfully.');
+    } catch (err) {
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response.data.errors).flat().join(', ')
+        : err.response?.data?.message || 'Failed to save GitHub settings';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setGithubSaving(false);
+    }
+  };
+
+  const handleSaveNameserverTab = async (e) => {
+    e.preventDefault();
+    try {
+      setNameserverSaving(true);
+      setError(''); // Clear previous errors
+      setMessage(''); // Clear previous messages
+      const { data } = await api.post('/settings', {
+        dns_default_ns1: githubSettings.dns_default_ns1,
+        dns_default_ns2: githubSettings.dns_default_ns2,
+        dns_default_ns3: githubSettings.dns_default_ns3, // Include all NS fields
+        dns_default_ns4: githubSettings.dns_default_ns4, // Include all NS fields
+      });
+      setGithubSettings(prev => ({
+        ...prev,
+        dns_default_ns1: data.dns_default_ns1,
+        dns_default_ns2: data.dns_default_ns2,
+        dns_default_ns3: data.dns_default_ns3,
+        dns_default_ns4: data.dns_default_ns4,
+      }));
+      setInitialGithubSettings(data);
+      toast.success('Nameserver settings saved successfully');
+      setMessage('Nameserver settings saved successfully.');
+    } catch (err) {
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response.data.errors).flat().join(', ')
+        : err.response?.data?.message || 'Failed to save nameserver settings';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setNameserverSaving(false);
+    }
+  };
+
+  const handleSaveCrmTab = async (e) => {
+    e.preventDefault();
+    try {
+      setCrmSaving(true);
+      setError(''); // Clear previous errors
+      setMessage(''); // Clear previous messages
+      const { data } = await api.post('/settings', {
+        crm_creation_type: githubSettings.crm_creation_type,
+        crm_default_lb_id: githubSettings.crm_default_lb_id,
+        crm_default_deployment_domain: githubSettings.crm_default_deployment_domain,
+      });
+      setGithubSettings(prev => ({
+        ...prev,
+        crm_creation_type: data.crm_creation_type,
+        crm_default_lb_id: data.crm_default_lb_id,
+        crm_default_deployment_domain: data.crm_default_deployment_domain,
+      }));
+      setInitialGithubSettings(data);
+      toast.success('CRM settings saved successfully');
+      setMessage('CRM settings saved successfully.');
+    } catch (err) {
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response.data.errors).flat().join(', ')
+        : err.response?.data?.message || 'Failed to save CRM settings';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setCrmSaving(false);
+    }
+  };
+
+  const handleSaveSystemTab = async (e) => { // Renamed from handleGithubSettingsUpdate
     e.preventDefault();
     setLoading(true);
     setMessage('');
     setError('');
 
     try {
-      await api.post('/settings', githubSettings);
-      setMessage('Settings updated successfully.');
+      const { data } = await api.post('/settings', {
+        panel_url: githubSettings.panel_url,
+        server_ip: githubSettings.server_ip,
+        ns_default_domain: githubSettings.ns_default_domain,
+        panel_force_https: githubSettings.panel_force_https
+      });
+
+      // After saving text settings, invoke the force-https API specifically for the panel
+      if (githubSettings.panel_force_https !== initialGithubSettings?.panel_force_https) {
+        try {
+          const httpsReq = await api.post('/panel/ssl/force-https', { enable: githubSettings.panel_force_https });
+          if (!httpsReq.data.success) {
+             throw new Error(httpsReq.data.message || 'Failed to apply Force HTTPS in Nginx');
+          }
+        } catch (httpsErr) {
+          // Revert the setting visually and in the DB if the Nginx level application fails
+          await api.post('/settings', { 
+            panel_url: githubSettings.panel_url,
+            server_ip: githubSettings.server_ip,
+            ns_default_domain: githubSettings.ns_default_domain,
+            panel_force_https: false 
+          });
+          setGithubSettings(prev => ({ ...prev, panel_force_https: false }));
+          setInitialGithubSettings(prev => ({ ...prev, panel_force_https: false }));
+          
+          throw new Error(httpsErr.response?.data?.message || httpsErr.message || 'Failed to apply Force HTTPS to panel. Setting reverted.');
+        }
+      }
+
+      setGithubSettings(prev => ({
+        ...prev,
+        panel_url: data.panel_url,
+        server_ip: data.server_ip,
+        ns_default_domain: data.ns_default_domain,
+        panel_force_https: githubSettings.panel_force_https,
+      }));
+      setInitialGithubSettings(prev => ({ ...prev, ...data, panel_force_https: githubSettings.panel_force_https }));
+      toast.success('System settings saved successfully');
+      setMessage('System settings saved successfully.');
       fetchSettings();
     } catch (err) {
-      setError('Failed to update settings');
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response?.data?.errors).flat().join(', ')
+        : err.response?.data?.message || err.message || 'Failed to save system settings';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -186,14 +332,12 @@ export default function SettingsPage() {
 
           <TabsContent value="github" className="mt-0">
             <Card>
-              <form onSubmit={handleGithubSettingsUpdate}>
+              <form onSubmit={handleSaveGithubTab}>
                 <CardHeader>
                   <CardTitle>GitHub Integration</CardTitle>
                   <CardDescription>Configure your GitHub App credentials for automatic deployments.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
-                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
                   
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Client ID</label>
@@ -270,8 +414,6 @@ export default function SettingsPage() {
                   <CardDescription>Update your panel login password.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
-                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
                   
                   <div className="grid gap-2">
                     <label className="text-sm font-medium">Current Password</label>
@@ -300,7 +442,7 @@ export default function SettingsPage() {
 
           <TabsContent value="dns" className="mt-0">
             <Card>
-              <form onSubmit={handleGithubSettingsUpdate}>
+              <form onSubmit={handleSaveNameserverTab}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Network className="h-5 w-5 text-primary" />
@@ -311,8 +453,6 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
-                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
                   
                   <div className="grid gap-3 mb-6">
                     <label className="text-sm font-semibold flex items-center gap-2">
@@ -480,7 +620,7 @@ export default function SettingsPage() {
 
           <TabsContent value="crm" className="mt-0">
             <Card>
-              <form onSubmit={handleGithubSettingsUpdate}>
+              <form onSubmit={handleSaveCrmTab}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
@@ -491,8 +631,6 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
-                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     {[
@@ -592,7 +730,7 @@ export default function SettingsPage() {
 
           <TabsContent value="system" className="mt-0">
             <Card>
-              <form onSubmit={handleGithubSettingsUpdate}>
+              <form onSubmit={handleSaveSystemTab}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="h-5 w-5 text-primary" />
@@ -603,8 +741,6 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {message && <div className="text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md">{message}</div>}
-                  {error && <div className="text-sm font-medium text-red-600 bg-red-50 p-3 rounded-md">{error}</div>}
                   
                   <div className="grid gap-3">
                     <label className="text-sm font-semibold flex items-center gap-2">
