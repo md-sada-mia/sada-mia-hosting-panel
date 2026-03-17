@@ -534,7 +534,7 @@ export default function SettingsPage() {
                       <ShieldCheck className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-primary">Hostinger Style</p>
+                      <p className="text-sm font-semibold text-primary">Sada Mia Style</p>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                         By setting these here, you don't have to think about them when adding new domains. 
                         Simply set your primary domain's <strong>Glue Records</strong> once at your registrar, 
