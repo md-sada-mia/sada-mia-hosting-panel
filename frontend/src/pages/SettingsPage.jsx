@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [githubSaving, setGithubSaving] = useState(false);
   const [nameserverSaving, setNameserverSaving] = useState(false);
   const [crmSaving, setCrmSaving] = useState(false);
+  const [crmApiSaving, setCrmApiSaving] = useState(false);
   const [initialGithubSettings, setInitialGithubSettings] = useState(null);
   const [githubSettings, setGithubSettings] = useState({
     github_client_id: '',
@@ -43,6 +44,14 @@ export default function SettingsPage() {
     panel_url: '',
     server_ip: '',
     ns_default_domain: '',
+    crm_api_enabled: false,
+    crm_api_url: '',
+    crm_api_method: 'POST',
+    crm_api_payload_template: '',
+    crm_api_auth_enabled: false,
+    crm_api_auth_url: '',
+    crm_api_auth_payload: '',
+    crm_api_auth_token_key: 'access_token',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -171,6 +180,33 @@ export default function SettingsPage() {
       toast.error(errorMsg);
     } finally {
       setCrmSaving(false);
+    }
+  };
+
+  const handleSaveCrmApiTab = async (e) => {
+    e.preventDefault();
+    try {
+      setCrmApiSaving(true);
+      setError('');
+      setMessage('');
+      await api.post('/settings', {
+        crm_api_enabled: githubSettings.crm_api_enabled,
+        crm_api_url: githubSettings.crm_api_url,
+        crm_api_method: githubSettings.crm_api_method,
+        crm_api_payload_template: githubSettings.crm_api_payload_template,
+        crm_api_auth_enabled: githubSettings.crm_api_auth_enabled,
+        crm_api_auth_url: githubSettings.crm_api_auth_url,
+        crm_api_auth_payload: githubSettings.crm_api_auth_payload,
+        crm_api_auth_token_key: githubSettings.crm_api_auth_token_key,
+      });
+      fetchSettings();
+      toast.success('CRM API integration settings saved!');
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Failed to save CRM API settings';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setCrmApiSaving(false);
     }
   };
 
@@ -617,7 +653,7 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="crm" className="mt-0">
+          <TabsContent value="crm" className="mt-0 space-y-6">
             <Card>
               <form onSubmit={handleSaveCrmTab}>
                 <CardHeader>
@@ -719,8 +755,152 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save CRM Settings'}
+                  <Button type="submit" disabled={crmSaving}>
+                    {crmSaving ? 'Saving...' : 'Save CRM Settings'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+
+            <Card>
+              <form onSubmit={handleSaveCrmApiTab}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    CRM API Integration
+                  </CardTitle>
+                  <CardDescription>
+                    Trigger external API calls when a new CRM customer is deployed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  
+                  <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30">
+                    <div className="space-y-0.5">
+                      <label className="text-sm font-semibold">Enable API Integration</label>
+                      <p className="text-xs text-muted-foreground">Call an external URL after successful deployment.</p>
+                    </div>
+                    <Switch 
+                      checked={githubSettings.crm_api_enabled} 
+                      onCheckedChange={(checked) => handleSwitchChange('crm_api_enabled', checked)} 
+                    />
+                  </div>
+
+                  {githubSettings.crm_api_enabled && (
+                    <div className="space-y-6 animate-in slide-in-from-top-2 duration-300">
+                      <div className="grid gap-4 md:grid-cols-4">
+                        <div className="md:col-span-1">
+                          <label className="text-sm font-medium">Method</label>
+                          <Select 
+                            value={githubSettings.crm_api_method} 
+                            onValueChange={(v) => setGithubSettings({ ...githubSettings, crm_api_method: v })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="POST">POST</SelectItem>
+                              <SelectItem value="PUT">PUT</SelectItem>
+                              <SelectItem value="GET">GET</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className="text-sm font-medium">API Endpoint URL</label>
+                          <Input 
+                            name="crm_api_url" 
+                            className="mt-1"
+                            value={githubSettings.crm_api_url || ''} 
+                            onChange={handleGithubChange} 
+                            placeholder="https://api.yourcrm.com/v1/webhook" 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Payload Template (JSON)</label>
+                        <textarea 
+                          name="crm_api_payload_template"
+                          value={githubSettings.crm_api_payload_template || ''}
+                          onChange={handleGithubChange}
+                          className="w-full h-32 font-mono text-xs p-4 rounded-md border bg-muted/50 focus:ring-2 focus:ring-primary outline-none"
+                          placeholder={`{\n  "name": "{name}",\n  "email": "{email}",\n  "domain": "{domain}"\n}`}
+                        />
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {['{id}', '{name}', '{email}', '{domain}', '{status}', '{resource_type}'].map(tag => (
+                            <span key={tag} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[10px]">{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <label className="text-sm font-semibold flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-primary" />
+                              Authentication Required
+                            </label>
+                            <p className="text-xs text-muted-foreground">Perform a separate login request to obtain a Bearer token.</p>
+                          </div>
+                          <Switch 
+                            checked={githubSettings.crm_api_auth_enabled} 
+                            onCheckedChange={(checked) => handleSwitchChange('crm_api_auth_enabled', checked)} 
+                          />
+                        </div>
+
+                        {githubSettings.crm_api_auth_enabled && (
+                          <div className="grid gap-4 p-4 rounded-xl border bg-primary/5 space-y-2 animate-in slide-in-from-top-2">
+                            <div className="grid gap-2">
+                              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auth Endpoint URL</label>
+                              <Input 
+                                name="crm_api_auth_url" 
+                                value={githubSettings.crm_api_auth_url || ''} 
+                                onChange={handleGithubChange} 
+                                placeholder="https://api.yourcrm.com/oauth/token" 
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auth Payload (Credentials)</label>
+                              <textarea 
+                                name="crm_api_auth_payload"
+                                value={githubSettings.crm_api_auth_payload || ''}
+                                onChange={handleGithubChange}
+                                className="w-full h-24 font-mono text-xs p-3 rounded-md border bg-background focus:ring-2 focus:ring-primary outline-none"
+                                placeholder={`{\n  "client_id": "...",\n  "client_secret": "..."\n}`}
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Token Key in Response</label>
+                              <div className="flex items-center gap-2">
+                                <Input 
+                                  name="crm_api_auth_token_key" 
+                                  value={githubSettings.crm_api_auth_token_key || 'access_token'} 
+                                  onChange={handleGithubChange} 
+                                  placeholder="access_token" 
+                                />
+                                <div className="p-2 rounded bg-muted">
+                                  <Key className="h-4 w-4 text-primary" />
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground italic">The key used to extract the Bearer token from the auth response JSON.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-4 rounded-xl border border-dashed border-primary/20 bg-primary/5 flex items-start gap-4">
+                    <Info className="h-4 w-4 text-primary mt-0.5" />
+                    <div className="text-[11px] text-muted-foreground leading-relaxed">
+                      All API calls (both successful and failed) are logged and can be viewed directly on the customer's deployment card in the CRM page.
+                    </div>
+                  </div>
+
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={crmApiSaving}>
+                    {crmApiSaving ? 'Saving...' : 'Save API Settings'}
                   </Button>
                 </CardFooter>
               </form>
@@ -819,6 +999,7 @@ export default function SettingsPage() {
               </form>
             </Card>
           </TabsContent>
+
         </div>
       </Tabs>
     </div>

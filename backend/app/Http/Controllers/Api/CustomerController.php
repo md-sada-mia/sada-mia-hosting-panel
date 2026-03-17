@@ -9,11 +9,13 @@ use App\Models\App as AppModel;
 use App\Models\LoadBalancer;
 use App\Models\Setting;
 use App\Models\Domain;
+use App\Models\CrmApiLog;
 use App\Services\DeploymentService;
 use App\Services\DatabaseService;
 use App\Services\DnsService;
 use App\Services\GitHubService;
 use App\Services\NginxConfigService;
+use App\Services\CrmApiService;
 use App\Jobs\DeployApp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -27,6 +29,7 @@ class CustomerController extends Controller
         private DnsService $dnsService,
         private GitHubService $github,
         private NginxConfigService $nginxService,
+        private CrmApiService $crmApiService,
     ) {}
 
     public function index()
@@ -158,6 +161,9 @@ class CustomerController extends Controller
             'domain_mode'      => $validated['domain_mode'] ?? null,
             'domain'           => $validated['domain'],
         ]);
+
+        // Trigger CRM API Call
+        $this->crmApiService->execute($customer);
 
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
@@ -294,6 +300,9 @@ class CustomerController extends Controller
             'auto_db_create'   => $validated['auto_db_create'] ?? false,
         ], $dbInfo));
 
+        // Trigger CRM API Call
+        $this->crmApiService->execute($customer);
+
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
 
@@ -305,17 +314,52 @@ class CustomerController extends Controller
         if (!$customer->resource_type || !$customer->resource_id) {
             return null;
         }
-
         if ($customer->resource_type === 'app') {
             $app = AppModel::find($customer->resource_id);
             if (!$app) return null;
-            return ['type' => 'app', 'id' => $app->id, 'name' => $app->name, 'domain' => $app->domain, 'status' => $app->status, 'deployment_info' => $customer->deployment];
+
+            $lastApiLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
+            $apiStatus = $lastApiLog ? [
+                'status_code' => $lastApiLog->status_code,
+                'response'    => $lastApiLog->response,
+                'method'      => $lastApiLog->method,
+                'url'         => $lastApiLog->url,
+                'updated_at'  => $lastApiLog->updated_at,
+            ] : null;
+
+            return [
+                'type' => 'app',
+                'id' => $app->id,
+                'name' => $app->name,
+                'domain' => $app->domain,
+                'status' => $app->status,
+                'deployment_info' => $customer->deployment,
+                'api_status' => $apiStatus
+            ];
         }
 
         if ($customer->resource_type === 'load_balancer') {
             $lb = LoadBalancer::with('domains')->find($customer->resource_id);
             if (!$lb) return null;
-            return ['type' => 'load_balancer', 'id' => $lb->id, 'name' => $lb->name, 'domains' => $lb->domains->pluck('domain'), 'status' => $lb->status, 'deployment_info' => $customer->deployment];
+
+            $lastApiLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
+            $apiStatus = $lastApiLog ? [
+                'status_code' => $lastApiLog->status_code,
+                'response'    => $lastApiLog->response,
+                'method'      => $lastApiLog->method,
+                'url'         => $lastApiLog->url,
+                'updated_at'  => $lastApiLog->updated_at,
+            ] : null;
+
+            return [
+                'type' => 'load_balancer',
+                'id' => $lb->id,
+                'name' => $lb->name,
+                'domains' => $lb->domains->pluck('domain'),
+                'status' => $lb->status,
+                'deployment_info' => $customer->deployment,
+                'api_status' => $apiStatus
+            ];
         }
 
         return null;

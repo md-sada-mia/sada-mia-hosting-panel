@@ -533,6 +533,46 @@ export default function CrmNewCustomerPage() {
                     )}
                   </div>
                 )}
+
+                {/* CRM API STATUS */}
+                {deployedResource.api_status && (
+                  <div className="pt-3 border-t space-y-2 mt-2">
+                    <p className="text-[10px] uppercase font-black tracking-widest text-primary/70 flex items-center gap-1.5">
+                      <Zap className="h-3 w-3" /> CRM API STATUS
+                    </p>
+                    <div className="bg-muted/50 p-3 rounded-lg border flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-muted-foreground font-bold uppercase tracking-wider">Result</span>
+                        <div className="flex items-center gap-1.5">
+                          {deployedResource.api_status.status_code >= 200 && deployedResource.api_status.status_code < 300 ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-destructive" />
+                          )}
+                          <span className={`font-black ${deployedResource.api_status.status_code >= 200 && deployedResource.api_status.status_code < 300 ? 'text-emerald-500' : 'text-destructive'}`}>
+                            {deployedResource.api_status.status_code}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-muted-foreground font-bold uppercase tracking-wider">Method</span>
+                        <span className="font-mono bg-background px-1.5 py-0.5 rounded border text-[10px] uppercase">{deployedResource.api_status.method}</span>
+                      </div>
+                      <div className="flex flex-col gap-1 text-[11px]">
+                        <span className="text-muted-foreground font-bold uppercase tracking-wider">Response Data</span>
+                        <div className="bg-background rounded border p-2 font-mono text-[10px] max-h-24 overflow-y-auto break-all whitespace-pre-wrap leading-relaxed shadow-inner">
+                          {typeof deployedResource.api_status.response === 'string' 
+                            ? deployedResource.api_status.response 
+                            : JSON.stringify(deployedResource.api_status.response, null, 2)}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground/60 italic pt-1">
+                        <span>Last trigger:</span>
+                        <span>{new Date(deployedResource.api_status.updated_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <button type="button" 

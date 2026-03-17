@@ -26,6 +26,14 @@ class SettingsController extends Controller
             'server_ip' => Setting::get('server_ip'),
             'ns_default_domain' => Setting::get('ns_default_domain'),
             'panel_force_https' => (bool) Setting::get('panel_force_https', false),
+            'crm_api_enabled' => (bool) Setting::get('crm_api_enabled', false),
+            'crm_api_url' => Setting::get('crm_api_url'),
+            'crm_api_method' => Setting::get('crm_api_method', 'POST'),
+            'crm_api_payload_template' => Setting::get('crm_api_payload_template'),
+            'crm_api_auth_enabled' => (bool) Setting::get('crm_api_auth_enabled', false),
+            'crm_api_auth_url' => Setting::get('crm_api_auth_url'),
+            'crm_api_auth_payload' => Setting::get('crm_api_auth_payload'),
+            'crm_api_auth_token_key' => Setting::get('crm_api_auth_token_key', 'access_token'),
         ]);
     }
 
@@ -46,6 +54,14 @@ class SettingsController extends Controller
             'server_ip' => 'nullable|ip',
             'ns_default_domain' => 'nullable|string',
             'panel_force_https' => 'nullable|boolean',
+            'crm_api_enabled' => 'nullable|boolean',
+            'crm_api_url' => 'nullable|string',
+            'crm_api_method' => 'nullable|string',
+            'crm_api_payload_template' => 'nullable|string',
+            'crm_api_auth_enabled' => 'nullable|boolean',
+            'crm_api_auth_url' => 'nullable|string',
+            'crm_api_auth_payload' => 'nullable|string',
+            'crm_api_auth_token_key' => 'nullable|string',
         ]);
 
         if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {
