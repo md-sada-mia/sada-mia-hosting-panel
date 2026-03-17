@@ -842,7 +842,7 @@ export default function SettingsPage() {
                               <ShieldCheck className="h-4 w-4 text-primary" />
                               Authentication Required
                             </label>
-                            <p className="text-xs text-muted-foreground">Perform a separate login request to obtain a Bearer token.</p>
+                            <p className="text-xs text-muted-foreground">Perform a separate login request to obtain a {githubSettings.crm_api_auth_token_type} token.</p>
                           </div>
                           <Switch 
                             checked={githubSettings.crm_api_auth_enabled} 
