@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Users, Building2, Mail, Phone, MapPin, StickyNote,
   Network, Layers, Plus, RefreshCw, Zap, Github, Terminal,
-  ChevronRight, CheckCircle2, AlertCircle, ExternalLink, Edit2
+  ChevronRight, CheckCircle2, AlertCircle, ExternalLink, Edit2, XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
