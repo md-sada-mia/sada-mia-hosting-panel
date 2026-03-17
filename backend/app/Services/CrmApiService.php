@@ -85,7 +85,14 @@ class CrmApiService
 
     private function replaceVariables($template, Customer $customer)
     {
-        $resource = $customer->resolveResource($customer); // Assuming resolveResource is available or logic is replicated
+        $domain = '';
+        if ($customer->resource_type === 'app') {
+            $app = \App\Models\App::find($customer->resource_id);
+            $domain = $app ? $app->domain : '';
+        } elseif ($customer->resource_type === 'load_balancer') {
+            $lb = \App\Models\LoadBalancer::with('domains')->find($customer->resource_id);
+            $domain = $lb && $lb->domains->first() ? $lb->domains->first()->domain : '';
+        }
 
         $variables = [
             '{id}'            => $customer->id,
@@ -95,7 +102,7 @@ class CrmApiService
             '{phone}'         => $customer->phone,
             '{address}'       => $customer->address,
             '{status}'        => $customer->status,
-            '{domain}'        => $resource['domain'] ?? ($resource['domains'][0] ?? ''),
+            '{domain}'        => $domain,
             '{resource_type}' => $customer->resource_type,
             '{resource_id}'   => $customer->resource_id,
         ];

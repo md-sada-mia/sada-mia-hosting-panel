@@ -311,4 +311,18 @@ class AppController extends Controller
         $result = $this->sslService->togglePanelForceHttps($enable);
         return response()->json($result, $result['success'] ? 200 : 500);
     }
+
+    public function crmLogs(AppModel $app)
+    {
+        $customer = \App\Models\Customer::where('resource_type', 'app')
+            ->where('resource_id', $app->id)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([]);
+        }
+
+        $logs = $customer->crmApiLogs()->orderByDesc('created_at')->get();
+        return response()->json($logs);
+    }
 }

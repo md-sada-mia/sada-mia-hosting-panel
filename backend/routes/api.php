@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/start', [AppController::class, 'start']);
     Route::post('/apps/{app}/stop', [AppController::class, 'stop']);
     Route::post('/apps/{app}/restart', [AppController::class, 'restart']);
+    Route::get('/apps/{app}/crm-logs', [AppController::class, 'crmLogs']);
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
     Route::post('/apps/{app}/toggle-auto-deploy', [AppController::class, 'toggleAutoDeploy']);

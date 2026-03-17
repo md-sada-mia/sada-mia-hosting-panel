@@ -19,11 +19,14 @@ export default function ConfirmationDialog({
   cancelText = "Cancel",
   onConfirm,
   isLoading = false,
-  variant = "default"
+  variant = "default",
+  children,
+  showCancel = true,
+  maxWidth = "sm:max-w-md"
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-white/10 bg-[#0f1017]">
+      <DialogContent className={`${maxWidth} border-white/10 bg-[#0f1017]`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {variant === 'destructive' && <AlertTriangle className="h-5 w-5 text-rose-500" />}
@@ -33,15 +36,24 @@ export default function ConfirmationDialog({
             {description}
           </DialogDescription>
         </DialogHeader>
+        
+        {children && (
+          <div className="py-2">
+            {children}
+          </div>
+        )}
+
         <DialogFooter className="mt-4 gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
-            {cancelText}
-          </Button>
+          {showCancel && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
             type="button"
             variant={variant === 'destructive' ? 'destructive' : 'default'}

@@ -121,6 +121,10 @@ export default function AppDetailPage() {
   const [addServiceForm, setAddServiceForm] = useState({ name: '', command: '', description: '', type: 'custom' });
   const [addingService, setAddingService] = useState(false);
   const [installingRecommended, setInstallingRecommended] = useState(false);
+  const [crmLogs, setCrmLogs] = useState([]);
+  const [crmLogsLoading, setCrmLogsLoading] = useState(false);
+  const [showCrmLogs, setShowCrmLogs] = useState(false);
+  const [selectedCrmLog, setSelectedCrmLog] = useState(null);
 
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
@@ -251,6 +255,18 @@ export default function AppDetailPage() {
   const loadDeployments = async () => {
     const { data } = await api.get(`/apps/${id}/deployments`);
     setDeployments(data);
+  };
+
+  const fetchCrmLogs = async () => {
+    setCrmLogsLoading(true);
+    try {
+      const { data } = await api.get(`/apps/${id}/crm-logs`);
+      setCrmLogs(data);
+    } catch {
+      toast.error('Failed to fetch CRM API logs');
+    } finally {
+      setCrmLogsLoading(false);
+    }
   };
 
   const loadLogs = async () => {
@@ -752,7 +768,20 @@ export default function AppDetailPage() {
                 <CardTitle>Deployment History</CardTitle>
                 <CardDescription>View recent deployment logs and statuses</CardDescription>
               </div>
-              <Button size="sm" variant="ghost" onClick={loadDeployments}><RefreshCw className="h-4 w-4" /></Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2 border-primary/20 hover:bg-primary/10"
+                  onClick={() => {
+                    setShowCrmLogs(true);
+                    fetchCrmLogs();
+                  }}
+                >
+                  <ScrollText className="h-4 w-4 text-primary" /> View API Logs
+                </Button>
+                <Button size="sm" variant="ghost" onClick={loadDeployments}><RefreshCw className="h-4 w-4" /></Button>
+              </div>
             </CardHeader>
             <CardContent>
               {deployments.length === 0 ? (
@@ -771,7 +800,7 @@ export default function AppDetailPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto max-h-64 whitespace-pre-wrap">
+                  <div className="bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto max-h-64 whitespace-pre-wrap">
                         {stripAnsi(dep.log_output) || 'No output recorded'}
                         <div ref={idx === 0 ? logEndRef : null} />
                       </div>
@@ -781,6 +810,91 @@ export default function AppDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* CRM API Logs Modal */}
+          <ConfirmationDialog
+            open={showCrmLogs}
+            onOpenChange={setShowCrmLogs}
+            title="CRM API Integration Logs"
+            description="History of external CRM API calls for this application's customer."
+            onConfirm={() => setShowCrmLogs(false)}
+            confirmText="Close"
+            showCancel={false}
+            maxWidth="sm:max-w-3xl lg:max-w-4xl"
+          >
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {crmLogsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : crmLogs.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed rounded-xl border-white/5 bg-white/[0.02]">
+                  <div className="flex justify-center mb-3">
+                    <div className="p-3 rounded-full bg-muted/50">
+                      <FileText className="h-8 w-8 text-muted-foreground opacity-20" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium">No CRM API logs found for this application.</p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-1 italic">API calls are triggered after successful deployments.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {crmLogs.map((log) => (
+                    <div 
+                      key={log.id} 
+                      className="group relative border border-white/5 bg-white/[0.02] rounded-xl overflow-hidden transition-all hover:border-primary/20"
+                    >
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={log.status_code >= 200 && log.status_code < 300 ? 'success' : 'destructive'} className="font-mono text-xs px-2 py-0.5">
+                              {log.status_code}
+                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs font-bold uppercase tracking-wider h-6 bg-primary/5 text-primary border-primary/10">
+                                {log.method}
+                              </Badge>
+                              <span className="text-sm font-mono text-muted-foreground truncate max-w-[400px]" title={log.url}>
+                                {log.url}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span className="text-xs font-medium whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1.5">
+                              <Rocket className="h-4 w-4" /> Payload
+                            </label>
+                            <div className="bg-black/40 rounded-lg p-3 font-mono text-xs text-primary/80 border border-white/5 whitespace-pre-wrap overflow-x-auto max-h-48 shadow-inner">
+                              {log.payload || 'No payload'}
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60 flex items-center gap-1.5">
+                              <Terminal className="h-4 w-4" /> Response
+                            </label>
+                            <div className={`bg-black/40 rounded-lg p-3 font-mono text-xs border border-white/5 whitespace-pre-wrap overflow-x-auto max-h-48 shadow-inner ${log.status_code >= 400 ? 'text-red-400/80' : 'text-emerald-400/80'}`}>
+                              {log.response || 'No response'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Hover decoration */}
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/[0.02] blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ConfirmationDialog>
         </TabsContent>
 
         {/* ── Environment ──────────────────────────────────────── */}

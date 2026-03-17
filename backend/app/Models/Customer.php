@@ -32,4 +32,9 @@ class Customer extends Model
     {
         return $this->hasOne(CustomerDeployment::class)->latest();
     }
+
+    public function crmApiLogs()
+    {
+        return $this->hasMany(CrmApiLog::class);
+    }
 }
