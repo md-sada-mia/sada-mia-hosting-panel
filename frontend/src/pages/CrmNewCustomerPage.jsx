@@ -595,7 +595,12 @@ export default function CrmNewCustomerPage() {
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Domain Settings</label>
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Domain Settings</label>
+                            {domainMode === 'subdomain' && (
+                              <p className="text-[10px] text-primary/70 font-medium italic animate-pulse-slow">Prefix is auto-generated from name</p>
+                            )}
+                          </div>
                           <div className="flex bg-muted/50 border rounded-lg p-1 scale-90 origin-right">
                             <button type="button" onClick={() => setDomainMode('subdomain')}
                               className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${domainMode === 'subdomain' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}>Subdomain</button>
@@ -616,8 +621,8 @@ export default function CrmNewCustomerPage() {
                               }}
                             />
                             {domainMode === 'subdomain' && defaultDomain && (
-                              <div className="flex items-center px-4 border-l-2 border-input bg-muted/10 select-none">
-                                <span className="text-sm font-bold text-muted-foreground/80 lowercase">.{defaultDomain}</span>
+                              <div className="flex items-center px-4 border-l-2 border-dashed border-input bg-muted/20 select-none min-w-[120px] justify-center">
+                                <span className="text-sm font-bold text-muted-foreground lowercase">.{defaultDomain}</span>
                               </div>
                             )}
                           </div>
@@ -684,7 +689,12 @@ export default function CrmNewCustomerPage() {
 
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Domain Settings</label>
+                              <div className="flex flex-col gap-0.5">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Domain Settings</label>
+                                {domainMode === 'subdomain' && (
+                                  <p className="text-[10px] text-primary/70 font-medium italic animate-pulse-slow">Prefix is auto-generated from name</p>
+                                )}
+                              </div>
                               <div className="flex bg-muted/50 border rounded-lg p-1 scale-90 origin-right">
                                 <button type="button" onClick={() => setDomainMode('subdomain')}
                                   className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${domainMode === 'subdomain' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}>Subdomain</button>
@@ -705,8 +715,8 @@ export default function CrmNewCustomerPage() {
                                   }} 
                                 />
                                 {domainMode === 'subdomain' && defaultDomain && (
-                                  <div className="flex items-center px-4 border-l-2 border-input bg-muted/10 select-none">
-                                    <span className="text-sm font-bold text-muted-foreground/80 lowercase">.{defaultDomain}</span>
+                                  <div className="flex items-center px-4 border-l-2 border-dashed border-input bg-muted/20 select-none min-w-[120px] justify-center">
+                                    <span className="text-sm font-bold text-muted-foreground lowercase">.{defaultDomain}</span>
                                   </div>
                                 )}
                               </div>
