@@ -232,6 +232,13 @@ class SslService
                 "    include /etc/letsencrypt/options-ssl-nginx.conf;\n" .
                 "    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;\n";
 
+            $forceHttps = \App\Models\Setting::get('panel_force_https') === '1';
+            if ($forceHttps) {
+                $sslCertDirectives .= "\n    # BEGIN FORCE HTTPS\n" .
+                    "    error_page 497 301 https://\$host:8083\$request_uri;\n" .
+                    "    # END FORCE HTTPS\n";
+            }
+
             $newConfig = $currentConfig;
 
             // Update first IPv4 listen to include ssl
@@ -344,16 +351,28 @@ class SslService
         $cleanConfig = $this->removeForceHttpsBlock($currentConfig);
 
         if ($enable) {
-            // Add a plain HTTP listener on 8083 that redirects to HTTPS
-            $redirectBlock = "\n# BEGIN FORCE HTTPS\n" .
-                "server {\n" .
-                "    listen 8083;\n" .
-                "    listen [::]:8083;\n" .
-                "    return 301 https://\$host:8083\$request_uri;\n" .
-                "}\n" .
-                "# END FORCE HTTPS\n";
+            $redirectDirective = "\n    # BEGIN FORCE HTTPS\n" .
+                "    error_page 497 301 https://\$host:8083\$request_uri;\n" .
+                "    # END FORCE HTTPS\n";
 
-            $newConfig = $redirectBlock . $cleanConfig;
+            // Insert inside the first server block, after the listen directives
+            $newConfig = preg_replace(
+                '/(listen\s+.*?8083.*?ssl\s*;)/s',
+                "$1" . $redirectDirective,
+                $cleanConfig,
+                1
+            );
+
+            // If regex failed (e.g. ssl not found in listen but certs are there), fallback or error
+            if ($newConfig === $cleanConfig) {
+                // Try to insert after ssl_certificate instead
+                $newConfig = preg_replace(
+                    '/(ssl_certificate\s+.*?;)/s',
+                    "$1" . $redirectDirective,
+                    $cleanConfig,
+                    1
+                );
+            }
         } else {
             $newConfig = $cleanConfig;
         }
@@ -389,7 +408,7 @@ class SslService
     private function removeForceHttpsBlock(string $config): string
     {
         return preg_replace(
-            '/\n?# BEGIN FORCE HTTPS.*?# END FORCE HTTPS\n?/s',
+            '/\n?\s*# BEGIN FORCE HTTPS.*?# END FORCE HTTPS\n?/s',
             '',
             $config
         );
