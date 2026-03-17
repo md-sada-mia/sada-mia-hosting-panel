@@ -52,6 +52,7 @@ export default function SettingsPage() {
     crm_api_auth_url: '',
     crm_api_auth_payload: '',
     crm_api_auth_token_key: 'access_token',
+    crm_api_auth_token_type: 'Bearer',
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -198,6 +199,7 @@ export default function SettingsPage() {
         crm_api_auth_url: githubSettings.crm_api_auth_url,
         crm_api_auth_payload: githubSettings.crm_api_auth_payload,
         crm_api_auth_token_key: githubSettings.crm_api_auth_token_key,
+        crm_api_auth_token_type: githubSettings.crm_api_auth_token_type,
       });
       fetchSettings();
       toast.success('CRM API integration settings saved!');
@@ -869,21 +871,40 @@ export default function SettingsPage() {
                                 placeholder={`{\n  "client_id": "...",\n  "client_secret": "..."\n}`}
                               />
                             </div>
-                            <div className="grid gap-2">
-                              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Token Key in Response</label>
-                              <div className="flex items-center gap-2">
-                                <Input 
-                                  name="crm_api_auth_token_key" 
-                                  value={githubSettings.crm_api_auth_token_key || 'access_token'} 
-                                  onChange={handleGithubChange} 
-                                  placeholder="access_token" 
-                                />
-                                <div className="p-2 rounded bg-muted">
-                                  <Key className="h-4 w-4 text-primary" />
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Token Type</label>
+                                <Select 
+                                  value={githubSettings.crm_api_auth_token_type} 
+                                  onValueChange={(v) => setGithubSettings({ ...githubSettings, crm_api_auth_token_type: v })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Bearer">Bearer</SelectItem>
+                                    <SelectItem value="Basic">Basic</SelectItem>
+                                    <SelectItem value="Token">Token</SelectItem>
+                                    <SelectItem value="Key">Key</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Token Key in Response</label>
+                                <div className="flex items-center gap-2">
+                                  <Input 
+                                    name="crm_api_auth_token_key" 
+                                    value={githubSettings.crm_api_auth_token_key || 'access_token'} 
+                                    onChange={handleGithubChange} 
+                                    placeholder="access_token" 
+                                  />
+                                  <div className="p-2 rounded bg-muted">
+                                    <Key className="h-4 w-4 text-primary" />
+                                  </div>
                                 </div>
                               </div>
-                              <p className="text-[10px] text-muted-foreground italic">The key used to extract the Bearer token from the auth response JSON.</p>
                             </div>
+                            <p className="text-[10px] text-muted-foreground italic">The prefix and key used to build the Authorization header from the auth response.</p>
                           </div>
                         )}
                       </div>

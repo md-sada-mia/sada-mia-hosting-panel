@@ -42,7 +42,8 @@ class CrmApiService
                     if ($authResponse->successful()) {
                         $token = $authResponse->json($tokenKey);
                         if ($token) {
-                            $headers['Authorization'] = 'Bearer ' . $token;
+                            $tokenType = Setting::get('crm_api_auth_token_type', 'Bearer');
+                            $headers['Authorization'] = $tokenType . ' ' . $token;
                         }
                     } else {
                         Log::error("CRM API Auth failed for customer {$customer->id}: " . $authResponse->body());

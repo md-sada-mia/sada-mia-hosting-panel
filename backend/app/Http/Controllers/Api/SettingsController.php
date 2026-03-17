@@ -34,6 +34,7 @@ class SettingsController extends Controller
             'crm_api_auth_url' => Setting::get('crm_api_auth_url'),
             'crm_api_auth_payload' => Setting::get('crm_api_auth_payload', "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}"),
             'crm_api_auth_token_key' => Setting::get('crm_api_auth_token_key', 'access_token'),
+            'crm_api_auth_token_type' => Setting::get('crm_api_auth_token_type', 'Bearer'),
         ]);
     }
 
@@ -62,6 +63,7 @@ class SettingsController extends Controller
             'crm_api_auth_url' => 'nullable|string',
             'crm_api_auth_payload' => 'nullable|string',
             'crm_api_auth_token_key' => 'nullable|string',
+            'crm_api_auth_token_type' => 'nullable|string',
         ]);
 
         if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {
