@@ -279,6 +279,12 @@ class AppController extends Controller
         }
 
         $result = $this->sslService->securePanel($app->domain);
+
+        if ($result['success']) {
+            // Automatically enable Force HTTPS if panel security was successful
+            $this->sslService->togglePanelForceHttps(true);
+        }
+
         return response()->json($result, $result['success'] ? 200 : 500);
     }
 
