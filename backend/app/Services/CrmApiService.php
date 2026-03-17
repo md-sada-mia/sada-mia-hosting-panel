@@ -24,6 +24,8 @@ class CrmApiService
             return;
         }
 
+        $payload = null;
+
         try {
             $headers = [];
 
@@ -34,8 +36,8 @@ class CrmApiService
                 $tokenKey = Setting::get('crm_api_auth_token_key', 'access_token');
 
                 if ($authUrl) {
-                    $authPayload = $this->replaceVariables($authPayloadTemplate, $customer);
-                    $authPayloadArr = json_decode($authPayload, true) ?: [];
+                    $payload = $this->replaceVariables($authPayloadTemplate, $customer);
+                    $authPayloadArr = json_decode($payload, true) ?: [];
 
                     $authResponse = Http::post($authUrl, $authPayloadArr);
 
@@ -47,6 +49,17 @@ class CrmApiService
                         }
                     } else {
                         Log::error("CRM API Auth failed for customer {$customer->id}: " . $authResponse->body());
+
+                        // Log the failed auth attempt
+                        CrmApiLog::create([
+                            'customer_id' => $customer->id,
+                            'url'         => $authUrl,
+                            'method'      => 'POST',
+                            'payload'     => $payload,
+                            'response'    => $authResponse->body(),
+                            'status_code' => $authResponse->status(),
+                        ]);
+                        return; // Stop if auth fails
                     }
                 }
             }
