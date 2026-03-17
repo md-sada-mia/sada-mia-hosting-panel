@@ -42,6 +42,16 @@ class CrmApiService
                     $authResponse = Http::post($authUrl, $authPayloadArr);
 
                     if ($authResponse->successful()) {
+                        // Log the successful auth attempt
+                        CrmApiLog::create([
+                            'customer_id' => $customer->id,
+                            'url'         => $authUrl,
+                            'method'      => 'POST',
+                            'payload'     => $payload,
+                            'response'    => $authResponse->body(),
+                            'status_code' => $authResponse->status(),
+                        ]);
+
                         $token = $authResponse->json($tokenKey);
                         if ($token) {
                             $tokenType = Setting::get('crm_api_auth_token_type', 'Bearer');
