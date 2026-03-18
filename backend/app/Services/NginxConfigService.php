@@ -67,6 +67,11 @@ class NginxConfigService
             }
         }
 
+        if (empty($upstreams)) {
+            // Add a placeholder to prevent empty upstream block which causes Nginx to fail
+            $upstreams[] = "    server 127.0.0.1:81 down; # Placeholder when no apps are attached";
+        }
+
         $methodLine = '';
         if ($lb->method === 'least_conn') {
             $methodLine = 'least_conn;';
@@ -94,9 +99,13 @@ class NginxConfigService
 
     public function generateLoadBalancerDomain(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
     {
+        $shell = app(ShellService::class);
+
+        // 0. Ensure Upstream is generated (Dependency)
+        $this->generateLoadBalancerUpstream($lb);
+
         $domainStub = $this->getStub('load_balancer');
         $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
-        $shell = app(ShellService::class);
 
         $domain = $lbDomain->domain;
         $domainConfig = str_replace(
