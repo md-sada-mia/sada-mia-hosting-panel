@@ -203,6 +203,9 @@ export default function AppDetailPage() {
     if (activeTab === 'services') {
       fetchServices();
     }
+    if (activeTab === 'env') {
+      loadEnv();
+    }
   }, [activeTab]);
 
   useEffect(() => {
@@ -578,6 +581,7 @@ export default function AppDetailPage() {
         if (v === 'logs') loadLogs();
         if (v === 'dns') fetchDomain();
         if (v === 'services') fetchServices();
+        if (v === 'env') loadEnv();
       }}>
         <TabsList className="grid w-full grid-cols-7 md:w-auto md:inline-flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
