@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\FileManagerController;
 use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\AppServiceController;
+use App\Http\Controllers\Api\LoadBalancerSslController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -95,6 +96,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/load-balancers/{loadBalancer}/domains', [\App\Http\Controllers\Api\LoadBalancerController::class, 'removeDomain']);
     Route::post('/load-balancers/{loadBalancer}/apps', [\App\Http\Controllers\Api\LoadBalancerController::class, 'attachApp']);
     Route::delete('/load-balancers/{loadBalancer}/apps/{app}', [\App\Http\Controllers\Api\LoadBalancerController::class, 'detachApp']);
+
+    // Load Balancer SSL
+    Route::post('/load-balancers/domains/{domain}/ssl/setup', [LoadBalancerSslController::class, 'setup']);
+    Route::post('/load-balancers/domains/{domain}/ssl/remove', [LoadBalancerSslController::class, 'remove']);
+    Route::get('/load-balancers/domains/{domain}/ssl/details', [LoadBalancerSslController::class, 'details']);
+    Route::post('/load-balancers/domains/{domain}/ssl/force-https', [LoadBalancerSslController::class, 'toggleForceHttps']);
 
     // Cron Jobs
     Route::get('/cron-jobs', [CronJobController::class, 'index']);

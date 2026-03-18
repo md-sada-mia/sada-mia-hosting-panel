@@ -355,7 +355,7 @@ class CustomerController extends Controller
                 'type' => 'load_balancer',
                 'id' => $lb->id,
                 'name' => $lb->name,
-                'domains' => $lb->domains->pluck('domain'),
+                'domains' => $lb->domains,
                 'status' => $lb->status,
                 'deployment_info' => $customer->deployment,
                 'api_status' => $apiStatus
@@ -377,7 +377,7 @@ class CustomerController extends Controller
             return response()->json(['message' => 'No deployed resource to update'], 400);
         }
 
-        return \DB::transaction(function () use ($customer, $newDomain) {
+        return DB::transaction(function () use ($customer, $newDomain) {
             try {
                 if ($customer->resource_type === 'app') {
                     $app = AppModel::findOrFail($customer->resource_id);

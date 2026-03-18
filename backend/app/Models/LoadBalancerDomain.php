@@ -9,6 +9,11 @@ class LoadBalancerDomain extends Model
     protected $fillable = [
         'load_balancer_id',
         'domain',
+        'ssl_status',
+        'ssl_enabled',
+        'ssl_last_check_at',
+        'ssl_log',
+        'force_https',
     ];
 
     public function loadBalancer()

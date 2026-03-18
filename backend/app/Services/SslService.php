@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\App;
+use App\Models\LoadBalancerDomain;
 use Illuminate\Support\Facades\Log;
 
 class SslService
@@ -12,14 +13,14 @@ class SslService
     ) {}
 
     /**
-     * Setup SSL for an app using Let's Encrypt / Certbot.
+     * Setup SSL for an app or load balancer domain using Let's Encrypt / Certbot.
      */
-    public function setupSsl(App $app): array
+    public function setupSsl(App|LoadBalancerDomain $model): array
     {
         if (config('app.env') === 'local') {
-            $msg = "SSL requested for {$app->domain} but skipped due to local environment (APP_ENV=local).";
+            $msg = "SSL requested for {$model->domain} but skipped due to local environment (APP_ENV=local).";
             Log::info($msg);
-            $app->update([
+            $model->update([
                 'ssl_status' => 'failed',
                 'ssl_enabled' => false,
                 'ssl_log' => $msg,
@@ -28,10 +29,10 @@ class SslService
         }
 
         // Validate domain format for Let's Encrypt
-        if ($app->domain === 'localhost' || !str_contains($app->domain, '.')) {
-            $msg = "Cannot issue SSL for '{$app->domain}'. Let's Encrypt requires a valid domain name with at least one dot (e.g., example.com).";
+        if ($model->domain === 'localhost' || !str_contains($model->domain, '.')) {
+            $msg = "Cannot issue SSL for '{$model->domain}'. Let's Encrypt requires a valid domain name with at least one dot (e.g., example.com).";
             Log::warning($msg);
-            $app->update([
+            $model->update([
                 'ssl_status' => 'failed',
                 'ssl_enabled' => false,
                 'ssl_log' => $msg,
@@ -39,11 +40,11 @@ class SslService
             return ['success' => false, 'message' => $msg];
         }
 
-        Log::info("Starting SSL setup for domain: {$app->domain}");
-        $app->update(['ssl_status' => 'pending']);
+        Log::info("Starting SSL setup for domain: {$model->domain}");
+        $model->update(['ssl_status' => 'pending']);
 
         // Run certbot --nginx
-        $command = "sudo certbot --nginx -d " . escapeshellarg($app->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
+        $command = "sudo certbot --nginx -d " . escapeshellarg($model->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
 
         $result = $this->shell->run($command);
         $output = $result['output'] ?? '';
@@ -54,35 +55,35 @@ class SslService
             str_contains(strtolower($output), 'congratulations') ||
             str_contains(strtolower($output), 'successfully enabled https')
         )) {
-            $app->update([
+            $model->update([
                 'ssl_status' => 'active',
                 'ssl_enabled' => true,
                 'ssl_last_check_at' => now(),
                 'ssl_log' => $output,
             ]);
-            Log::info("SSL successfully enabled for {$app->domain}");
+            Log::info("SSL successfully enabled for {$model->domain}");
             return ['success' => true, 'message' => "SSL enabled successfully."];
         }
 
-        $app->update([
+        $model->update([
             'ssl_status' => 'failed',
             'ssl_log' => $output
         ]);
-        Log::error("SSL setup failed for {$app->domain}. Exit code: {$result['exit_code']}. Output: " . $output);
+        Log::error("SSL setup failed for {$model->domain}. Exit code: {$result['exit_code']}. Output: " . $output);
         return ['success' => false, 'message' => "SSL setup failed. Check logs for details.", 'output' => $output];
     }
 
     /**
-     * Remove SSL for an app.
+     * Remove SSL for an app or load balancer domain.
      */
-    public function removeSsl(App $app): array
+    public function removeSsl(App|LoadBalancerDomain $model): array
     {
-        Log::info("Removing SSL for domain: {$app->domain}");
+        Log::info("Removing SSL for domain: {$model->domain}");
 
-        $command = "sudo certbot delete --cert-name " . escapeshellarg($app->domain);
+        $command = "sudo certbot delete --cert-name " . escapeshellarg($model->domain);
         $result = $this->shell->run($command);
 
-        $app->update([
+        $model->update([
             'ssl_status' => 'none',
             'ssl_enabled' => false,
         ]);
@@ -94,13 +95,13 @@ class SslService
     /**
      * Get certificate details including raw contents and metadata.
      */
-    public function getCertificateDetails(App $app): array
+    public function getCertificateDetails(App|LoadBalancerDomain $model): array
     {
-        if (!$app->ssl_enabled && $app->ssl_status !== 'failed') {
+        if (!$model->ssl_enabled && $model->ssl_status !== 'failed') {
             return [];
         }
 
-        $domain = $app->domain;
+        $domain = $model->domain;
         $basePath = "/etc/letsencrypt/live/{$domain}";
 
         // We need sudo to read these files
@@ -176,23 +177,23 @@ class SslService
     }
 
     /**
-     * Sync the SSL status of an app by checking its certificate file.
+     * Sync the SSL status of an app or load balancer domain by checking its certificate file.
      */
-    public function syncStatus(App $app): void
+    public function syncStatus(App|LoadBalancerDomain $model): void
     {
-        if (!$app->ssl_enabled) return;
+        if (!$model->ssl_enabled) return;
 
-        $basePath = "/etc/letsencrypt/live/{$app->domain}";
+        $basePath = "/etc/letsencrypt/live/{$model->domain}";
         $cert = $this->readSudoFile("{$basePath}/cert.pem");
 
         if ($cert) {
-            $app->update([
+            $model->update([
                 'ssl_status' => 'active',
                 'ssl_last_check_at' => now(),
             ]);
         } else {
             // If cert file is missing, it might have been deleted or expired
-            $app->update([
+            $model->update([
                 'ssl_status' => 'failed',
                 'ssl_enabled' => false,
             ]);
@@ -274,20 +275,20 @@ class SslService
     }
 
     /**
-     * Enable or disable Force HTTPS (HTTP→HTTPS redirect) for an app.
+     * Enable or disable Force HTTPS (HTTP→HTTPS redirect) for an app or load balancer domain.
      * Uses clearly-delimited comment markers so the block can be added/removed safely.
      */
-    public function toggleForceHttps(App $app, bool $enable): array
+    public function toggleForceHttps(App|LoadBalancerDomain $model, bool $enable): array
     {
-        if ($enable && $app->ssl_status !== 'active') {
+        if ($enable && $model->ssl_status !== 'active') {
             return ['success' => false, 'message' => 'SSL must be active before enabling Force HTTPS.'];
         }
 
-        $configPath = "/etc/nginx/sites-available/{$app->domain}";
+        $configPath = "/etc/nginx/sites-available/{$model->domain}";
         $currentConfig = $this->readSudoFile($configPath);
 
         if (!$currentConfig) {
-            return ['success' => false, 'message' => "Nginx configuration not found for {$app->domain}"];
+            return ['success' => false, 'message' => "Nginx configuration not found for {$model->domain}"];
         }
 
         // Strip any existing force-https block
@@ -297,7 +298,7 @@ class SslService
             $redirectBlock = "\n# BEGIN FORCE HTTPS\n" .
                 "server {\n" .
                 "    listen 80;\n" .
-                "    server_name {$app->domain};\n" .
+                "    server_name {$model->domain};\n" .
                 "    return 301 https://\$host\$request_uri;\n" .
                 "}\n" .
                 "# END FORCE HTTPS\n";
@@ -322,7 +323,7 @@ class SslService
         }
 
         $this->shell->run("sudo nginx -s reload");
-        $app->update(['force_https' => $enable]);
+        $model->update(['force_https' => $enable]);
 
         return [
             'success' => true,

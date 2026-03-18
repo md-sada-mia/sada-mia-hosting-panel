@@ -20,12 +20,7 @@ class LoadBalancerController extends Controller
 
     public function index(): JsonResponse
     {
-        $lbs = LoadBalancer::with(['apps:id,name', 'domains:id,load_balancer_id,domain'])->orderBy('created_at', 'desc')->get();
-        $lbs->transform(function ($lb) {
-            $lbArray = $lb->toArray();
-            $lbArray['domains'] = $lb->domains->pluck('domain')->toArray();
-            return $lbArray;
-        });
+        $lbs = LoadBalancer::with(['apps:id,name', 'domains'])->orderBy('created_at', 'desc')->get();
         return response()->json($lbs);
     }
 
@@ -63,19 +58,14 @@ class LoadBalancerController extends Controller
 
         $lb->update(['status' => 'active']);
 
-        $loaded = $lb->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-
-        return response()->json($resp, 201);
+        $loaded = $lb->load(['apps:id,name', 'domains']);
+        return response()->json($loaded, 201);
     }
 
     public function show(LoadBalancer $loadBalancer): JsonResponse
     {
-        $loaded = $loadBalancer->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-        return response()->json($resp);
+        $loaded = $loadBalancer->load(['apps:id,name', 'domains']);
+        return response()->json($loaded);
     }
 
     public function update(Request $request, LoadBalancer $loadBalancer): JsonResponse
@@ -115,10 +105,8 @@ class LoadBalancerController extends Controller
         $this->nginxService->generateLoadBalancer($loadBalancer);
         $loadBalancer->update(['status' => 'active']);
 
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-        return response()->json($resp);
+        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains']);
+        return response()->json($loaded);
     }
 
     public function destroy(LoadBalancer $loadBalancer): JsonResponse
