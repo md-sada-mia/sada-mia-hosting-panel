@@ -88,21 +88,36 @@ class LoadBalancerController extends Controller
             $loadBalancer->update($updatable);
         }
 
-        if (isset($validated['app_ids'])) {
-            $loadBalancer->apps()->sync($validated['app_ids']);
+        // 1. Handle Upstream Changes (Apps or Method)
+        if (isset($validated['app_ids']) || isset($validated['method'])) {
+            if (isset($validated['app_ids'])) {
+                $loadBalancer->apps()->sync($validated['app_ids']);
+            }
+            $loadBalancer->load(['apps']);
+            $this->nginxService->generateLoadBalancerUpstream($loadBalancer);
         }
 
+        // 2. Handle Domain Changes Differentially
         if (isset($validated['domains'])) {
-            $loadBalancer->domains()->delete();
-            foreach ($validated['domains'] as $domain) {
-                $loadBalancer->domains()->create(['domain' => $domain]);
-                $this->dnsService->createManagedDomain($domain);
+            $existingDomains = $loadBalancer->domains->pluck('domain')->toArray();
+            $newDomains = $validated['domains'];
+
+            // Domains to delete
+            $toDelete = array_diff($existingDomains, $newDomains);
+            foreach ($toDelete as $domainName) {
+                $this->nginxService->removeLoadBalancerDomain($domainName);
+                $loadBalancer->domains()->where('domain', $domainName)->delete();
+            }
+
+            // Domains to add
+            $toAdd = array_diff($newDomains, $existingDomains);
+            foreach ($toAdd as $domainName) {
+                $lbDomain = $loadBalancer->domains()->create(['domain' => $domainName]);
+                $this->dnsService->createManagedDomain($domainName);
+                $this->nginxService->generateLoadBalancerDomain($loadBalancer, $lbDomain);
             }
         }
 
-        // Explicitly load relations so the Nginx config generator sees the updated apps and domains
-        $loadBalancer->load(['apps', 'domains']);
-        $this->nginxService->generateLoadBalancer($loadBalancer);
         $loadBalancer->update(['status' => 'active']);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains']);
@@ -134,11 +149,11 @@ class LoadBalancerController extends Controller
             return response()->json(['message' => 'Domain already exists'], 422);
         }
 
-        $loadBalancer->domains()->create(['domain' => $domain]);
+        $lbDomain = $loadBalancer->domains()->create(['domain' => $domain]);
         $this->dnsService->createManagedDomain($domain);
 
-        $loadBalancer->load(['apps', 'domains']);
-        $this->nginxService->generateLoadBalancer($loadBalancer);
+        $loadBalancer->load(['apps']);
+        $this->nginxService->generateLoadBalancerDomain($loadBalancer, $lbDomain);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
@@ -155,9 +170,7 @@ class LoadBalancerController extends Controller
 
         $domain = $validated['domain'];
         $loadBalancer->domains()->where('domain', $domain)->delete();
-
-        $loadBalancer->load(['apps', 'domains']);
-        $this->nginxService->generateLoadBalancer($loadBalancer);
+        $this->nginxService->removeLoadBalancerDomain($domain);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
@@ -179,8 +192,8 @@ class LoadBalancerController extends Controller
 
         $loadBalancer->apps()->attach($appId);
 
-        $loadBalancer->load(['apps', 'domains']);
-        $this->nginxService->generateLoadBalancer($loadBalancer);
+        $loadBalancer->load(['apps']);
+        $this->nginxService->generateLoadBalancerUpstream($loadBalancer);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();
@@ -197,8 +210,8 @@ class LoadBalancerController extends Controller
 
         $loadBalancer->apps()->detach($app->id);
 
-        $loadBalancer->load(['apps', 'domains']);
-        $this->nginxService->generateLoadBalancer($loadBalancer);
+        $loadBalancer->load(['apps']);
+        $this->nginxService->generateLoadBalancerUpstream($loadBalancer);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
         $resp = $loaded->toArray();

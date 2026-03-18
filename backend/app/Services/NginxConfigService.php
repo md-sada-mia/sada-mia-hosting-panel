@@ -42,7 +42,17 @@ class NginxConfigService
 
     public function generateLoadBalancer(\App\Models\LoadBalancer $lb): void
     {
-        // 1. Generate Upstream config in conf.d
+        // 1. Generate Upstream config
+        $this->generateLoadBalancerUpstream($lb);
+
+        // 2. Generate individual Domain configs
+        foreach ($lb->domains as $lbDomain) {
+            $this->generateLoadBalancerDomain($lb, $lbDomain);
+        }
+    }
+
+    public function generateLoadBalancerUpstream(\App\Models\LoadBalancer $lb): void
+    {
         $upstreamStub = $this->getStub('load_balancer_upstream');
 
         $upstreams = [];
@@ -80,37 +90,46 @@ class NginxConfigService
         $upstreamFile = "/etc/nginx/conf.d/lb_{$lb->id}_upstream.conf";
         $escapedUpstream = escapeshellarg($upstreamConfig);
         $shell->run("echo {$escapedUpstream} | sudo tee {$upstreamFile} > /dev/null");
+    }
 
-        // 2. Generate individual Domain configs in sites-available
+    public function generateLoadBalancerDomain(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
+    {
         $domainStub = $this->getStub('load_balancer');
         $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+        $shell = app(ShellService::class);
 
-        foreach ($lb->domains as $lbDomain) {
-            $domain = $lbDomain->domain;
-            $domainConfig = str_replace(
-                ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
-                [
-                    $lb->id,
-                    $domain,
-                    $phpFpmSock
-                ],
-                $domainStub
-            );
+        $domain = $lbDomain->domain;
+        $domainConfig = str_replace(
+            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
+            [
+                $lb->id,
+                $domain,
+                $phpFpmSock
+            ],
+            $domainStub
+        );
 
-            $sitesAvailable = '/etc/nginx/sites-available';
-            $sitesEnabled   = '/etc/nginx/sites-enabled';
-            $configFile     = "{$sitesAvailable}/{$domain}";
-            $symlinkFile    = "{$sitesEnabled}/{$domain}";
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $configFile     = "{$sitesAvailable}/{$domain}";
+        $symlinkFile    = "{$sitesEnabled}/{$domain}";
 
-            $escapedConfig = escapeshellarg($domainConfig);
-            $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+        $escapedConfig = escapeshellarg($domainConfig);
+        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
 
-            if (!file_exists($symlinkFile)) {
-                $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
-            }
+        if (!file_exists($symlinkFile)) {
+            $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
         }
 
         $shell->run("sudo nginx -t && sudo nginx -s reload");
+    }
+
+    public function removeLoadBalancerDomain(string $domain): void
+    {
+        $shell = app(ShellService::class);
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}");
+        $shell->run("sudo nginx -s reload");
     }
 
     public function removeLoadBalancer(\App\Models\LoadBalancer $lb): void
@@ -122,9 +141,7 @@ class NginxConfigService
 
         // Remove domain configs
         foreach ($lb->domains as $lbDomain) {
-            $domain = $lbDomain->domain;
-            $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}");
-            $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}");
+            $this->removeLoadBalancerDomain($lbDomain->domain);
         }
 
         $shell->run("sudo nginx -s reload");
