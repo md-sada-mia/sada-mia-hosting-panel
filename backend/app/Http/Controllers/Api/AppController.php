@@ -118,6 +118,12 @@ class AppController extends Controller
         // Auto-create Domain record with default nameservers and records
         $this->dnsService->createManagedDomain($app->domain, $app->id);
 
+        // If this is the first app, set it as the primary panel domain and update site address
+        if (\App\Models\App::count() === 1) {
+            $port = env('PANEL_PORT', '8083');
+            Setting::set('panel_url', "http://{$app->domain}:{$port}");
+        }
+
         return response()->json($app, 201);
     }
 
@@ -283,6 +289,10 @@ class AppController extends Controller
         if ($result['success']) {
             // Automatically enable Force HTTPS if panel security was successful
             $this->sslService->togglePanelForceHttps(true);
+
+            // Update panel url to HTTPS
+            $port = env('PANEL_PORT', '8083');
+            Setting::set('panel_url', "https://{$app->domain}:{$port}");
         }
 
         return response()->json($result, $result['success'] ? 200 : 500);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Layers, Database, Clock, Settings, LogOut, Globe, Mail, FolderOpen, Network, Users, Terminal, Menu, X } from 'lucide-react';
+import PanelUrlAlert from './PanelUrlAlert';
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -142,6 +143,8 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <PanelUrlAlert />
     </div>
   );
 }
