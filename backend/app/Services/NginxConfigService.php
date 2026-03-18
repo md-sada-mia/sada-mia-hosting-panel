@@ -8,22 +8,18 @@ class NginxConfigService
 {
     public function generate(App $app): void
     {
-        $type = $app->type;
-        if ($app->ssl_enabled) {
-            $type .= '-ssl';
-        }
-
-        $stub = $this->getStub($type);
+        // Always use the base type stub (HTTP)
+        $stub = $this->getStub($app->type);
         $config = $this->replacePlaceholders($stub, $app);
 
-        // If SSL is enabled and force HTTPS is on, prepend the redirect block
-        if ($app->ssl_enabled && $app->force_https) {
-            $redirectBlock = "server {\n" .
+        // If force HTTPS is on, we might need to handle it differently.
+        // But for now, let's keep the port 80 config as is, or with a redirect if force_https is on.
+        if ($app->force_https && $app->ssl_enabled) {
+            $config = "server {\n" .
                 "    listen 80;\n" .
                 "    server_name {$app->domain};\n" .
                 "    return 301 https://\$host\$request_uri;\n" .
-                "}\n\n";
-            $config = $redirectBlock . $config;
+                "}\n";
         }
 
         $sitesAvailable = '/etc/nginx/sites-available';
@@ -31,20 +27,46 @@ class NginxConfigService
         $configFile     = "{$sitesAvailable}/{$app->domain}";
         $symlinkFile    = "{$sitesEnabled}/{$app->domain}";
 
-        // Write config via shell (needs sudo)
         $shell = app(ShellService::class);
-
-        // Write using tee (sudo)
         $escapedConfig = escapeshellarg($config);
         $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
 
-        // Create symlink if not created
         if (!file_exists($symlinkFile)) {
             $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
         }
 
-        // Nginx config test + reload
         $shell->run("sudo nginx -t && sudo nginx -s reload");
+    }
+
+    public function generateSsl(App $app): void
+    {
+        if (!$app->ssl_enabled) return;
+
+        $stub = $this->getStub($app->type . '-ssl');
+        $config = $this->replacePlaceholders($stub, $app);
+
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $configFile     = "{$sitesAvailable}/{$app->domain}-ssl";
+        $symlinkFile    = "{$sitesEnabled}/{$app->domain}-ssl";
+
+        $shell = app(ShellService::class);
+        $escapedConfig = escapeshellarg($config);
+        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+
+        if (!file_exists($symlinkFile)) {
+            $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        }
+
+        $shell->run("sudo nginx -t && sudo nginx -s reload");
+    }
+
+    public function removeSsl(App $app): void
+    {
+        $shell = app(ShellService::class);
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$app->domain}-ssl");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/{$app->domain}-ssl");
+        $shell->run("sudo nginx -s reload");
     }
 
     public function remove(App $app): void
@@ -122,49 +144,57 @@ class NginxConfigService
     public function generateLoadBalancerDomain(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
     {
         $shell = app(ShellService::class);
-
-        // 0. Ensure Upstream is generated (Dependency)
         $this->generateLoadBalancerUpstream($lb);
-
-        $type = 'load_balancer';
-        if ($lbDomain->ssl_enabled) {
-            $type .= '-ssl';
-        }
-
-        $domainStub = $this->getStub($type);
-        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
-
-        $domain = $lbDomain->domain;
-        $domainConfig = str_replace(
-            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
-            [
-                $lb->id,
-                $domain,
-                $phpFpmSock
-            ],
-            $domainStub
-        );
-
-        // If SSL is enabled and force HTTPS is on, prepend the redirect block
-        if ($lbDomain->ssl_enabled && $lbDomain->force_https) {
-            $redirectBlock = "server {\n" .
-                "    listen 80;\n" .
-                "    server_name {$domain};\n" .
-                "    return 301 https://\$host\$request_uri;\n" .
-                "}\n\n";
-            $domainConfig = $redirectBlock . $domainConfig;
-        }
 
         $sitesAvailable = '/etc/nginx/sites-available';
         $sitesEnabled   = '/etc/nginx/sites-enabled';
-        $configFile     = "{$sitesAvailable}/{$domain}";
-        $symlinkFile    = "{$sitesEnabled}/{$domain}";
+        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+        $domain = $lbDomain->domain;
 
-        $escapedConfig = escapeshellarg($domainConfig);
-        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+        // 1. Generate HTTP Config
+        $httpStub = $this->getStub('load_balancer');
+        $httpConfig = str_replace(
+            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
+            [$lb->id, $domain, $phpFpmSock],
+            $httpStub
+        );
 
-        if (!file_exists($symlinkFile)) {
-            $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        if ($lbDomain->force_https && $lbDomain->ssl_enabled) {
+            $httpConfig = "server {\n" .
+                "    listen 80;\n" .
+                "    server_name {$domain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n";
+        }
+
+        $httpFile = "{$sitesAvailable}/{$domain}";
+        $httpSymlink = "{$sitesEnabled}/{$domain}";
+        $escapedHttp = escapeshellarg($httpConfig);
+        $shell->run("echo {$escapedHttp} | sudo tee {$httpFile} > /dev/null");
+        if (!file_exists($httpSymlink)) {
+            $shell->run("sudo ln -sf {$httpFile} {$httpSymlink}");
+        }
+
+        // 2. Generate SSL Config if enabled
+        if ($lbDomain->ssl_enabled) {
+            $sslStub = $this->getStub('load_balancer-ssl');
+            $sslConfig = str_replace(
+                ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
+                [$lb->id, $domain, $phpFpmSock],
+                $sslStub
+            );
+
+            $sslFile = "{$sitesAvailable}/{$domain}-ssl";
+            $sslSymlink = "{$sitesEnabled}/{$domain}-ssl";
+            $escapedSsl = escapeshellarg($sslConfig);
+            $shell->run("echo {$escapedSsl} | sudo tee {$sslFile} > /dev/null");
+            if (!file_exists($sslSymlink)) {
+                $shell->run("sudo ln -sf {$sslFile} {$sslSymlink}");
+            }
+        } else {
+            // Remove SSL config if disabled
+            $shell->run("sudo rm -f {$sitesEnabled}/{$domain}-ssl");
+            $shell->run("sudo rm -f {$sitesAvailable}/{$domain}-ssl");
         }
 
         $shell->run("sudo nginx -t && sudo nginx -s reload");
@@ -175,6 +205,8 @@ class NginxConfigService
         $shell = app(ShellService::class);
         $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}");
         $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}");
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}-ssl");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}-ssl");
         $shell->run("sudo nginx -s reload");
     }
 

@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Log;
 class SslService
 {
     public function __construct(
-        private ShellService $shell
+        private ShellService $shell,
+        private NginxConfigService $nginxService
     ) {}
 
     /**
@@ -61,6 +62,18 @@ class SslService
                 'ssl_last_check_at' => now(),
                 'ssl_log' => $output,
             ]);
+
+            // Generate the separate SSL config file
+            if ($model instanceof App) {
+                $this->nginxService->generateSsl($model);
+                if ($model->force_https) {
+                    $this->nginxService->generate($model); // Update HTTP for redirect
+                }
+            } else {
+                // For LoadBalancerDomain, generateLoadBalancerDomain handles both
+                $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+            }
+
             Log::info("SSL successfully enabled for {$model->domain}");
             return ['success' => true, 'message' => "SSL enabled successfully."];
         }
@@ -86,8 +99,15 @@ class SslService
         $model->update([
             'ssl_status' => 'none',
             'ssl_enabled' => false,
+            'force_https' => false,
         ]);
 
+        if ($model instanceof App) {
+            $this->nginxService->removeSsl($model);
+            $this->nginxService->generate($model); // Re-generate HTTP without redirect
+        } else {
+            $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+        }
 
         return ['success' => true, 'message' => "SSL removed successfully."];
     }
@@ -284,46 +304,13 @@ class SslService
             return ['success' => false, 'message' => 'SSL must be active before enabling Force HTTPS.'];
         }
 
-        $configPath = "/etc/nginx/sites-available/{$model->domain}";
-        $currentConfig = $this->readSudoFile($configPath);
-
-        if (!$currentConfig) {
-            return ['success' => false, 'message' => "Nginx configuration not found for {$model->domain}"];
-        }
-
-        // Strip any existing force-https block
-        $cleanConfig = $this->removeForceHttpsBlock($currentConfig);
-
-        if ($enable) {
-            $redirectBlock = "\n# BEGIN FORCE HTTPS\n" .
-                "server {\n" .
-                "    listen 80;\n" .
-                "    server_name {$model->domain};\n" .
-                "    return 301 https://\$host\$request_uri;\n" .
-                "}\n" .
-                "# END FORCE HTTPS\n";
-
-            $newConfig = $redirectBlock . $cleanConfig;
-        } else {
-            $newConfig = $cleanConfig;
-        }
-
-        $escapedConfig = escapeshellarg($newConfig);
-        $this->shell->run("echo {$escapedConfig} | sudo tee {$configPath} > /dev/null");
-
-        $test = $this->shell->run("sudo nginx -t");
-        if ($test['exit_code'] !== 0) {
-            // Rollback
-            $escapedOriginal = escapeshellarg($currentConfig);
-            $this->shell->run("echo {$escapedOriginal} | sudo tee {$configPath} > /dev/null");
-            return [
-                'success' => false,
-                'message' => "Nginx test failed. Rolled back. Error: " . trim($test['output'])
-            ];
-        }
-
-        $this->shell->run("sudo nginx -s reload");
         $model->update(['force_https' => $enable]);
+
+        if ($model instanceof App) {
+            $this->nginxService->generate($model);
+        } else {
+            $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+        }
 
         return [
             'success' => true,
