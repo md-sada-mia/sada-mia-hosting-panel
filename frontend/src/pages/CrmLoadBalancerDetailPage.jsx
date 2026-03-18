@@ -56,6 +56,26 @@ export default function CrmLoadBalancerDetailPage() {
   const [sslDetails, setSslDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Derived state (Moved up to follow Rules of Hooks)
+  const resource = customer?.resource;
+  const deploymentDomain = resource?.deployment_info?.domain;
+  const apiStatus = resource?.api_status;
+  const lb = resource; // resource is the LB object for load_balancer type
+  const domainMode = resource?.deployment_info?.domain_mode;
+  
+  // Predict if it's a subdomain if domain_mode is missing
+  const isSubdomain = domainMode === 'subdomain' || (!domainMode && deploymentDomain && deploymentDomain.split('.').length > 2);
+
+  // Find matching LB domain object
+  const lbDomain = lb?.domains?.find(d => typeof d === 'object' && d.domain === deploymentDomain) || 
+                  (typeof lb?.domains?.[0] === 'object' ? lb.domains[0] : null);
+
+  useEffect(() => {
+    if (activeTab === 'ssl' && lbDomain?.id) {
+      fetchSslDetails();
+    }
+  }, [activeTab, lbDomain?.id]);
+
   useEffect(() => {
     fetchCustomer();
   }, [customerId]);
@@ -140,6 +160,7 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
+
   const handleUpdateDomain = async () => {
     if (!newDomain.trim()) return toast.error('Domain cannot be empty');
     setIsUpdatingDomain(true);
@@ -166,24 +187,6 @@ export default function CrmLoadBalancerDetailPage() {
   );
   if (!customer) return null;
 
-  const resource = customer.resource;
-  const deploymentDomain = resource?.deployment_info?.domain;
-  const apiStatus = resource?.api_status;
-  const lb = resource; // resource is the LB object for load_balancer type
-  const domainMode = resource?.deployment_info?.domain_mode;
-  
-  // Predict if it's a subdomain if domain_mode is missing
-  const isSubdomain = domainMode === 'subdomain' || (!domainMode && deploymentDomain && deploymentDomain.split('.').length > 2);
-
-  // Find matching LB domain object
-  const lbDomain = lb?.domains?.find(d => typeof d === 'object' && d.domain === deploymentDomain) || 
-                  (typeof lb?.domains?.[0] === 'object' ? lb.domains[0] : null);
-
-  useEffect(() => {
-    if (activeTab === 'ssl') {
-      fetchSslDetails();
-    }
-  }, [activeTab, lbDomain?.id]);
 
   return (
     <div className="space-y-6">
