@@ -13,5 +13,7 @@ class GeneralSettingsSeeder extends Seeder
         if (!Setting::get('server_ip')) {
             Setting::set('server_ip', env('SERVER_IP', '127.0.0.1'));
         }
+
+        Setting::set('panel_url', config('app.url'));
     }
 }

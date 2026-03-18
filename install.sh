@@ -694,7 +694,11 @@ else
 fi
 
 sed -i "s|^APP_URL=.*|APP_URL=$APP_URL_VAL|" .env
-sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
+if [ "$APP_ENV" = "local" ]; then
+    sed -i "s|^APP_ENV=.*|APP_ENV=local|" .env
+else
+    sed -i "s|^APP_ENV=.*|APP_ENV=production|" .env
+fi
 
 # Add or Update FRONTEND_URL
 grep -q "FRONTEND_URL=" .env && sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=$APP_URL_VAL|" .env || echo "FRONTEND_URL=$APP_URL_VAL" >> .env
