@@ -623,7 +623,7 @@ export default function CrmLoadBalancerDetailPage() {
                 )}
               </div>
 
-              {lbDomain?.ssl_enabled && (
+              {!!lbDomain?.ssl_enabled && (
                 <div className="pt-4 border-t border-white/5">
                   <div className="flex items-start justify-between">
                     <div>
@@ -655,7 +655,7 @@ export default function CrmLoadBalancerDetailPage() {
                 </div>
               )}
 
-              { (sslLoading || lbDomain?.ssl_log) && (
+              {!!(sslLoading || lbDomain?.ssl_log) && (
                 <div className="space-y-3 pt-6 border-t border-white/5">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
