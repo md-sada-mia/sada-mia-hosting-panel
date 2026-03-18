@@ -92,9 +92,17 @@ class NginxConfigService
         );
 
         $shell = app(ShellService::class);
-        $upstreamFile = "/etc/nginx/conf.d/lb_{$lb->id}_upstream.conf";
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $upstreamFile   = "{$sitesAvailable}/lb_{$lb->id}_upstream";
+        $symlinkFile    = "{$sitesEnabled}/lb_{$lb->id}_upstream";
+
+        // Ensure directories exist (for fresh installs)
+        $shell->run("sudo mkdir -p {$sitesAvailable} {$sitesEnabled}");
+
         $escapedUpstream = escapeshellarg($upstreamConfig);
         $shell->run("echo {$escapedUpstream} | sudo tee {$upstreamFile} > /dev/null");
+        $shell->run("sudo ln -sf {$upstreamFile} {$symlinkFile}");
     }
 
     public function generateLoadBalancerDomain(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
@@ -146,7 +154,8 @@ class NginxConfigService
         $shell = app(ShellService::class);
 
         // Remove upstream config
-        $shell->run("sudo rm -f /etc/nginx/conf.d/lb_{$lb->id}_upstream.conf");
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/lb_{$lb->id}_upstream");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/lb_{$lb->id}_upstream");
 
         // Remove domain configs
         foreach ($lb->domains as $lbDomain) {
