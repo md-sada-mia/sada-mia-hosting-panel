@@ -169,12 +169,12 @@ export default function CronPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1">
           <h2 className="text-3xl font-bold tracking-tight">Cron Jobs</h2>
           <p className="text-muted-foreground mt-1">Manage scheduled background tasks for your server.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => openSystemLogs()} className="flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
             System Tasks

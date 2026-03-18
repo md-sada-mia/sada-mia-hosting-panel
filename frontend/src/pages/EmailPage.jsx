@@ -215,8 +215,8 @@ export default function EmailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1">
           <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
             Email Management
           </h2>
@@ -224,7 +224,7 @@ export default function EmailPage() {
             Postfix + Dovecot virtual mailboxes — managed natively.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={() => window.open('/webmail', '_blank')}
             className="gap-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all">
             <Inbox className="h-4 w-4" /> Webmail

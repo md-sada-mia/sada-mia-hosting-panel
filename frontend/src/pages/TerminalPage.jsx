@@ -219,9 +219,9 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] gap-4">
-      <div className="flex items-center justify-between shrink-0">
-        <div>
+    <div className="flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Terminal Access</h1>
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
             <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-mono">{user}@{hostname}</span>
@@ -235,9 +235,9 @@ export default function TerminalPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 gap-4 min-h-0">
+      <div className="flex flex-col md:flex-row flex-1 gap-4 min-h-0">
         {/* Terminal Window */}
-        <Card className="flex-1 flex flex-col bg-[#0c0c0c] border-white/10 shadow-xl overflow-hidden min-h-0 relative">
+        <Card className="flex-1 flex flex-col bg-[#0c0c0c] border-white/10 shadow-xl overflow-hidden min-h-0 relative" style={{ minHeight: '320px' }}>
           
           {/* Mac-like Header */}
           <div className="h-10 bg-white/5 border-b border-white/10 flex items-center px-4 shrink-0">
@@ -304,27 +304,29 @@ export default function TerminalPage() {
           </CardContent>
         </Card>
 
-        {/* Quick Commands Sidebar */}
-        <div className="w-64 max-w-sm flex flex-col gap-3 shrink-0 overflow-y-auto pr-1">
+        {/* Quick Commands — sidebar on desktop, horizontal scroll on mobile */}
+        <div className="md:w-64 flex flex-col gap-3 md:shrink-0 md:overflow-y-auto md:pr-1">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1">Quick Commands</h3>
-          {QUICK_COMMANDS.map((qc, i) => (
-            <button
-              key={i}
-              onClick={() => executeCommand(qc.cmd)}
-              disabled={executing}
-              className="flex items-start gap-3 p-3 text-left rounded-xl border bg-card/40 hover:bg-accent/40 transition-colors cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className={`p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors ${qc.color}`}>
-                <qc.icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-medium text-sm text-foreground">{qc.label}</p>
-                <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[140px]">{qc.cmd}</p>
-              </div>
-            </button>
-          ))}
+          <div className="flex md:flex-col gap-2 overflow-x-auto pb-2 md:pb-0">
+            {QUICK_COMMANDS.map((qc, i) => (
+              <button
+                key={i}
+                onClick={() => executeCommand(qc.cmd)}
+                disabled={executing}
+                className="flex items-start gap-3 p-3 text-left rounded-xl border bg-card/40 hover:bg-accent/40 transition-colors cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 md:flex-shrink w-48 md:w-auto"
+              >
+                <div className={`p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors ${qc.color}`}>
+                  <qc.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-foreground">{qc.label}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[140px]">{qc.cmd}</p>
+                </div>
+              </button>
+            ))}
+          </div>
           
-          <div className="mt-4 p-4 rounded-xl border border-rose-500/20 bg-rose-500/5">
+          <div className="mt-2 md:mt-4 p-4 rounded-xl border border-rose-500/20 bg-rose-500/5">
             <h4 className="text-xs font-bold text-rose-400 mb-2 uppercase tracking-wider">Security Notice</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Commands are executed as the PHP runtime user. Dangerous commands (like rm -rf /) are blocked by policy. Max execution time is 30s.

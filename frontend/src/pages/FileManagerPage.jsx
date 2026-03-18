@@ -614,15 +614,15 @@ export default function FileManagerPage() {
   return (
     <div className="flex flex-col h-full space-y-0 -m-6 md:-m-8">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-card/50 backdrop-blur flex-shrink-0">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-4 border-b bg-card/50 backdrop-blur flex-shrink-0">
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <HardDrive className="h-6 w-6 text-primary" />
             File Manager
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">Browse, edit and manage server files</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {clipboard && (
             <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handlePaste} disabled={pasteLoading}>
               <Check className="h-3.5 w-3.5 text-emerald-400" />

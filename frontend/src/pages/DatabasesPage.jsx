@@ -147,17 +147,17 @@ export default function DatabasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1">
           <h2 className="text-3xl font-bold tracking-tight">PostgreSQL Databases</h2>
           <p className="text-muted-foreground mt-1">Manage local PostgreSQL databases and users.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Input 
             placeholder="Search databases..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64 h-9"
+            className="w-full sm:w-48 h-9"
           />
           <Button variant="outline" onClick={() => window.open('/adminer', '_blank')}>
             <ExternalLink className="mr-2 h-4 w-4" /> Open Adminer
@@ -237,45 +237,46 @@ export default function DatabasesPage() {
           ) : (
             databases
               .filter(db => db.db_name.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map(db => (
-               <Card key={db.id}>
-                <CardContent className="p-6 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary/10 p-3 rounded-full text-primary">
-                      <Database className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{db.db_name}</h3>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        User: <span className="font-mono">{db.db_user}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <Badge variant={db.status === 'active' ? 'success' : 'destructive'}>{db.status}</Badge>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-primary border-primary/20 hover:bg-primary/5"
-                      onClick={() => handleManage(db.id)}
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" /> Manage
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-muted-foreground hover:text-primary hover:bg-primary/10" 
-                      onClick={() => setDbToChangePassword(db)}
-                      title="Change Password"
-                    >
-                      <Key className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db)}>
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              .map(db => (<Card key={db.id}>
+                 <CardContent className="p-4 sm:p-6">
+                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                     <div className="flex items-center gap-4 flex-1 min-w-0">
+                       <div className="bg-primary/10 p-3 rounded-full text-primary flex-shrink-0">
+                         <Database className="h-6 w-6" />
+                       </div>
+                       <div className="min-w-0">
+                         <h3 className="font-semibold text-lg truncate">{db.db_name}</h3>
+                         <div className="text-sm text-muted-foreground mt-1 truncate">
+                           User: <span className="font-mono">{db.db_user}</span>
+                         </div>
+                       </div>
+                     </div>
+                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                       <Badge variant={db.status === 'active' ? 'success' : 'destructive'}>{db.status}</Badge>
+                       <Button 
+                         variant="outline" 
+                         size="sm" 
+                         className="text-primary border-primary/20 hover:bg-primary/5"
+                         onClick={() => handleManage(db.id)}
+                       >
+                         <ExternalLink className="mr-2 h-4 w-4" /> Manage
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="icon" 
+                         className="text-muted-foreground hover:text-primary hover:bg-primary/10" 
+                         onClick={() => setDbToChangePassword(db)}
+                         title="Change Password"
+                       >
+                         <Key className="h-4 w-4" />
+                       </Button>
+                       <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(db)}>
+                         <Trash2 className="h-5 w-5" />
+                       </Button>
+                     </div>
+                   </div>
+                 </CardContent>
+               </Card>
             ))
           )}
         </div>

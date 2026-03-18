@@ -125,8 +125,8 @@ export default function LoadBalancersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Load Balancers</h1>
           <p className="text-muted-foreground mt-1">
             Distribute traffic across multiple applications using a single domain.
@@ -134,7 +134,7 @@ export default function LoadBalancersPage() {
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors self-start sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           Create Load Balancer
