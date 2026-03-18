@@ -90,11 +90,17 @@ export default function CrmNewCustomerPage() {
       setCrmType(settingsRes.data.crm_creation_type || 'load_balancer');
       setDefaultDomain(settingsRes.data.crm_default_deployment_domain || '');
       setIsGithubConnected(settingsRes.data.github_connected || false);
-      setLoadBalancers(lbRes.data);
+      const fetchedLbs = lbRes.data;
+      setLoadBalancers(fetchedLbs);
       setApps(appsRes.data);
 
-      if (!id && settingsRes.data.crm_default_lb_id) {
-        setLbForm(prev => ({ ...prev, load_balancer_id: String(settingsRes.data.crm_default_lb_id) }));
+      if (!id) {
+        if (settingsRes.data.crm_default_lb_id) {
+          setLbForm(prev => ({ ...prev, load_balancer_id: String(settingsRes.data.crm_default_lb_id) }));
+        } else if (fetchedLbs.length > 0) {
+          // Fallback to first available load balancer if no default is set
+          setLbForm(prev => ({ ...prev, load_balancer_id: String(fetchedLbs[0].id) }));
+        }
       }
 
       if (isEdit) {
@@ -619,7 +625,7 @@ export default function CrmNewCustomerPage() {
                   {crmType === 'load_balancer' ? (
                     <>
                       <Field label="Select Target Load Balancer" required error={errors.load_balancer_id}>
-                        <Select value={lbForm.load_balancer_id} onValueChange={v => setLbForm({ ...lbForm, load_balancer_id: v })}>
+                        <Select value={lbForm.load_balancer_id || undefined} onValueChange={v => setLbForm({ ...lbForm, load_balancer_id: v })}>
                           <SelectTrigger className="bg-background border-2">
                             <SelectValue placeholder="-- Choose load balancer --" />
                           </SelectTrigger>
@@ -691,7 +697,7 @@ export default function CrmNewCustomerPage() {
 
                       {appMode === 'existing' ? (
                         <Field label="Select Registered App" required error={errors.selected_app_id}>
-                          <Select value={selectedAppId} onValueChange={setSelectedAppId}>
+                          <Select value={selectedAppId || undefined} onValueChange={setSelectedAppId}>
                             <SelectTrigger className="bg-background border-2">
                               <SelectValue placeholder="-- Choose an existing app --" />
                             </SelectTrigger>
@@ -767,7 +773,7 @@ export default function CrmNewCustomerPage() {
                           {isGithubConnected && repos.length > 0 && (
                             <Field label="GitHub Integration (Optional)">
                               <Select
-                                value={appForm.github_id ? String(appForm.github_id) : ''}
+                                value={appForm.github_id ? String(appForm.github_id) : undefined}
                                 onValueChange={v => {
                                   const repo = repos.find(r => r.id === parseInt(v));
                                   if (repo) setAppForm({ ...appForm, git_url: repo.clone_url, github_full_name: repo.full_name, github_id: repo.id, branch: repo.default_branch || 'main' });

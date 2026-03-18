@@ -15,5 +15,10 @@ class GeneralSettingsSeeder extends Seeder
         }
 
         Setting::set('panel_url', config('app.url'));
+
+        // CRM Settings
+        if (!Setting::get('crm_creation_type')) {
+            Setting::set('crm_creation_type', 'load_balancer');
+        }
     }
 }
