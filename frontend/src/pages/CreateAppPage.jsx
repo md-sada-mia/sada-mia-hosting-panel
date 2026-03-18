@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw, Shield } from 'lucide-react';
+import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw, Shield, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -18,6 +18,9 @@ const stripAnsi = (str) => {
   return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 };
 
+const slugify = (str) =>
+  (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
 export default function CreateAppPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -30,6 +33,10 @@ export default function CreateAppPage() {
   const [createdApp, setCreatedApp] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [domainMode, setDomainMode] = useState('subdomain'); // 'subdomain' or 'custom'
+  const [isSubdomainEdited, setIsSubdomainEdited] = useState(false);
+  const [defaultDomain, setDefaultDomain] = useState('');
+  const [systemDomains, setSystemDomains] = useState([]);
   const logEndRef = useRef(null);
 
   const [form, setForm] = useState({
@@ -62,11 +69,29 @@ export default function CreateAppPage() {
     }
   }, [logs]);
 
+  useEffect(() => {
+    if (domainMode === 'subdomain' && defaultDomain && !isSubdomainEdited) {
+      setForm(prev => ({ ...prev, domain: slugify(prev.name) }));
+    }
+  }, [form.name, domainMode, defaultDomain, isSubdomainEdited]);
+
   const checkGithubConnection = async () => {
     try {
-      const { data } = await api.get('/settings');
-      setIsConnected(data.github_connected);
-      if (data.github_connected) {
+      const [{ data: settings }, { data: domains }] = await Promise.all([
+        api.get('/settings'),
+        api.get('/domains')
+      ]);
+      
+      setIsConnected(settings.github_connected);
+      setDefaultDomain(settings.crm_default_deployment_domain || domains[0]?.domain || '');
+      setSystemDomains(domains.filter(d => d.dns_managed));
+      
+      // If no default domain is set and no domains available, default to custom mode
+      if (!settings.crm_default_deployment_domain && domains.length === 0) {
+        setDomainMode('custom');
+      }
+
+      if (settings.github_connected) {
         fetchRepos();
       }
     } catch (err) {
@@ -129,7 +154,13 @@ export default function CreateAppPage() {
     setLogs(['Initiating application creation...']);
 
     try {
-      const { data } = await api.post('/apps', form);
+      const payload = {
+        ...form,
+        domain: (domainMode === 'subdomain' && defaultDomain) 
+          ? `${form.domain}.${defaultDomain}` 
+          : form.domain
+      };
+      const { data } = await api.post('/apps', payload);
       setCreatedApp(data);
       setLogs(prev => [...prev, `App "${data.name}" created successfully.`, 'Triggering initial deployment...']);
       
@@ -205,16 +236,70 @@ export default function CreateAppPage() {
               </div>
 
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Domain Name</label>
-                <Input 
-                  required 
-                  placeholder="app.example.com" 
-                  name="domain" 
-                  value={form.domain} 
-                  onChange={handleChange} 
-                  disabled={loading || createdApp}
-                />
-                <p className="text-xs text-muted-foreground">Points to your server IP.</p>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Domain Name</label>
+                  {defaultDomain && (
+                    <div className="flex bg-muted/50 border rounded-lg p-1 scale-90 origin-right">
+                      <button 
+                        type="button" 
+                        onClick={() => setDomainMode('subdomain')}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${domainMode === 'subdomain' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+                      >
+                        Subdomain
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setDomainMode('custom')}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${domainMode === 'custom' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+                      >
+                        Custom
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative group">
+                  <div className={`flex items-stretch overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-primary/20 transition-all`}>
+                    <div className="flex items-center px-3 text-muted-foreground bg-muted/20 border-r border-input">
+                      <Globe className="h-4 w-4" />
+                    </div>
+                    <input
+                      required
+                      name="domain"
+                      value={form.domain}
+                      onChange={(e) => {
+                        setForm({ ...form, domain: e.target.value });
+                        if (domainMode === 'subdomain') setIsSubdomainEdited(true);
+                      }}
+                      disabled={loading || createdApp}
+                      className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                      placeholder={domainMode === 'subdomain' ? "prefix" : "app.example.com"}
+                    />
+                    {domainMode === 'subdomain' && (
+                      <div className="flex items-center border-l border-input bg-muted/20">
+                        <Select
+                          value={defaultDomain}
+                          onValueChange={setDefaultDomain}
+                          disabled={loading || createdApp}
+                        >
+                          <SelectTrigger className="border-0 bg-transparent h-full px-3 py-0 focus:ring-0 rounded-none text-sm font-medium text-muted-foreground w-[160px]">
+                            <SelectValue placeholder="domain.com" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {systemDomains.map(d => (
+                              <SelectItem key={d.id} value={d.domain}>.{d.domain}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {domainMode === 'subdomain' 
+                    ? `Will be deployed as: ${form.domain || 'prefix'}.${defaultDomain}`
+                    : "Enter the full domain name pointing to this server."}
+                </p>
               </div>
 
               {isConnected && !createdApp && (
