@@ -41,7 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/crm" element={<CrmPage />} />
             <Route path="/crm/new" element={<CrmNewCustomerPage />} />
             <Route path="/crm/edit/:id" element={<CrmNewCustomerPage />} />
-            <Route path="/crm/load-balancer-detail/:id" element={<CrmLoadBalancerDetailPage />} />
+            <Route path="/crm/load-balancer-app-detail/:id" element={<CrmLoadBalancerDetailPage />} />
             <Route path="/apps" element={<AppsPage />} />
             <Route path="/apps/create" element={<CreateAppPage />} />
             <Route path="/apps/:id" element={<AppDetailPage />} />

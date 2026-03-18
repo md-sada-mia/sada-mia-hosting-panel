@@ -255,7 +255,7 @@ export default function CrmPage() {
                             </a>
                           )}
                           <button
-                            onClick={() => customer.resource_type === 'app' ? navigate(`/apps/${customer.resource.id}`) : navigate(`/crm/load-balancer-detail/${customer.id}`)}
+                            onClick={() => customer.resource_type === 'app' ? navigate(`/apps/${customer.resource.id}`) : navigate(`/crm/load-balancer-app-detail/${customer.id}`)}
                             className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-muted ml-0.5"
                             title="Manage Resource"
                           >
