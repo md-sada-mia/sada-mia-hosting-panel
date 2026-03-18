@@ -94,13 +94,9 @@ class NginxConfigService
 
         $upstreams = [];
         foreach ($lb->apps as $app) {
-            if ($app->port) {
-                // Next.js apps running on their own port
-                $upstreams[] = "    server 127.0.0.1:{$app->port};";
-            } else {
-                // PHP/Static apps load balanced via port 80
-                $upstreams[] = "    server 127.0.0.1:80;";
-            }
+            $port = 60000 + $app->id;
+            $this->generateAppInternalConfig($app, $lb, $port);
+            $upstreams[] = "    server 127.0.0.1:{$port};";
         }
 
         if (empty($upstreams)) {
@@ -223,7 +219,38 @@ class NginxConfigService
             $this->removeLoadBalancerDomain($lbDomain->domain);
         }
 
+        // Remove individual app LB workers
+        foreach ($lb->apps as $app) {
+            if (!$app->port) {
+                $port = 60000 + $app->id;
+                $fileName = "lb{$lb->id}app{$app->id}port{$port}";
+                $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$fileName}");
+                $shell->run("sudo rm -f /etc/nginx/sites-available/{$fileName}");
+            }
+        }
+
         $shell->run("sudo nginx -s reload");
+    }
+
+    public function generateAppInternalConfig(App $app, \App\Models\LoadBalancer $lb, int $port): void
+    {
+        // Use the specialized LB worker stub
+        $stub = $this->getStub($app->type . '-lb');
+        $config = $this->replacePlaceholders($stub, $app, $port);
+
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $fileName       = "lb{$lb->id}app{$app->id}port{$port}";
+        $configFile     = "{$sitesAvailable}/{$fileName}";
+        $symlinkFile    = "{$sitesEnabled}/{$fileName}";
+
+        $shell = app(ShellService::class);
+        $escapedConfig = escapeshellarg($config);
+        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+
+        if (!file_exists($symlinkFile)) {
+            $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        }
     }
 
     private function getStub(string $type): string
@@ -235,15 +262,16 @@ class NginxConfigService
         return file_get_contents($stubPath);
     }
 
-    private function replacePlaceholders(string $stub, App $app): string
+    private function replacePlaceholders(string $stub, App $app, ?int $internalPort = null): string
     {
         return str_replace(
-            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}'],
+            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}', '{{internal_port}}'],
             [
                 $app->domain,
                 $app->port,
                 $app->deploy_path,
                 config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
+                $internalPort ?? ''
             ],
             $stub
         );

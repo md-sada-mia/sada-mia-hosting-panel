@@ -1,0 +1,14 @@
+server {
+    listen 127.0.0.1:{{internal_port}};
+
+    root {{deploy_path}}/public;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
