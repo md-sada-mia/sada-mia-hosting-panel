@@ -63,10 +63,9 @@ export default function LoadBalancerManagePage() {
     try {
       const { data } = await api.put(`/load-balancers/${id}`, {
         ...payload,
-        // Ensure we send the required fields if they aren't in payload
         name: payload.name || lb.name,
         method: payload.method || lb.method,
-        domains: payload.domains || lb.domains,
+        domains: (payload.domains || lb.domains || []).map(d => typeof d === 'object' ? d.domain : d),
         app_ids: payload.app_ids || lb.apps.map(a => a.id),
       });
       setLb(data);
@@ -100,10 +99,11 @@ export default function LoadBalancerManagePage() {
     }
   };
 
-  const handleRemoveDomain = async (domainToRemove) => {
+  const handleRemoveDomain = async (domainObject) => {
     setIsSaving(true);
+    const domainName = typeof domainObject === 'object' ? domainObject.domain : domainObject;
     try {
-      const { data } = await api.delete(`/load-balancers/${id}/domains`, { data: { domain: domainToRemove } });
+      const { data } = await api.delete(`/load-balancers/${id}/domains`, { data: { domain: domainName } });
       setLb(data);
       toast.success('Domain removed successfully');
     } catch (error) {
@@ -254,7 +254,9 @@ export default function LoadBalancerManagePage() {
                         <div className="bg-primary/10 p-2 rounded-lg text-primary">
                           <Globe className="h-4 w-4" />
                         </div>
-                        <span className="text-sm font-medium truncate">{domain}</span>
+                        <span className="text-sm font-medium truncate">
+                          {typeof domain === 'object' ? domain.domain : domain}
+                        </span>
                       </div>
                       <Button 
                         variant="ghost" 

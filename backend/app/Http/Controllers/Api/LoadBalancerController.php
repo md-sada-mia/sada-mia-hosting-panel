@@ -155,11 +155,8 @@ class LoadBalancerController extends Controller
         $loadBalancer->load(['apps']);
         $this->nginxService->generateLoadBalancerDomain($loadBalancer, $lbDomain);
 
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-
-        return response()->json($resp);
+        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains']);
+        return response()->json($loaded);
     }
 
     public function removeDomain(Request $request, LoadBalancer $loadBalancer): JsonResponse
@@ -172,11 +169,8 @@ class LoadBalancerController extends Controller
         $loadBalancer->domains()->where('domain', $domain)->delete();
         $this->nginxService->removeLoadBalancerDomain($domain);
 
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-
-        return response()->json($resp);
+        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains']);
+        return response()->json($loaded);
     }
 
     public function attachApp(Request $request, LoadBalancer $loadBalancer): JsonResponse
