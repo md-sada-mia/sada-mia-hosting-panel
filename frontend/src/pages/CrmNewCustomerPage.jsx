@@ -43,6 +43,8 @@ export default function CrmNewCustomerPage() {
   const [isGithubConnected, setIsGithubConnected] = useState(false);
   const [domainMode, setDomainMode] = useState('subdomain'); // 'subdomain' or 'custom'
   const [isSubdomainEdited, setIsSubdomainEdited] = useState(false);
+  const [initialSettings, setInitialSettings] = useState(null);
+  const [hasSetDefault, setHasSetDefault] = useState(false);
 
   // ── Deployment state ────────────────────────────────────────────────────────
   const [skipDeployment, setSkipDeployment] = useState(false);
@@ -93,19 +95,7 @@ export default function CrmNewCustomerPage() {
       const fetchedLbs = lbRes.data;
       setLoadBalancers(fetchedLbs);
       setApps(appsRes.data);
-
-      if (!id) {
-        let defaultLbId = '';
-        if (settingsRes.data.crm_default_lb_id) {
-          defaultLbId = String(settingsRes.data.crm_default_lb_id);
-        } else if (fetchedLbs.length > 0) {
-          defaultLbId = String(fetchedLbs[0].id);
-        }
-
-        if (defaultLbId) {
-          setLbForm(prev => ({ ...prev, load_balancer_id: defaultLbId }));
-        }
-      }
+      setInitialSettings(settingsRes.data);
 
       if (isEdit) {
         const { data: customer } = await api.get(`/customers/${id}`);
@@ -251,6 +241,22 @@ export default function CrmNewCustomerPage() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!isEdit && !hasSetDefault && initialSettings && loadBalancers.length > 0) {
+      let defaultLbId = '';
+      if (initialSettings.crm_default_lb_id) {
+        defaultLbId = String(initialSettings.crm_default_lb_id);
+      } else {
+        defaultLbId = String(loadBalancers[0].id);
+      }
+
+      if (defaultLbId) {
+        setLbForm(prev => ({ ...prev, load_balancer_id: defaultLbId }));
+        setHasSetDefault(true);
+      }
+    }
+  }, [initialSettings, loadBalancers, isEdit, hasSetDefault]);
 
   const appName = slugify(form.business_name || form.name);
 

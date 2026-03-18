@@ -45,6 +45,33 @@ class AuthController extends Controller
         return response()->json($request->user()->only('id', 'name', 'email'));
     }
 
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name'             => 'required|string|max:255',
+            'email'            => 'required|email|unique:users,email,' . $user->id,
+            'current_password' => 'required|string',
+        ]);
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Current password is incorrect.'],
+            ]);
+        }
+
+        $user->update([
+            'name'  => $request->name,
+            'email' => $request->email,
+        ]);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user'    => $user->only('id', 'name', 'email'),
+        ]);
+    }
+
     public function changePassword(Request $request)
     {
         $request->validate([

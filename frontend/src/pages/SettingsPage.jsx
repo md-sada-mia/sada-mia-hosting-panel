@@ -11,19 +11,37 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [showClientSecret, setShowClientSecret] = useState(false);
-  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   
+  const [profileData, setProfileData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    current_password: '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name,
+        email: user.email,
+        current_password: '',
+      });
+    }
+  }, [user]);
+
   const [passwords, setPasswords] = useState({
     current_password: '',
     password: '',
     password_confirmation: '',
   });
 
+  const [showClientSecret, setShowClientSecret] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
+  
   const [githubSaving, setGithubSaving] = useState(false);
   const [nameserverSaving, setNameserverSaving] = useState(false);
   const [crmSaving, setCrmSaving] = useState(false);
@@ -64,9 +82,9 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const { data } = await api.get('/settings'); // Changed to GET as per original code
+      const { data } = await api.get('/settings');
       setGithubSettings(data);
-      setInitialGithubSettings(data); // Store initial settings
+      setInitialGithubSettings(data);
       
       const lbRes = await api.get('/load-balancers');
       setLoadBalancers(lbRes.data);
@@ -78,9 +96,30 @@ export default function SettingsPage() {
     }
   };
 
+  const handleProfileChange = (e) => setProfileData({ ...profileData, [e.target.name]: e.target.value });
   const handleChange = (e) => setPasswords({ ...passwords, [e.target.name]: e.target.value });
   const handleGithubChange = (e) => setGithubSettings({ ...githubSettings, [e.target.name]: e.target.value });
-  const handleSwitchChange = (name, checked) => setGithubSettings(prev => ({ ...prev, [name]: checked })); // New handler for switches
+  const handleSwitchChange = (name, checked) => setGithubSettings(prev => ({ ...prev, [name]: checked }));
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setMessage('');
+    setError('');
+
+    try {
+      const { data } = await api.post('/auth/update-profile', profileData);
+      setUser(data.user);
+      setProfileData({ ...profileData, current_password: '' });
+      toast.success('Profile updated successfully.');
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Failed to update profile';
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -101,18 +140,16 @@ export default function SettingsPage() {
     }
   };
 
-  // --- TAB-SPECIFIC SAVE HANDLERS ---
-
   const handleSaveGithubTab = async (e, shouldConnect = false) => {
     e?.preventDefault();
     try {
       setGithubSaving(true);
-      setError(''); // Clear previous errors
-      setMessage(''); // Clear previous messages
+      setError('');
+      setMessage('');
       await api.post('/settings', {
-        github_client_id: githubSettings.github_client_id, // Use existing state names
-        github_client_secret: githubSettings.github_client_secret, // Use existing state names
-        github_webhook_secret: githubSettings.github_webhook_secret, // Add webhook secret
+        github_client_id: githubSettings.github_client_id,
+        github_client_secret: githubSettings.github_client_secret,
+        github_webhook_secret: githubSettings.github_webhook_secret,
       });
       fetchSettings();
       toast.success('GitHub settings saved successfully');
@@ -136,14 +173,14 @@ export default function SettingsPage() {
     e.preventDefault();
     try {
       setNameserverSaving(true);
-      setError(''); // Clear previous errors
-      setMessage(''); // Clear previous messages
+      setError('');
+      setMessage('');
       await api.post('/settings', {
         ns_default_domain: githubSettings.ns_default_domain,
         dns_default_ns1: githubSettings.dns_default_ns1,
         dns_default_ns2: githubSettings.dns_default_ns2,
-        dns_default_ns3: githubSettings.dns_default_ns3, // Include all NS fields
-        dns_default_ns4: githubSettings.dns_default_ns4, // Include all NS fields
+        dns_default_ns3: githubSettings.dns_default_ns3,
+        dns_default_ns4: githubSettings.dns_default_ns4,
       });
       fetchSettings();
       toast.success('Nameserver settings saved successfully');
@@ -163,8 +200,8 @@ export default function SettingsPage() {
     e.preventDefault();
     try {
       setCrmSaving(true);
-      setError(''); // Clear previous errors
-      setMessage(''); // Clear previous messages
+      setError('');
+      setMessage('');
       await api.post('/settings', {
         crm_creation_type: githubSettings.crm_creation_type,
         crm_default_lb_id: githubSettings.crm_default_lb_id,
@@ -212,7 +249,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveSystemTab = async (e) => { // Renamed from handleGithubSettingsUpdate
+  const handleSaveSystemTab = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
@@ -225,7 +262,6 @@ export default function SettingsPage() {
         panel_force_https: githubSettings.panel_force_https
       });
 
-      // After saving text settings, invoke the force-https API specifically for the panel
       if (githubSettings.panel_force_https !== initialGithubSettings?.panel_force_https) {
         try {
           const httpsReq = await api.post('/panel/ssl/force-https', { enable: githubSettings.panel_force_https });
@@ -233,7 +269,6 @@ export default function SettingsPage() {
              throw new Error(httpsReq.data.message || 'Failed to apply Force HTTPS in Nginx');
           }
         } catch (httpsErr) {
-          // Revert the setting visually and in the DB if the Nginx level application fails
           await api.post('/settings', { 
             panel_url: githubSettings.panel_url,
             server_ip: githubSettings.server_ip,
@@ -241,7 +276,6 @@ export default function SettingsPage() {
           });
           setGithubSettings(prev => ({ ...prev, panel_force_https: false }));
           setInitialGithubSettings(prev => ({ ...prev, panel_force_https: false }));
-          
           throw new Error(httpsErr.response?.data?.message || httpsErr.message || 'Failed to apply Force HTTPS to panel. Setting reverted.');
         }
       }
@@ -335,20 +369,38 @@ export default function SettingsPage() {
         <div className="flex-1">
           <TabsContent value="profile" className="mt-0">
             <Card>
-              <CardHeader>
-                <CardTitle>Account Profile</CardTitle>
-                <CardDescription>Your current panel administrator details.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Name</label>
-                  <Input disabled value={user?.name || ''} />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Email Address</label>
-                  <Input disabled value={user?.email || ''} />
-                </div>
-              </CardContent>
+              <form onSubmit={handleProfileUpdate}>
+                <CardHeader>
+                  <CardTitle>Account Profile</CardTitle>
+                  <CardDescription>Update your panel administrator details.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Name</label>
+                    <Input name="name" value={profileData.name} onChange={handleProfileChange} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Email Address</label>
+                    <Input type="email" name="email" value={profileData.email} onChange={handleProfileChange} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Current Password</label>
+                    <Input 
+                      type="password" 
+                      name="current_password" 
+                      value={profileData.current_password} 
+                      onChange={handleProfileChange} 
+                      placeholder="Confirm with your password to save changes"
+                      required 
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={profileLoading}>
+                    {profileLoading ? 'Updating...' : 'Save Profile'}
+                  </Button>
+                </CardFooter>
+              </form>
             </Card>
           </TabsContent>
 
