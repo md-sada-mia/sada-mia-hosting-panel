@@ -8,8 +8,23 @@ class NginxConfigService
 {
     public function generate(App $app): void
     {
-        $stub = $this->getStub($app->type);
+        $type = $app->type;
+        if ($app->ssl_enabled) {
+            $type .= '-ssl';
+        }
+
+        $stub = $this->getStub($type);
         $config = $this->replacePlaceholders($stub, $app);
+
+        // If SSL is enabled and force HTTPS is on, prepend the redirect block
+        if ($app->ssl_enabled && $app->force_https) {
+            $redirectBlock = "server {\n" .
+                "    listen 80;\n" .
+                "    server_name {$app->domain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n\n";
+            $config = $redirectBlock . $config;
+        }
 
         $sitesAvailable = '/etc/nginx/sites-available';
         $sitesEnabled   = '/etc/nginx/sites-enabled';
@@ -111,7 +126,12 @@ class NginxConfigService
         // 0. Ensure Upstream is generated (Dependency)
         $this->generateLoadBalancerUpstream($lb);
 
-        $domainStub = $this->getStub('load_balancer');
+        $type = 'load_balancer';
+        if ($lbDomain->ssl_enabled) {
+            $type .= '-ssl';
+        }
+
+        $domainStub = $this->getStub($type);
         $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
 
         $domain = $lbDomain->domain;
@@ -124,6 +144,16 @@ class NginxConfigService
             ],
             $domainStub
         );
+
+        // If SSL is enabled and force HTTPS is on, prepend the redirect block
+        if ($lbDomain->ssl_enabled && $lbDomain->force_https) {
+            $redirectBlock = "server {\n" .
+                "    listen 80;\n" .
+                "    server_name {$domain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n\n";
+            $domainConfig = $redirectBlock . $domainConfig;
+        }
 
         $sitesAvailable = '/etc/nginx/sites-available';
         $sitesEnabled   = '/etc/nginx/sites-enabled';
