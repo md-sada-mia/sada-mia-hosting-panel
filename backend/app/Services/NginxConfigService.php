@@ -42,9 +42,8 @@ class NginxConfigService
 
     public function generateLoadBalancer(\App\Models\LoadBalancer $lb): void
     {
-        $stub = $this->getStub('load_balancer');
-
-        $domainsStr = $lb->domains->pluck('domain')->implode(' ');
+        // 1. Generate Upstream config in conf.d
+        $upstreamStub = $this->getStub('load_balancer_upstream');
 
         $upstreams = [];
         foreach ($lb->apps as $app) {
@@ -52,12 +51,11 @@ class NginxConfigService
                 // Next.js apps running on their own port
                 $upstreams[] = "    server 127.0.0.1:{$app->port};";
             } else {
-                // PHP/Static apps load balanced via their unique internal Nginx port to bypass Host header issues
+                // PHP/Static apps load balanced via their unique internal Nginx port
                 $internalPort = 60000 + $app->id;
                 $upstreams[] = "    server 127.0.0.1:{$internalPort};";
             }
         }
-
 
         $methodLine = '';
         if ($lb->method === 'least_conn') {
@@ -68,31 +66,48 @@ class NginxConfigService
             $methodLine = 'random;';
         }
 
-        $config = str_replace(
-            ['{{lb_id}}', '{{method}}', '{{upstreams}}', '{{domains}}'],
+        $upstreamConfig = str_replace(
+            ['{{lb_id}}', '{{method}}', '{{upstreams}}'],
             [
                 $lb->id,
                 $methodLine,
                 implode("\n", $upstreams),
-                $domainsStr
             ],
-            $stub
+            $upstreamStub
         );
 
-        $lbNameSafe = preg_replace('/[^a-zA-Z0-9_]/', '_', $lb->name);
-        $confName = "lb_{$lbNameSafe}_{$lb->id}";
-
-        $sitesAvailable = '/etc/nginx/sites-available';
-        $sitesEnabled   = '/etc/nginx/sites-enabled';
-        $configFile     = "{$sitesAvailable}/{$confName}";
-        $symlinkFile    = "{$sitesEnabled}/{$confName}";
-
         $shell = app(ShellService::class);
-        $escapedConfig = escapeshellarg($config);
-        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+        $upstreamFile = "/etc/nginx/conf.d/lb_{$lb->id}_upstream.conf";
+        $escapedUpstream = escapeshellarg($upstreamConfig);
+        $shell->run("echo {$escapedUpstream} | sudo tee {$upstreamFile} > /dev/null");
 
-        if (!file_exists($symlinkFile)) {
-            $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        // 2. Generate individual Domain configs in sites-available
+        $domainStub = $this->getStub('load_balancer');
+        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+
+        foreach ($lb->domains as $lbDomain) {
+            $domain = $lbDomain->domain;
+            $domainConfig = str_replace(
+                ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
+                [
+                    $lb->id,
+                    $domain,
+                    $phpFpmSock
+                ],
+                $domainStub
+            );
+
+            $sitesAvailable = '/etc/nginx/sites-available';
+            $sitesEnabled   = '/etc/nginx/sites-enabled';
+            $configFile     = "{$sitesAvailable}/{$domain}";
+            $symlinkFile    = "{$sitesEnabled}/{$domain}";
+
+            $escapedConfig = escapeshellarg($domainConfig);
+            $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+
+            if (!file_exists($symlinkFile)) {
+                $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+            }
         }
 
         $shell->run("sudo nginx -t && sudo nginx -s reload");
@@ -100,12 +115,18 @@ class NginxConfigService
 
     public function removeLoadBalancer(\App\Models\LoadBalancer $lb): void
     {
-        $lbNameSafe = preg_replace('/[^a-zA-Z0-9_]/', '_', $lb->name);
-        $confName = "lb_{$lbNameSafe}_{$lb->id}";
-
         $shell = app(ShellService::class);
-        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$confName}");
-        $shell->run("sudo rm -f /etc/nginx/sites-available/{$confName}");
+
+        // Remove upstream config
+        $shell->run("sudo rm -f /etc/nginx/conf.d/lb_{$lb->id}_upstream.conf");
+
+        // Remove domain configs
+        foreach ($lb->domains as $lbDomain) {
+            $domain = $lbDomain->domain;
+            $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}");
+            $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}");
+        }
+
         $shell->run("sudo nginx -s reload");
     }
 

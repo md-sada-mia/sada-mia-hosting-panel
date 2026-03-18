@@ -1,12 +1,7 @@
-upstream lb_{{lb_id}} {
-    {{method}}
-{{upstreams}}
-}
-
 server {
     listen 80;
     listen [::]:80;
-    server_name {{domains}};
+    server_name {{domain}};
 
     # Optimizations
     client_max_body_size 100M;
@@ -24,5 +19,49 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Global shortcuts
+    location /webmail {
+        alias /var/www/webmail;
+        index index.php;
+        try_files $uri $uri/ /webmail/index.php?$args;
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:{{php_fpm_sock}};
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+
+    location /phpmyadmin {
+        alias /usr/share/phpmyadmin;
+        index index.php;
+        try_files $uri $uri/ /phpmyadmin/index.php?$args;
+
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_pass unix:{{php_fpm_sock}};
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name webmail.{{domain}};
+
+    root /var/www/webmail;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:{{php_fpm_sock}};
+        fastcgi_param SCRIPT_FILENAME $request_filename;
     }
 }

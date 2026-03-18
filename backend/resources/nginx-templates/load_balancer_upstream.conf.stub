@@ -1,0 +1,4 @@
+upstream lb_{{lb_id}} {
+    {{method}}
+{{upstreams}}
+}
