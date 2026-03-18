@@ -61,9 +61,8 @@ class NginxConfigService
                 // Next.js apps running on their own port
                 $upstreams[] = "    server 127.0.0.1:{$app->port};";
             } else {
-                // PHP/Static apps load balanced via their unique internal Nginx port
-                $internalPort = 60000 + $app->id;
-                $upstreams[] = "    server 127.0.0.1:{$internalPort};";
+                // PHP/Static apps load balanced via port 80
+                $upstreams[] = "    server 127.0.0.1:80;";
             }
         }
 
@@ -176,13 +175,11 @@ class NginxConfigService
 
     private function replacePlaceholders(string $stub, App $app): string
     {
-        $internalPort = 60000 + $app->id;
         return str_replace(
-            ['{{domain}}', '{{port}}', '{{internal_port}}', '{{deploy_path}}', '{{php_fpm_sock}}'],
+            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}'],
             [
                 $app->domain,
                 $app->port,
-                $internalPort,
                 $app->deploy_path,
                 config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
             ],

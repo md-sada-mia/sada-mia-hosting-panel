@@ -1,6 +1,5 @@
 server {
     listen 80;
-    listen 127.0.0.1:{{internal_port}};
     server_name {{domain}};
 
     location / {
