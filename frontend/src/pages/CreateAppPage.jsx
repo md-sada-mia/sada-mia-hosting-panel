@@ -33,7 +33,7 @@ export default function CreateAppPage() {
   const [createdApp, setCreatedApp] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [domainMode, setDomainMode] = useState('subdomain'); // 'subdomain' or 'custom'
+  const [domainMode, setDomainMode] = useState('custom'); // 'subdomain' or 'custom'
   const [isSubdomainEdited, setIsSubdomainEdited] = useState(false);
   const [defaultDomain, setDefaultDomain] = useState('');
   const [systemDomains, setSystemDomains] = useState([]);
