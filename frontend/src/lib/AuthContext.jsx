@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       if (localStorage.getItem('panel_token')) {
         try {
-          const { data } = await api.get('/auth/user');
+          const { data } = await api.post('/auth/user');
           setUser(data);
         } catch (error) {
           localStorage.removeItem('panel_token');
