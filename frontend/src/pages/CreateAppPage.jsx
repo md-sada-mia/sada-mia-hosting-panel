@@ -134,6 +134,12 @@ export default function CreateAppPage() {
   const handleConnectGithub = async () => {
     try {
       await api.post('/github/disconnect');
+      
+      sessionStorage.setItem('gh_auth_return', JSON.stringify({
+        path: window.location.pathname + window.location.search,
+        time: Date.now()
+      }));
+
       const { data } = await api.get('/github/redirect');
       window.location.href = data.url;
     } catch (err) {

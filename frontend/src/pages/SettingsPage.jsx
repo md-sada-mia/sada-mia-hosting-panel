@@ -305,6 +305,12 @@ export default function SettingsPage() {
   const handleConnectGithub = async () => {
     try {
       await api.post('/github/disconnect');
+
+      sessionStorage.setItem('gh_auth_return', JSON.stringify({
+        path: window.location.pathname + window.location.search,
+        time: Date.now()
+      }));
+
       const { data } = await api.get('/github/redirect');
       window.location.href = data.url;
     } catch (err) {
@@ -460,34 +466,38 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground italic">Used as default secret for new apps.</p>
                   </div>
 
-                  <div className="pt-4 flex items-center justify-between border-t mt-4">
-                      <div>
-                        <p className="font-medium">GitHub Connection</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {githubSettings.github_connected ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              <p className="text-sm text-muted-foreground">Connected to GitHub account.</p>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 text-destructive" />
-                              <p className="text-sm text-muted-foreground">Not connected to GitHub.</p>
-                            </>
-                          )}
-                        </div>
+                  <div className="pt-4 border-t mt-4 space-y-3">
+                    <div>
+                      <p className="font-medium">GitHub Connection Status</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {githubSettings.github_connected ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <p className="text-sm text-muted-foreground">Connected to GitHub account.</p>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                            <p className="text-sm text-muted-foreground">Not connected to GitHub.</p>
+                          </>
+                        )}
                       </div>
                     </div>
+                    
+                    <div className="bg-primary/5 border border-primary/20 rounded-md p-3 flex items-start gap-3">
+                      <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-primary">How to Connect to GitHub</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          To authorize a GitHub account, go to the <strong>Create Application</strong> page or deploy a new site from the CRM. 
+                          You will see a <strong>"Connect GitHub"</strong> button directly in the deployment form. Once connected, 
+                          the status here will automatically update.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
-                <CardFooter className="flex justify-end border-t pt-6 mt-2 gap-3">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={(e) => handleSaveGithubTab(e, true)} 
-                    disabled={githubSaving}
-                  >
-                    {githubSaving ? 'Saving...' : (githubSettings.github_connected ? 'Save & Reconnect' : 'Save & Connect')}
-                  </Button>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={githubSaving}>
                     {githubSaving ? 'Saving...' : 'Save Settings'}
                   </Button>

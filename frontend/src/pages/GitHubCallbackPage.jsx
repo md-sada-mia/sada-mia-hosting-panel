@@ -21,7 +21,24 @@ export default function GitHubCallbackPage() {
   const exchangeCode = async (code) => {
     try {
       await api.get(`/github/callback?code=${code}`);
-      navigate('/settings?message=GitHub connected successfully');
+      
+      let returnPath = '/settings';
+      const savedData = sessionStorage.getItem('gh_auth_return');
+      
+      if (savedData) {
+        try {
+          const { path, time } = JSON.parse(savedData);
+          // 30 minutes expiration
+          if (Date.now() - time < 30 * 60 * 1000) {
+            returnPath = path;
+          }
+        } catch (e) {
+          console.error("Failed to parse return path");
+        }
+        sessionStorage.removeItem('gh_auth_return');
+      }
+
+      navigate(`${returnPath}?message=GitHub connected successfully`);
     } catch (err) {
       setError('Failed to connect GitHub: ' + (err.response?.data?.error || 'Unknown error'));
     }
