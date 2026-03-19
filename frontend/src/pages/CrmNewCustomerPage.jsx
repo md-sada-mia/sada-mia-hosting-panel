@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Users, Building2, Mail, Phone, MapPin, StickyNote,
   Network, Layers, Plus, RefreshCw, Zap, Github, Terminal,
-  ChevronRight, CheckCircle2, AlertCircle, ExternalLink, Edit2, XCircle
+  ChevronRight, CheckCircle2, AlertCircle, ExternalLink, Edit2, XCircle, Link
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -239,6 +239,22 @@ export default function CrmNewCustomerPage() {
       toast.error(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} customer`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleConnectGithub = async () => {
+    try {
+      await api.post('/github/disconnect');
+      
+      sessionStorage.setItem('gh_auth_return', JSON.stringify({
+        path: window.location.pathname + window.location.search,
+        time: Date.now()
+      }));
+
+      const { data } = await api.get('/github/redirect');
+      window.location.href = data.url;
+    } catch (err) {
+      toast.error('Failed to initiate GitHub connection');
     }
   };
 
@@ -780,29 +796,78 @@ export default function CrmNewCustomerPage() {
                             </div>
                           </div>
 
-                          {isGithubConnected && repos.length > 0 && (
-                            <Field label="GitHub Integration (Optional)">
-                              <Select
-                                value={appForm.github_id ? String(appForm.github_id) : ''}
-                                onValueChange={v => {
-                                  const repo = repos.find(r => r.id === parseInt(v));
-                                  if (repo) setAppForm({ ...appForm, git_url: repo.clone_url, github_full_name: repo.full_name, github_id: repo.id, branch: repo.default_branch || 'main' });
-                                }}
-                              >
-                                <SelectTrigger className="bg-background border-2">
-                                  <div className="flex items-center gap-2">
-                                    <Github className="h-3.5 w-3.5" />
-                                    <SelectValue placeholder="Link repository..." />
-                                  </div>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {repos.map(r => (
-                                    <SelectItem key={r.id} value={String(r.id)}>{r.full_name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </Field>
-                          )}
+                          {/* GitHub Integration Block */}
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                              <Github className="h-3.5 w-3.5" /> GitHub Integration
+                            </label>
+
+                            {!isGithubConnected ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-muted/20 p-3 rounded-xl border-2 gap-3">
+                                <div className="text-xs text-muted-foreground font-medium">
+                                  Connect your account to easily deploy from repositories.
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleConnectGithub}
+                                  className="flex-shrink-0 h-8 text-xs font-bold w-full sm:w-auto"
+                                >
+                                  <Github className="h-3.5 w-3.5 mr-2" />
+                                  Connect GitHub
+                                </Button>
+                              </div>
+                            ) : repos.length > 0 ? (
+                              <div className="flex gap-2">
+                                <Select
+                                  value={appForm.github_id ? String(appForm.github_id) : ''}
+                                  onValueChange={v => {
+                                    if (v === 'custom') {
+                                      setAppForm({ ...appForm, git_url: '', github_full_name: '', github_id: 'custom' });
+                                    } else {
+                                      const repo = repos.find(r => r.id === parseInt(v));
+                                      if (repo) setAppForm({ ...appForm, git_url: repo.clone_url, github_full_name: repo.full_name, github_id: repo.id, branch: repo.default_branch || 'main' });
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="bg-background border-2 font-medium w-full">
+                                    <SelectValue placeholder="-- Link repository --" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="custom" className="text-primary font-bold">-- Custom / Other Account --</SelectItem>
+                                    {repos.map(r => (
+                                      <SelectItem key={r.id} value={String(r.id)}>{r.full_name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleConnectGithub}
+                                  title="Authorize another GitHub account"
+                                  className="border-2 hover:bg-muted flex-shrink-0"
+                                >
+                                  <Link className="h-4 w-4 mr-2" />
+                                  Re-Auth
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-muted/20 p-3 rounded-xl border-2 gap-3">
+                                <div className="text-xs text-destructive font-medium">
+                                  No repositories found.
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={handleConnectGithub}
+                                  className="flex-shrink-0 h-8 text-xs font-bold w-full sm:w-auto"
+                                >
+                                  <Link className="h-3.5 w-3.5 mr-2" />
+                                  Re-Auth
+                                </Button>
+                              </div>
+                            )}
+                          </div>
 
                           <div className="grid gap-3">
                             <Field label="Repository Source URL" required error={errors.git_url}>
