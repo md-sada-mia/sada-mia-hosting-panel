@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -504,6 +504,110 @@ export default function SettingsPage() {
                 </CardFooter>
               </form>
             </Card>
+
+            <div className="mt-8 space-y-6 animate-in fade-in duration-500">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                <h3 className="text-xl font-bold">GitHub App Setup Guide</h3>
+              </div>
+              
+              <div className="grid gap-4">
+                {[
+                  {
+                    step: "01",
+                    title: "Create a GitHub OAuth App",
+                    description: "Go to your GitHub account Settings > Developer Settings > OAuth Apps and click 'New OAuth App'.",
+                    icon: Github
+                  },
+                  {
+                    step: "02",
+                    title: "Configure App URLs",
+                    description: "Fill in the required URLs correctly so GitHub can securely connect back to this control panel.",
+                    details: [
+                      `Homepage URL: ${githubSettings.panel_url ? githubSettings.panel_url.replace(/\/$/, '') : window.location.origin}`,
+                      `Authorization Callback URL: ${githubSettings.panel_url ? githubSettings.panel_url.replace(/\/$/, '') : window.location.origin}/github/callback`
+                    ],
+                    icon: Link
+                  },
+                  {
+                    step: "03",
+                    title: "Generate Credentials",
+                    description: "Once created, GitHub will show your Client ID. Click 'Generate a new client secret' to get that required key.",
+                    icon: ShieldCheck
+                  },
+                  {
+                    step: "04",
+                    title: "Save in Panel",
+                    description: "Copy both your Client ID and Client Secret into the form above. Pick any random secure string for your Webhook Secret.",
+                    icon: CheckCircle2
+                  }
+                ].map((item, idx) => (
+                  <Card key={idx} className="overflow-hidden border-none bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <CardContent className="p-0">
+                      <div className="flex flex-col md:flex-row md:items-center">
+                        <div className="bg-primary/10 px-6 py-6 md:py-0 md:h-full flex items-center justify-center min-w-[80px]">
+                          <span className="text-2xl font-black text-primary/40">{item.step}</span>
+                        </div>
+                        <div className="p-6 flex-1 flex items-start gap-4">
+                          <div className="mt-1 p-2 rounded-lg bg-background border border-border">
+                            <item.icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {item.description}
+                            </p>
+                            {item.details && (
+                              <div className="mt-2 flex flex-col gap-2 text-[10.5px] font-mono">
+                                {item.details.map((detail, i) => (
+                                  <div key={i} className="flex gap-2 w-full max-w-xl">
+                                    <span className="bg-background border border-border px-2 py-1 rounded text-primary flex-1 break-all flex items-center justify-between">
+                                      {detail}
+                                      <button type="button" 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          navigator.clipboard.writeText(detail.split(': ')[1]);
+                                          toast.success('Copied to clipboard');
+                                        }}
+                                        className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                        title="Copy URL"
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </button>
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 ml-auto hidden md:block" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-primary">Webhooks Explanation</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    The Global Webhook Secret is an extra security layer. Our panel uses it to securely verify that push events are actually coming from GitHub and not a malicious source playing around with your endpoints. Never share it!
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 text-center px-8">
+                <p className="text-xs text-muted-foreground italic">
+                  Looking for the official GitHub documentation? Review the <a href="https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app" target="_blank" className="text-primary font-medium hover:underline inline-flex items-center gap-0.5" rel="noreferrer">Developer Guide <ExternalLink className="h-3 w-3" /></a>
+                </p>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="password" className="mt-0">
