@@ -236,15 +236,15 @@ class AppController extends Controller
         if ($type === 'server-error') {
             if (!$app->domain) return response()->json(['logs' => 'No domain associated with this app.']);
             $logFile = "/var/log/nginx/{$app->domain}-error.log";
-            $logs = file_exists($logFile) ? shell_exec("sudo tail -n 200 " . escapeshellarg($logFile)) : 'No server error logs found.';
-            return response()->json(['logs' => $logs]);
+            $output = file_exists($logFile) ? shell_exec("tail -n 200 " . escapeshellarg($logFile) . " 2>&1") : 'No server error logs found.';
+            return response()->json(['logs' => $output ?: 'Log file is empty or unreadable.']);
         }
 
         if ($type === 'server-access') {
             if (!$app->domain) return response()->json(['logs' => 'No domain associated with this app.']);
             $logFile = "/var/log/nginx/{$app->domain}-access.log";
-            $logs = file_exists($logFile) ? shell_exec("sudo tail -n 200 " . escapeshellarg($logFile)) : 'No server access logs found.';
-            return response()->json(['logs' => $logs]);
+            $output = file_exists($logFile) ? shell_exec("tail -n 200 " . escapeshellarg($logFile) . " 2>&1") : 'No server access logs found.';
+            return response()->json(['logs' => $output ?: 'Log file is empty or unreadable.']);
         }
 
         if ($app->type === 'nextjs') {
