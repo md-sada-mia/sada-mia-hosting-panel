@@ -12,7 +12,7 @@ export default function PanelUrlAlert() {
     const fetchSettings = async () => {
       try {
         const { data } = await api.get('/settings');
-        if (data.panel_url && !data.panel_domain_alert_dismissed) {
+        if (data.ns_default_domain && data.panel_url && !data.panel_domain_alert_dismissed) {
           setPanelUrl(data.panel_url);
           setIsVisible(true);
         }
