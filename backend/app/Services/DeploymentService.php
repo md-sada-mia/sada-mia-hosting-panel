@@ -56,26 +56,24 @@ class DeploymentService
         $this->shell->run("git config --global --add safe.directory " . escapeshellarg($deployPath));
 
         $gitUrl = $app->git_url;
+
         // If this app is linked to the panel's GitHub integration, inject the token to allow cloning private repos
         if ($app->github_id || $app->github_full_name) {
             $token = \App\Models\Setting::get('github_access_token');
             if ($token && strpos($gitUrl, 'https://github.com/') === 0) {
-                // Use the token for basic auth
-                $gitUrl = str_replace('https://github.com/', "https://oauth2:{$token}@github.com/", $gitUrl);
+                // Use the x-access-token format which is most reliable for GitHub OAuth tokens in URLs
+                $gitUrl = str_replace('https://github.com/', "https://x-access-token:{$token}@github.com/", $gitUrl);
             }
         }
 
         if (is_dir("{$deployPath}/.git")) {
             // Ensure remote URL has the token (or is updated if it changed)
             $this->shell->run("git -C " . escapeshellarg($deployPath) . " remote set-url origin " . escapeshellarg($gitUrl));
-            $exitCode = $this->shell->stream("git pull origin {$app->branch}", $deployPath, $log);
+            $exitCode = $this->shell->stream("git pull origin " . escapeshellarg($app->branch), $deployPath, $log);
         } else {
             @mkdir($deployPath, 0755, true);
-            $exitCode = $this->shell->stream(
-                "git clone --branch {$app->branch} --depth 1 " . escapeshellarg($gitUrl) . " {$deployPath}",
-                $basePath,
-                $log
-            );
+            $cloneCmd = "git clone --branch " . escapeshellarg($app->branch) . " --depth 1 " . escapeshellarg($gitUrl) . " " . escapeshellarg($deployPath);
+            $exitCode = $this->shell->stream($cloneCmd, $basePath, $log);
         }
         if ($exitCode !== 0) {
             throw new \RuntimeException("Git clone/pull failed with exit code {$exitCode}");
@@ -105,7 +103,13 @@ class DeploymentService
                 300
             );
         } else {
+            $log("Attempting clear-cut install (npm ci)...");
             $exitCode = $this->shell->stream("npm ci --production=false", $deployPath, $log, 300);
+
+            if ($exitCode !== 0) {
+                $log("[WARN] npm ci failed (likely unsynced lock file). Falling back to npm install...");
+                $exitCode = $this->shell->stream("npm install --production=false --no-audit --no-fund", $deployPath, $log, 300);
+            }
         }
 
         if ($exitCode !== 0) {

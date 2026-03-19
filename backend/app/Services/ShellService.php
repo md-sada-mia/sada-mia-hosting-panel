@@ -29,6 +29,7 @@ class ShellService
             'NODE_OPTIONS' => '--dns-result-order=ipv4first',
             'XDG_CACHE_HOME' => $homeDir . '/.cache',
             'NPM_CONFIG_CACHE' => $homeDir . '/.npm',
+            'GIT_TERMINAL_PROMPT' => '0',
         ]);
 
         $output = '';
@@ -64,6 +65,7 @@ class ShellService
             'NODE_OPTIONS' => '--dns-result-order=ipv4first',
             'XDG_CACHE_HOME' => $homeDir . '/.cache',
             'NPM_CONFIG_CACHE' => $homeDir . '/.npm',
+            'GIT_TERMINAL_PROMPT' => '0',
         ]);
 
         $process->run(function ($type, $buffer) use ($onLine) {
