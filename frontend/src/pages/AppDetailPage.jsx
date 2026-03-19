@@ -90,7 +90,9 @@ export default function AppDetailPage() {
   const navigate = useNavigate();
   const [app, setApp] = useState(null);
   const [deployments, setDeployments] = useState([]);
-  const [logs, setLogs] = useState('');
+  const [logs, setLogs] = useState({ app: '', 'server-error': '', 'server-access': '' });
+  const [logsLoading, setLogsLoading] = useState({ app: false, 'server-error': false, 'server-access': false });
+  const [activeLogTab, setActiveLogTab] = useState('app');
   const [envVars, setEnvVars] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -206,7 +208,10 @@ export default function AppDetailPage() {
     if (activeTab === 'env') {
       loadEnv();
     }
-  }, [activeTab]);
+    if (activeTab === 'logs') {
+      loadLogs(activeLogTab);
+    }
+  }, [activeTab, activeLogTab]);
 
   useEffect(() => {
     const effectiveDomain = domainData ?? app?.domain_record;
@@ -272,9 +277,18 @@ export default function AppDetailPage() {
     }
   };
 
-  const loadLogs = async () => {
-    const { data } = await api.get(`/apps/${id}/logs`);
-    setLogs(data.logs);
+  const loadLogs = async (type = 'app', force = false) => {
+    if (!force && logs[type]) return;
+    
+    setLogsLoading(prev => ({ ...prev, [type]: true }));
+    try {
+      const { data } = await api.get(`/apps/${id}/logs?type=${type}`);
+      setLogs(prev => ({ ...prev, [type]: data.logs }));
+    } catch {
+      toast.error(`Failed to load ${type} logs`);
+    } finally {
+      setLogsLoading(prev => ({ ...prev, [type]: false }));
+    }
   };
 
   const loadEnv = async () => {
@@ -1726,15 +1740,62 @@ export default function AppDetailPage() {
         {/* ── Logs ─────────────────────────────────────────────── */}
         <TabsContent value="logs" className="mt-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Application Logs</CardTitle>
-              <Button size="sm" variant="ghost" onClick={loadLogs}><RefreshCw className="h-4 w-4" /></Button>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-black text-gray-300 p-4 rounded-md font-mono text-xs overflow-y-auto h-96 whitespace-pre-wrap">
-                {logs || 'No logs available.'}
-              </div>
-            </CardContent>
+            <Tabs value={activeLogTab} onValueChange={setActiveLogTab} className="w-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <div className="flex items-center gap-4">
+                  <CardTitle className="text-base">Application Logs</CardTitle>
+                  <TabsList className="h-8 p-1 bg-white/[0.05] border border-white/10 rounded-lg">
+                    <TabsTrigger value="app" className="h-6 px-3 rounded-md data-[state=active]:bg-white/10 data-[state=active]:text-white">
+                      App Logs
+                    </TabsTrigger>
+                    <TabsTrigger value="server-error" className="h-6 px-3 rounded-md data-[state=active]:bg-red-500/10 data-[state=active]:border data-[state=active]:border-red-500/20 data-[state=active]:text-red-400">
+                      Server Errors
+                    </TabsTrigger>
+                    <TabsTrigger value="server-access" className="h-6 px-3 rounded-md data-[state=active]:bg-emerald-500/10 data-[state=active]:border data-[state=active]:border-emerald-500/20 data-[state=active]:text-emerald-400">
+                      Server Access
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => loadLogs(activeLogTab, true)} disabled={logsLoading[activeLogTab]} className="h-8 w-8 p-0 hover:bg-white/10 hover:text-white">
+                  <RefreshCw className={`h-4 w-4 ${logsLoading[activeLogTab] ? 'animate-spin' : ''}`} />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {['app', 'server-error', 'server-access'].map(tab => (
+                  <TabsContent key={tab} value={tab} className="mt-0">
+                    <div className="bg-black p-4 rounded-md font-mono text-xs overflow-y-auto h-96 leading-relaxed">
+                      {logsLoading[tab] && !logs[tab] ? (
+                        <div className="flex items-center justify-center h-full text-white/50">
+                          <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading logs...
+                        </div>
+                      ) : logs[tab] ? (
+                        logs[tab].split('\n').map((line, i) => {
+                          let className = "text-gray-300";
+                          if (tab === 'app') {
+                            const isError = /error|exception|failed/i.test(line);
+                            const isSuccess = /success|info/i.test(line);
+                            if (isError) className = "text-red-400 font-medium";
+                            else if (isSuccess) className = "text-emerald-400";
+                          } else if (tab === 'server-error') {
+                            className = "text-red-400 font-medium";
+                          } else if (tab === 'server-access') {
+                            className = "text-emerald-400";
+                          }
+                          
+                          return (
+                            <div key={`${tab}-${i}`} className={`whitespace-pre-wrap break-words ${className}`}>
+                              {line || ' '}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <span className="text-gray-300">No logs available.</span>
+                      )}
+                    </div>
+                  </TabsContent>
+                ))}
+              </CardContent>
+            </Tabs>
           </Card>
         </TabsContent>
       </Tabs>

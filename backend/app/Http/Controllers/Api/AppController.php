@@ -229,8 +229,24 @@ class AppController extends Controller
         return response()->json(['exit_code' => $result['exit_code'], 'output' => $result['output']]);
     }
 
-    public function logs(AppModel $app)
+    public function logs(AppModel $app, Request $request)
     {
+        $type = $request->query('type', 'app');
+
+        if ($type === 'server-error') {
+            if (!$app->domain) return response()->json(['logs' => 'No domain associated with this app.']);
+            $logFile = "/var/log/nginx/{$app->domain}-error.log";
+            $logs = file_exists($logFile) ? shell_exec("sudo tail -n 200 " . escapeshellarg($logFile)) : 'No server error logs found.';
+            return response()->json(['logs' => $logs]);
+        }
+
+        if ($type === 'server-access') {
+            if (!$app->domain) return response()->json(['logs' => 'No domain associated with this app.']);
+            $logFile = "/var/log/nginx/{$app->domain}-access.log";
+            $logs = file_exists($logFile) ? shell_exec("sudo tail -n 200 " . escapeshellarg($logFile)) : 'No server access logs found.';
+            return response()->json(['logs' => $logs]);
+        }
+
         if ($app->type === 'nextjs') {
             $logs = $this->pm2Service->logs($app, 200);
         } elseif ($app->type === 'laravel' && $app->deploy_path) {
