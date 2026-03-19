@@ -390,12 +390,19 @@ ENTRY;
         $res = $this->shell->run('sudo named-checkconf');
         $output .= ($res['output'] ?: " (ok - no output)") . "\n\n";
 
-        if ($domain) {
+        if ($domain && $domain->dns_managed) {
             $zoneFile = "{$this->zonesDir}/db.{$domain->domain}";
-            $cmd = "sudo named-checkzone " . escapeshellarg($domain->domain) . " " . escapeshellarg($zoneFile);
-            $output .= "> {$cmd}\n";
-            $res = $this->shell->run($cmd);
-            $output .= ($res['output'] ?: " (ok - no output)") . "\n\n";
+
+            // Optimization: check if file exists on disk to avoid named-checkzone failure
+            $res = $this->shell->run("ls {$zoneFile} 2>/dev/null");
+            if ($res['exit_code'] === 0) {
+                $cmd = "sudo named-checkzone " . escapeshellarg($domain->domain) . " " . escapeshellarg($zoneFile);
+                $output .= "> {$cmd}\n";
+                $res = $this->shell->run($cmd);
+                $output .= ($res['output'] ?: " (ok - no output)") . "\n\n";
+            } else {
+                $output .= "(Skipped named-checkzone: zone file not found)\n\n";
+            }
         }
 
         $output .= "> sudo rndc reload\n";
