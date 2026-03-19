@@ -60,9 +60,10 @@ class DeploymentService
         // If this app is linked to the panel's GitHub integration, inject the token to allow cloning private repos
         if ($app->github_id || $app->github_full_name) {
             $token = \App\Models\Setting::get('github_access_token');
-            if ($token && strpos($gitUrl, 'https://github.com/') === 0) {
-                // Use the x-access-token format which is most reliable for GitHub OAuth tokens in URLs
-                $gitUrl = str_replace('https://github.com/', "https://x-access-token:{$token}@github.com/", $gitUrl);
+            if ($token && preg_match('#^https://github\.com/#', $gitUrl)) {
+                $log("Authorized GitHub app detected. Injecting access token into clone URL...");
+                // x-access-token is the standard username for GitHub Apps/OAuth tokens in URLs
+                $gitUrl = preg_replace('#^https://github\.com/#', "https://x-access-token:{$token}@github.com/", $gitUrl);
             }
         }
 
