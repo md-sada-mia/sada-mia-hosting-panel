@@ -39,6 +39,13 @@ class App extends Model
         'ssl_last_check_at' => 'datetime',
     ];
 
+    protected static function booted()
+    {
+        static::created(function (App $app) {
+            app(\App\Services\BackgroundServiceManager::class)->installRecommended($app);
+        });
+    }
+
     public function deployments(): HasMany
     {
         return $this->hasMany(Deployment::class);
