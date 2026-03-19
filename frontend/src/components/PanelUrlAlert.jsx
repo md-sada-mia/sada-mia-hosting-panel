@@ -13,6 +13,18 @@ export default function PanelUrlAlert() {
       try {
         const { data } = await api.get('/settings');
         if (data.ns_default_domain && data.panel_url && !data.panel_domain_alert_dismissed) {
+          // Check if current hostname already matches the panel URL domain
+          const currentHostname = window.location.hostname;
+          try {
+            const recommendedUrl = new URL(data.panel_url);
+            if (currentHostname === recommendedUrl.hostname) {
+              setLoading(false);
+              return; // Already using the domain, don't show alert
+            }
+          } catch (e) {
+            console.error('Invalid panel_url in settings', e);
+          }
+
           setPanelUrl(data.panel_url);
           setIsVisible(true);
         }
