@@ -81,20 +81,33 @@ class ServerController extends Controller
 
         switch ($type) {
             case 'nginx':
-                $result = $this->shell->run("sudo systemctl restart nginx");
-                break;
+                // Respond BEFORE restarting — nginx restart kills the connection,
+                // so we schedule the command to run in the background after a short
+                // delay, giving the HTTP response time to reach the browser first.
+                $this->runAfterResponse("sudo systemctl restart nginx");
+                return response()->json([
+                    'message' => 'Nginx is restarting in the background.',
+                    'status'  => 'success'
+                ]);
+
             case 'php':
-                $result = $this->shell->run("sudo systemctl restart php8.4-fpm");
-                break;
+                $this->runAfterResponse("sudo systemctl restart php8.4-fpm");
+                return response()->json([
+                    'message' => 'PHP-FPM is restarting in the background.',
+                    'status'  => 'success'
+                ]);
+
             case 'pm2':
                 $result = $this->shell->run("pm2 restart all");
                 break;
+
             case 'reboot':
-                $result = $this->shell->run("sudo shutdown -r +1");
+                $this->shell->run("sudo shutdown -r +1");
                 return response()->json([
                     'message' => 'System reboot scheduled in 1 minute.',
                     'status'  => 'success'
                 ]);
+
             default:
                 return response()->json(['error' => 'Invalid restart type'], 400);
         }
@@ -111,5 +124,19 @@ class ServerController extends Controller
             'details' => $result['output'],
             'status'  => 'error'
         ], 500);
+    }
+
+    /**
+     * Schedule a shell command to run in the background after a short delay.
+     * This allows the HTTP response to be fully sent before a service restart
+     * drops the connection.
+     */
+    private function runAfterResponse(string $command): void
+    {
+        // Dispatch the command to run 2 seconds after this request finishes.
+        // The `nohup ... &` detaches it from the PHP process entirely.
+        $escaped = escapeshellarg($command);
+        $bgCmd   = "nohup bash -c 'sleep 2 && {$command}' > /dev/null 2>&1 &";
+        shell_exec($bgCmd);
     }
 }
