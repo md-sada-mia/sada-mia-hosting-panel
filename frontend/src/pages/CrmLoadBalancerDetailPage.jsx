@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
-  XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText
+  XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -56,6 +56,11 @@ export default function CrmLoadBalancerDetailPage() {
   const [sslDetails, setSslDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  // Logs state
+  const [logs, setLogs] = useState({ 'server-error': '', 'server-access': '' });
+  const [logsLoading, setLogsLoading] = useState({ 'server-error': false, 'server-access': false });
+  const [activeLogTab, setActiveLogTab] = useState('server-error');
+
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
   const deploymentDomain = resource?.deployment_info?.domain;
@@ -74,7 +79,10 @@ export default function CrmLoadBalancerDetailPage() {
     if (activeTab === 'ssl' && lbDomain?.id) {
       fetchSslDetails();
     }
-  }, [activeTab, lbDomain?.id]);
+    if (activeTab === 'logs' && lbDomain?.id) {
+      loadLogs(activeLogTab);
+    }
+  }, [activeTab, activeLogTab, lbDomain?.id]);
 
   useEffect(() => {
     fetchCustomer();
@@ -161,6 +169,21 @@ export default function CrmLoadBalancerDetailPage() {
   };
 
 
+  const loadLogs = async (type = 'server-error', force = false) => {
+    if (!lbDomain?.id) return;
+    if (!force && logs[type]) return;
+
+    setLogsLoading(prev => ({ ...prev, [type]: true }));
+    try {
+      const { data } = await api.get(`/load-balancers/domains/${lbDomain.id}/logs?type=${type}`);
+      setLogs(prev => ({ ...prev, [type]: data.logs }));
+    } catch {
+      toast.error(`Failed to load ${type} logs`);
+    } finally {
+      setLogsLoading(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
   const handleUpdateDomain = async () => {
     if (!newDomain.trim()) return toast.error('Domain cannot be empty');
     setIsUpdatingDomain(true);
@@ -245,7 +268,10 @@ export default function CrmLoadBalancerDetailPage() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => {
+        setActiveTab(v);
+        if (v === 'logs' && lbDomain?.id) loadLogs(activeLogTab);
+      }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-1.5">
@@ -253,6 +279,9 @@ export default function CrmLoadBalancerDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="ssl" className="flex items-center gap-1.5">
             <Shield className="h-3.5 w-3.5" /> SSL
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-1.5">
+            <ScrollText className="h-3.5 w-3.5" /> Logs
           </TabsTrigger>
         </TabsList>
 
@@ -721,6 +750,72 @@ export default function CrmLoadBalancerDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ────────────── LOGS TAB ───────────────────────────────────────── */}
+        <TabsContent value="logs" className="mt-6">
+          {!lbDomain ? (
+            <div className="p-8 rounded-xl border border-dashed text-center text-sm text-muted-foreground">
+              No domain configured — logs are not available.
+            </div>
+          ) : (
+            <Card>
+              <Tabs value={activeLogTab} onValueChange={setActiveLogTab} className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                  <div className="flex items-center gap-4">
+                    <CardTitle className="text-base">Server Logs</CardTitle>
+                    <TabsList className="h-8 p-1 bg-white/[0.05] border border-white/10 rounded-lg">
+                      <TabsTrigger
+                        value="server-error"
+                        className="h-6 px-3 rounded-md data-[state=active]:bg-red-500/10 data-[state=active]:border data-[state=active]:border-red-500/20 data-[state=active]:text-red-400"
+                      >
+                        Server Errors
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="server-access"
+                        className="h-6 px-3 rounded-md data-[state=active]:bg-emerald-500/10 data-[state=active]:border data-[state=active]:border-emerald-500/20 data-[state=active]:text-emerald-400"
+                      >
+                        Server Access
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  <button
+                    onClick={() => loadLogs(activeLogTab, true)}
+                    disabled={logsLoading[activeLogTab]}
+                    className="h-8 w-8 flex items-center justify-center rounded hover:bg-white/10 hover:text-white text-muted-foreground transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${logsLoading[activeLogTab] ? 'animate-spin' : ''}`} />
+                  </button>
+                </CardHeader>
+                <CardContent>
+                  {['server-error', 'server-access'].map(tab => (
+                    <TabsContent key={tab} value={tab} className="mt-0">
+                      <div className="bg-black p-4 rounded-md font-mono text-xs overflow-y-auto h-96 leading-relaxed">
+                        {logsLoading[tab] && !logs[tab] ? (
+                          <div className="flex items-center justify-center h-full text-white/50">
+                            <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading logs...
+                          </div>
+                        ) : logs[tab] ? (
+                          logs[tab].split('\n').map((line, i) => (
+                            <div
+                              key={`${tab}-${i}`}
+                              className={`whitespace-pre-wrap break-words ${
+                                tab === 'server-error' ? 'text-red-400 font-medium' : 'text-emerald-400'
+                              }`}
+                            >
+                              {line || ' '}
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-gray-300">No logs available.</span>
+                        )}
+                      </div>
+                    </TabsContent>
+                  ))}
+                </CardContent>
+              </Tabs>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

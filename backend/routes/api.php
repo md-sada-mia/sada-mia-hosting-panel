@@ -104,6 +104,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/load-balancers/domains/{domain}/ssl/details', [LoadBalancerSslController::class, 'details']);
     Route::post('/load-balancers/domains/{domain}/ssl/force-https', [LoadBalancerSslController::class, 'toggleForceHttps']);
 
+    // Load Balancer Domain Logs
+    Route::get('/load-balancers/domains/{domain}/logs', [\App\Http\Controllers\Api\LoadBalancerController::class, 'domainLogs']);
+
     // Cron Jobs
     Route::get('/cron-jobs', [CronJobController::class, 'index']);
     Route::post('/cron-jobs', [CronJobController::class, 'store']);

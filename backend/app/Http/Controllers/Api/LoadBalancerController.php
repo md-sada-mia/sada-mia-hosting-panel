@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LoadBalancer;
+use App\Models\LoadBalancerDomain;
 use App\Models\Domain;
 use App\Models\DnsRecord;
 use App\Services\NginxConfigService;
@@ -212,5 +213,25 @@ class LoadBalancerController extends Controller
         $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
 
         return response()->json($resp);
+    }
+
+    public function domainLogs(LoadBalancerDomain $domain, Request $request): JsonResponse
+    {
+        $type = $request->query('type', 'server-error');
+
+        if ($type === 'server-access') {
+            $logFile = "/var/log/nginx/{$domain->domain}-access.log";
+            $output = file_exists($logFile)
+                ? shell_exec("tail -n 200 " . escapeshellarg($logFile) . " 2>&1")
+                : 'No server access logs found.';
+            return response()->json(['logs' => $output ?: 'Log file is empty or unreadable.']);
+        }
+
+        // Default: server-error
+        $logFile = "/var/log/nginx/{$domain->domain}-error.log";
+        $output = file_exists($logFile)
+            ? shell_exec("tail -n 200 " . escapeshellarg($logFile) . " 2>&1")
+            : 'No server error logs found.';
+        return response()->json(['logs' => $output ?: 'Log file is empty or unreadable.']);
     }
 }
