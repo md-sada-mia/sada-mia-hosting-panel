@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw, Shield, Globe } from 'lucide-react';
+import { Search, Github, Rocket, Terminal, ChevronRight, CheckCircle2, AlertCircle, RotateCcw, Shield, Globe, Link } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -131,6 +131,16 @@ export default function CreateAppPage() {
     }
   };
 
+  const handleConnectGithub = async () => {
+    try {
+      await api.post('/github/disconnect');
+      const { data } = await api.get('/github/redirect');
+      window.location.href = data.url;
+    } catch (err) {
+      setError('Failed to initiate GitHub connection');
+    }
+  };
+
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm({ ...form, [e.target.name]: value });
@@ -156,6 +166,7 @@ export default function CreateAppPage() {
     try {
       const payload = {
         ...form,
+        github_id: form.github_id === 'custom' ? null : form.github_id,
         domain: (domainMode === 'subdomain' && defaultDomain) 
           ? `${form.domain}.${defaultDomain}` 
           : form.domain
@@ -302,33 +313,82 @@ export default function CreateAppPage() {
                 </p>
               </div>
 
-              {isConnected && !createdApp && (
+              {!createdApp && (
                 <div className="grid gap-2 p-4 border rounded-md bg-muted/50 border-primary/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Github className="h-4 w-4 text-primary" />
-                    <label className="text-sm font-medium">Select GitHub Repository</label>
+                    <label className="text-sm font-medium">GitHub Integration</label>
                   </div>
-                  {loadingRepos ? (
+                  
+                  {!isConnected ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-background p-3 rounded border gap-3">
+                      <div className="text-sm text-muted-foreground">
+                        Connect your account to easily deploy repositories.
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleConnectGithub}
+                        className="flex-shrink-0"
+                      >
+                        <Github className="h-4 w-4 mr-2" />
+                        Connect GitHub
+                      </Button>
+                    </div>
+                  ) : loadingRepos ? (
                     <div className="text-xs text-muted-foreground animate-pulse">Loading your repositories...</div>
                   ) : repos.length > 0 ? (
-                    <Select
-                      onValueChange={(value) => {
-                        const repo = repos.find(r => r.id === parseInt(value));
-                        if (repo) handleRepoSelect(repo);
-                      }}
-                      value={form.github_id ? form.github_id.toString() : ""}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="-- Choose a repository --" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {repos.map(repo => (
-                          <SelectItem key={repo.id} value={repo.id.toString()}>{repo.full_name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                      <Select
+                        onValueChange={(value) => {
+                          if (value === 'custom') {
+                            setForm({
+                              ...form,
+                              git_url: '',
+                              github_full_name: '',
+                              github_id: 'custom',
+                            });
+                          } else {
+                            const repo = repos.find(r => r.id === parseInt(value));
+                            if (repo) handleRepoSelect(repo);
+                          }
+                        }}
+                        value={form.github_id ? form.github_id.toString() : ""}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="-- Choose a repository --" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="custom" className="text-primary font-medium">-- Custom / Other Account --</SelectItem>
+                          {repos.map(repo => (
+                            <SelectItem key={repo.id} value={repo.id.toString()}>{repo.full_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleConnectGithub}
+                        title="Authorize another GitHub account"
+                        className="px-3 border-primary/20 hover:bg-primary/10 flex-shrink-0"
+                      >
+                        <Link className="h-4 w-4 mr-2" />
+                        Re-Auth
+                      </Button>
+                    </div>
                   ) : (
-                    <div className="text-xs text-destructive">No repositories found.</div>
+                    <div className="flex gap-2 items-center bg-background p-3 rounded border">
+                      <div className="text-sm text-destructive flex-1">No repositories found on this account.</div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleConnectGithub}
+                        title="Authorize another GitHub account"
+                        className="px-3 border-primary/20 hover:bg-primary/10 flex-shrink-0"
+                      >
+                        <Link className="h-4 w-4 mr-2" />
+                        Re-Auth
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -344,6 +404,12 @@ export default function CreateAppPage() {
                     onChange={handleChange} 
                     disabled={loading || createdApp}
                   />
+                  {form.github_id === 'custom' && (
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-1">
+                      For private repos on other accounts, format URL as: <br />
+                      <code className="text-[9px] bg-muted px-1 py-0.5 rounded">https://&lt;token&gt;@github.com/user/repo.git</code>
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Branch</label>

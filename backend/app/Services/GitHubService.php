@@ -30,6 +30,7 @@ class GitHubService
             'redirect_uri' => $this->redirectUri,
             'scope' => 'repo,admin:repo_hook',
             'state' => csrf_token(),
+            'prompt' => 'consent',
         ];
 
         return $baseUrl . '?' . http_build_query($params);

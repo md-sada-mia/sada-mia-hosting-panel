@@ -62,4 +62,10 @@ class GitHubAuthController extends Controller
 
         return response()->json($repos);
     }
+
+    public function disconnect()
+    {
+        Setting::set('github_access_token', null);
+        return response()->json(['message' => 'Disconnected successfully']);
+    }
 }

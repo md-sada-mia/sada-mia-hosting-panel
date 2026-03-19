@@ -304,6 +304,7 @@ export default function SettingsPage() {
 
   const handleConnectGithub = async () => {
     try {
+      await api.post('/github/disconnect');
       const { data } = await api.get('/github/redirect');
       window.location.href = data.url;
     } catch (err) {

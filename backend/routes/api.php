@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/github/redirect', [GitHubAuthController::class, 'redirect']);
     Route::get('/github/callback', [GitHubAuthController::class, 'callback']);
     Route::get('/github/repositories', [GitHubAuthController::class, 'repositories']);
+    Route::post('/github/disconnect', [GitHubAuthController::class, 'disconnect']);
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index']);
