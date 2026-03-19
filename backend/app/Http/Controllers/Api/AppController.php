@@ -69,18 +69,9 @@ class AppController extends Controller
             'auto_deploy'      => $validated['auto_deploy'] ?? false,
         ]);
 
-        // Parse and save bulk environment variables
+        // Save environment variables directly
         if (!empty($validated['env_vars'])) {
-            $lines = explode("\n", $validated['env_vars']);
-            foreach ($lines as $line) {
-                if (trim($line) && str_contains($line, '=')) {
-                    [$key, $value] = explode('=', $line, 2);
-                    $app->envVariables()->create([
-                        'key' => trim($key),
-                        'value' => trim($value),
-                    ]);
-                }
-            }
+            $app->update(['env_vars' => $validated['env_vars']]);
         }
 
         // Auto Database Creation for Laravel
@@ -98,9 +89,7 @@ class AppController extends Controller
                     'DB_PASSWORD'   => $db->db_password,
                 ];
 
-                foreach ($envs as $key => $value) {
-                    $app->envVariables()->updateOrCreate(['key' => $key], ['value' => $value]);
-                }
+                $app->updateEnvVars($envs);
             } catch (\Exception $e) {
                 // We log the error but don't fail the whole app creation
                 \Illuminate\Support\Facades\Log::error("Auto DB creation failed for app {$app->id}: " . $e->getMessage());
@@ -153,7 +142,7 @@ class AppController extends Controller
 
     public function show(AppModel $app)
     {
-        $app->load(['latestDeployment', 'databases', 'envVariables', 'domainRecord.dnsRecords']);
+        $app->load(['latestDeployment', 'databases', 'domainRecord.dnsRecords']);
 
         // Add relevant global settings for the app dashboard
         $settings = [

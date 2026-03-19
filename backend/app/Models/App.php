@@ -28,6 +28,7 @@ class App extends Model
         'ssl_last_check_at',
         'ssl_log',
         'force_https',
+        'env_vars',
     ];
 
     protected $casts = [
@@ -56,9 +57,31 @@ class App extends Model
         return $this->hasMany(Database::class);
     }
 
-    public function envVariables(): HasMany
+    public function updateEnvVars(array $newVars): void
     {
-        return $this->hasMany(EnvVariable::class);
+        $currentEnv = $this->env_vars ?? '';
+        $lines = explode("\n", $currentEnv);
+        $envMap = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line && str_contains($line, '=')) {
+                [$key, $value] = explode('=', $line, 2);
+                $envMap[trim($key)] = trim($value);
+            }
+        }
+
+        // Merge new vars
+        foreach ($newVars as $key => $value) {
+            $envMap[trim($key)] = trim($value);
+        }
+
+        $newEnvString = '';
+        foreach ($envMap as $key => $value) {
+            $newEnvString .= "{$key}={$value}\n";
+        }
+
+        $this->update(['env_vars' => trim($newEnvString)]);
     }
 
     public function domainRecord(): HasOne

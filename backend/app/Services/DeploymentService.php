@@ -211,17 +211,23 @@ class DeploymentService
             return;
         }
 
-        $envVars = $app->envVariables()->get();
-        $lines = [];
-        foreach ($envVars as $env) {
-            $lines[] = "{$env->key}=" . escapeshellarg($env->value ?? '');
-        }
+        $content = $app->env_vars ?? '';
+        $lines = explode("\n", $content);
 
-        // For Next.js, add PORT
+        // For Next.js, ensure PORT is present
         if ($app->type === 'nextjs' && $app->port) {
-            $lines[] = "PORT={$app->port}";
+            $hasPort = false;
+            foreach ($lines as $line) {
+                if (str_starts_with(trim($line), 'PORT=')) {
+                    $hasPort = true;
+                    break;
+                }
+            }
+            if (!$hasPort) {
+                $content .= ($content ? "\n" : "") . "PORT={$app->port}";
+            }
         }
 
-        file_put_contents("{$app->deploy_path}/.env", implode("\n", $lines) . "\n");
+        file_put_contents("{$app->deploy_path}/.env", $content . "\n");
     }
 }

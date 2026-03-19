@@ -293,20 +293,13 @@ export default function AppDetailPage() {
 
   const loadEnv = async () => {
     const { data } = await api.get(`/apps/${id}/env`);
-    const envString = data.map(env => `${env.key}=${env.value}`).join('\n');
-    setEnvVars(envString);
+    setEnvVars(data.env_vars || '');
   };
 
   const saveEnv = async () => {
     setActionLoading(true);
     try {
-      const variables = envVars.split('\n')
-        .filter(line => line.trim() && line.includes('='))
-        .map(line => {
-          const [key, ...val] = line.split('=');
-          return { key: key.trim(), value: val.join('=').trim() };
-        });
-      await api.put(`/apps/${id}/env`, { variables });
+      await api.put(`/apps/${id}/env`, { env_vars: envVars });
       toast.success('Environment variables saved!');
     } catch (err) {
       toast.error('Failed to save environment variables.');
