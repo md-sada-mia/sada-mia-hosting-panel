@@ -51,6 +51,13 @@ class EmailService
 
         // Remove maildir
         $this->shell->run("sudo rm -rf {$this->mailbaseDir}/{$domain}");
+
+        // Cleanup DKIM configs
+        $this->removeLine("/etc/opendkim/KeyTable", $domain);
+        $this->removeLine("/etc/opendkim/SigningTable", $domain);
+        $this->removeLine("/etc/opendkim/TrustedHosts", $domain);
+        $this->shell->run("sudo rm -rf /etc/opendkim/keys/{$domain}");
+        $this->shell->run("sudo systemctl reload opendkim 2>/dev/null || true");
     }
 
     // ─── Account ─────────────────────────────────────────────────────────────────

@@ -10,6 +10,8 @@ use App\Services\DnsService;
 use App\Services\DatabaseService;
 use App\Services\GitHubService;
 use App\Services\EmailService;
+use App\Services\SslService;
+use App\Services\BackgroundServiceManager;
 use App\Models\EmailDomain;
 use App\Models\Setting;
 use App\Services\ShellService;
@@ -32,64 +34,123 @@ class DeleteApp implements ShouldQueue
         PM2Service $pm2Service,
         NginxConfigService $nginxService,
         DnsService $dnsService,
-        EmailService $emailService
+        EmailService $emailService,
+        SslService $sslService,
+        BackgroundServiceManager $serviceManager
     ): void {
         try {
             // We work with a temporary App model instance since the original might be deleted
             $app = new App($this->appData);
             $app->id = $this->appData['id'];
 
-            if ($app->type === 'nextjs') {
-                $pm2Service->delete($app);
+            // 1. SSL Cleanup
+            try {
+                if (!empty($this->appData['ssl_enabled']) || !empty($this->appData['domain'])) {
+                    $sslService->removeSsl($app);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup SSL failed for app {$app->id}: " . $e->getMessage());
             }
 
-            $nginxService->remove($app);
+            // 2. PM2 Cleanup (for Next.js)
+            try {
+                if ($app->type === 'nextjs') {
+                    $pm2Service->delete($app);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup PM2 failed for app {$app->id}: " . $e->getMessage());
+            }
 
-            // Also remove the DNS zone for this app's domain
-            $domain = Domain::where('app_id', $app->id)->first();
-            if ($domain) {
-                // Cleanup Email
-                $emailDomain = EmailDomain::where('domain_id', $domain->id)->first();
-                if ($emailDomain) {
-                    $emailService->removeDomain($emailDomain);
+            // 3. Background Services Cleanup
+            try {
+                if (!empty($this->appData['services'])) {
+                    foreach ($this->appData['services'] as $svcData) {
+                        // Create a temporary model instance as the DB record might be gone due to cascade
+                        $svc = new \App\Models\AppService($svcData);
+                        $svc->id = $svcData['id'];
+                        $serviceManager->delete($svc);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup background services failed for app {$app->id}: " . $e->getMessage());
+            }
+
+            // 4. Nginx Cleanup
+            try {
+                $nginxService->remove($app);
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup Nginx failed for app {$app->id}: " . $e->getMessage());
+            }
+
+            // 5. DNS & Email Cleanup
+            try {
+                $domain = Domain::where('app_id', $app->id)->first();
+                // Fallback: search by domain name if app_id was nulled during app deletion
+                if (!$domain && !empty($this->appData['domain'])) {
+                    $domain = Domain::where('domain', $this->appData['domain'])->first();
                 }
 
-                $dnsService->removeZone($domain);
-                $domain->delete();
+                if ($domain) {
+                    // Cleanup Email
+                    $emailDomain = EmailDomain::where('domain_id', $domain->id)->first();
+                    if ($emailDomain) {
+                        $emailService->removeDomain($emailDomain);
+                        $emailDomain->delete();
+                    }
+
+                    $dnsService->removeZone($domain);
+                    $domain->delete();
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup DNS/Email failed for app {$app->id}: " . $e->getMessage());
             }
 
-            // Cleanup Filesystem
-            if (!empty($this->appData['deploy_path'])) {
-                $shell = app(ShellService::class);
-                $shell->run("sudo rm -rf " . escapeshellarg($this->appData['deploy_path']));
+            // 6. Filesystem Cleanup
+            try {
+                if (!empty($this->appData['deploy_path'])) {
+                    $shell = app(ShellService::class);
+                    $shell->run("sudo rm -rf " . escapeshellarg($this->appData['deploy_path']));
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup Filesystem failed for app {$app->id}: " . $e->getMessage());
             }
 
-            // Cleanup Databases
-            $dbService = app(DatabaseService::class);
-            if (!empty($this->appData['databases'])) {
-                foreach ($this->appData['databases'] as $dbData) {
-                    $db = \App\Models\Database::find($dbData['id']);
-                    if ($db) {
+            // 7. Databases Cleanup
+            try {
+                $dbService = app(DatabaseService::class);
+                if (!empty($this->appData['databases'])) {
+                    foreach ($this->appData['databases'] as $dbData) {
+                        $db = \App\Models\Database::find($dbData['id']);
+                        if (!$db) {
+                            $db = new \App\Models\Database($dbData);
+                            $db->id = $dbData['id'];
+                        }
                         $dbService->delete($db);
                     }
                 }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup Databases failed for app {$app->id}: " . $e->getMessage());
             }
 
-            // Cleanup GitHub Webhook
-            if (!empty($this->appData['github_full_name']) && !empty($this->appData['webhook_secret'])) {
-                $githubService = app(GitHubService::class);
-                $token = Setting::get('github_access_token');
-                if ($token) {
-                    $hooks = $githubService->getHooks($token, $this->appData['github_full_name']);
-                    if (is_array($hooks)) {
-                        $webhookUrl = config('app.url') . '/api/github/webhook';
-                        foreach ($hooks as $hook) {
-                            if (isset($hook['config']['url']) && $hook['config']['url'] === $webhookUrl) {
-                                $githubService->deleteWebhook($token, $this->appData['github_full_name'], $hook['id']);
+            // 8. GitHub Webhook Cleanup
+            try {
+                if (!empty($this->appData['github_full_name']) && !empty($this->appData['webhook_secret'])) {
+                    $githubService = app(GitHubService::class);
+                    $token = Setting::get('github_access_token');
+                    if ($token) {
+                        $hooks = $githubService->getHooks($token, $this->appData['github_full_name']);
+                        if (is_array($hooks)) {
+                            $webhookUrl = config('app.url') . '/api/github/webhook';
+                            foreach ($hooks as $hook) {
+                                if (isset($hook['config']['url']) && $hook['config']['url'] === $webhookUrl) {
+                                    $githubService->deleteWebhook($token, $this->appData['github_full_name'], $hook['id']);
+                                }
                             }
                         }
                     }
                 }
+            } catch (\Throwable $e) {
+                Log::warning("Cleanup GitHub webhook failed for app {$app->id}: " . $e->getMessage());
             }
 
             Log::info("Cleanup complete for app: {$app->name}");

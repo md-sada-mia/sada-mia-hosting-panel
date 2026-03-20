@@ -163,6 +163,7 @@ class AppController extends Controller
         $appData = $app->toArray();
         $appData['id'] = $app->id;
         $appData['databases'] = $app->databases->toArray();
+        $appData['services'] = $app->services->toArray();
 
         DeleteApp::dispatch($appData);
 
