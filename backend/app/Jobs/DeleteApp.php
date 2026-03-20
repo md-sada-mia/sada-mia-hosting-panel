@@ -43,7 +43,10 @@ class DeleteApp implements ShouldQueue
             $app = new App($this->appData);
             $app->id = $this->appData['id'];
 
+            Log::info("Starting cleanup for app ID {$app->id} (Name: {$app->name}, Domain: {$app->domain})");
+
             // 1. SSL Cleanup
+            Log::info("Step 1: SSL Cleanup");
             try {
                 if (!empty($this->appData['ssl_enabled']) || !empty($this->appData['domain'])) {
                     $sslService->removeSsl($app);
@@ -53,6 +56,7 @@ class DeleteApp implements ShouldQueue
             }
 
             // 2. PM2 Cleanup (for Next.js)
+            Log::info("Step 2: PM2 Cleanup");
             try {
                 if ($app->type === 'nextjs') {
                     $pm2Service->delete($app);
@@ -62,10 +66,10 @@ class DeleteApp implements ShouldQueue
             }
 
             // 3. Background Services Cleanup
+            Log::info("Step 3: Background Services Cleanup");
             try {
                 if (!empty($this->appData['services'])) {
                     foreach ($this->appData['services'] as $svcData) {
-                        // Create a temporary model instance as the DB record might be gone due to cascade
                         $svc = new \App\Models\AppService($svcData);
                         $svc->id = $svcData['id'];
                         $serviceManager->delete($svc);
@@ -76,6 +80,7 @@ class DeleteApp implements ShouldQueue
             }
 
             // 4. Nginx Cleanup
+            Log::info("Step 4: Nginx Cleanup");
             try {
                 $nginxService->remove($app);
             } catch (\Throwable $e) {
@@ -83,21 +88,33 @@ class DeleteApp implements ShouldQueue
             }
 
             // 5. DNS & Email Cleanup
+            Log::info("Step 5: DNS & Email Cleanup (Target domain: " . ($this->appData['domain'] ?? 'none') . ")");
             try {
                 $domain = Domain::where('app_id', $app->id)->first();
-                // Fallback: search by domain name if app_id was nulled during app deletion
-                if (!$domain && !empty($this->appData['domain'])) {
-                    $domain = Domain::where('domain', $this->appData['domain'])->first();
+                if ($domain) {
+                    Log::info("Found domain by app_id: {$domain->domain}");
+                } else {
+                    Log::info("Domain not found by app_id, using fallback search by name: " . ($this->appData['domain'] ?? 'N/A'));
+                    if (!empty($this->appData['domain'])) {
+                        $domain = Domain::where('domain', $this->appData['domain'])->first();
+                        if ($domain) {
+                            Log::info("Found domain by name: {$domain->domain} (ID: {$domain->id})");
+                        } else {
+                            Log::warning("Domain record NOT found by name in database.");
+                        }
+                    }
                 }
 
                 if ($domain) {
                     // Cleanup Email
                     $emailDomain = EmailDomain::where('domain_id', $domain->id)->first();
                     if ($emailDomain) {
+                        Log::info("Found email domain for cleanup: {$emailDomain->id}");
                         $emailService->removeDomain($emailDomain);
                         $emailDomain->delete();
                     }
 
+                    Log::info("Removing DNS zone and domain record for: {$domain->domain}");
                     $dnsService->removeZone($domain);
                     $domain->delete();
                 }
@@ -106,6 +123,7 @@ class DeleteApp implements ShouldQueue
             }
 
             // 6. Filesystem Cleanup
+            Log::info("Step 6: Filesystem Cleanup");
             try {
                 if (!empty($this->appData['deploy_path'])) {
                     $shell = app(ShellService::class);
@@ -116,6 +134,7 @@ class DeleteApp implements ShouldQueue
             }
 
             // 7. Databases Cleanup
+            Log::info("Step 7: Databases Cleanup");
             try {
                 $dbService = app(DatabaseService::class);
                 if (!empty($this->appData['databases'])) {
@@ -133,6 +152,7 @@ class DeleteApp implements ShouldQueue
             }
 
             // 8. GitHub Webhook Cleanup
+            Log::info("Step 8: GitHub Webhook Cleanup");
             try {
                 if (!empty($this->appData['github_full_name']) && !empty($this->appData['webhook_secret'])) {
                     $githubService = app(GitHubService::class);

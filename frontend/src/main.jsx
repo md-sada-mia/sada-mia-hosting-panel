@@ -26,6 +26,7 @@ import CrmNewCustomerPage from './pages/CrmNewCustomerPage';
 import CrmLoadBalancerDetailPage from './pages/CrmLoadBalancerDetailPage';
 import TerminalPage from './pages/TerminalPage';
 import GuidelinePage from './pages/GuidelinePage';
+import QueueMonitorPage from './pages/QueueMonitorPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -55,6 +56,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/terminal" element={<TerminalPage />} />
             <Route path="/files" element={<FileManagerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/queue" element={<QueueMonitorPage />} />
             <Route path="/github/callback" element={<GitHubCallbackPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

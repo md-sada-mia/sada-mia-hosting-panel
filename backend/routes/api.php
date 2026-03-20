@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\DnsRecordController;
 use App\Http\Controllers\Api\EmailController;
 use App\Http\Controllers\Api\FileManagerController;
+use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\AppServiceController;
@@ -207,6 +208,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/terminal/info', [TerminalController::class, 'info']);
     Route::get('/terminal/autocomplete', [TerminalController::class, 'autocomplete']);
     Route::post('/terminal/execute', [TerminalController::class, 'execute']);
+
+    // Queue Monitoring
+    Route::get('/queue', [QueueController::class, 'index']);
+    Route::post('/queue/retry/{id}', [QueueController::class, 'retry']);
+    Route::delete('/queue/cancel/{id}', [QueueController::class, 'cancel']);
+    Route::post('/queue/clear', [QueueController::class, 'clear']);
 });
 
 

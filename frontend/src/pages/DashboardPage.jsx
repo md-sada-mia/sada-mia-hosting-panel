@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Server, Database, Layers, MemoryStick, Cpu } from 'lucide-react';
+import { Activity, Server, Database, Layers, MemoryStick, Cpu, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
+import QueueMonitor from '@/components/QueueMonitor';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState({});
@@ -182,6 +185,8 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      <QueueMonitor isDashboard={true} />
 
       <ConfirmationDialog
         open={showRebootConfirm}
