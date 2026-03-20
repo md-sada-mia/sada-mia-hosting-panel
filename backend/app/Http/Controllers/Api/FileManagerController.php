@@ -116,6 +116,26 @@ class FileManagerController extends Controller
     }
 
     /**
+     * Delete multiple files or directories.
+     * POST /api/files/bulk-delete
+     * body: { paths: [] }
+     */
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'paths'   => 'required|array',
+            'paths.*' => 'required|string',
+        ]);
+
+        foreach ($request->paths as $path) {
+            $resolved = $this->fileManager->resolvePath($path, $this->root);
+            $this->fileManager->delete($resolved);
+        }
+
+        return response()->json(['message' => count($request->paths) . ' items deleted successfully.']);
+    }
+
+    /**
      * Rename or move a path.
      * POST /api/files/rename
      * body: { from, to }

@@ -197,6 +197,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/files', [FileManagerController::class, 'store']);
     Route::put('/files', [FileManagerController::class, 'update']);
     Route::delete('/files', [FileManagerController::class, 'destroy']);
+    Route::post('/files/bulk-delete', [FileManagerController::class, 'bulkDelete']);
     Route::post('/files/rename', [FileManagerController::class, 'rename']);
     Route::post('/files/copy', [FileManagerController::class, 'copy']);
     Route::post('/files/upload', [FileManagerController::class, 'upload']);

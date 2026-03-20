@@ -472,10 +472,17 @@ export default function FileManagerPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
-    const path = getItemPath(deleteTarget);
+    
     try {
-      await api.delete('/files', { params: { path } });
-      toast.success('Deleted successfully.');
+      if (Array.isArray(deleteTarget)) {
+        const paths = deleteTarget.map(item => getItemPath(item));
+        await api.post('/files/bulk-delete', { paths });
+        toast.success(`${deleteTarget.length} items deleted successfully.`);
+      } else {
+        const path = getItemPath(deleteTarget);
+        await api.delete('/files', { params: { path } });
+        toast.success('Deleted successfully.');
+      }
       setDeleteTarget(null);
       fetchDirectory(currentPath);
     } catch (err) {
@@ -845,8 +852,9 @@ export default function FileManagerPage() {
               <MoveRight className="h-3 w-3" /> Cut
             </Button>
             <Button size="sm" variant="destructive" className="h-7 gap-1.5 text-xs" onClick={() => {
-              if (selected.size === 1) {
-                setDeleteTarget(items.find(i => i.name === [...selected][0]));
+              if (selected.size > 0) {
+                const targets = items.filter(i => selected.has(i.name));
+                setDeleteTarget(targets);
               }
             }}>
               <Trash2 className="h-3 w-3" /> Delete
@@ -1003,8 +1011,12 @@ export default function FileManagerPage() {
       <ConfirmationDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Delete Item"
-        description={`Are you sure you want to permanently delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        title={Array.isArray(deleteTarget) ? `Delete ${deleteTarget.length} Items` : "Delete Item"}
+        description={
+          Array.isArray(deleteTarget) 
+            ? `Are you sure you want to permanently delete these ${deleteTarget.length} items? This action cannot be undone.`
+            : `Are you sure you want to permanently delete "${deleteTarget?.name}"? This action cannot be undone.`
+        }
         confirmText="Delete"
         variant="destructive"
         isLoading={isDeleting}
