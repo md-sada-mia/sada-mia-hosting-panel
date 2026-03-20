@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use Illuminate\Support\Str;
+use App\Services\ShellService;
 use ZipArchive;
 
 class FileManagerService
 {
+    public function __construct(protected ShellService $shell) {}
     /**
      * Resolve and validate a path is within the allowed root.
      */
@@ -178,29 +180,57 @@ class FileManagerService
      */
     public function delete(string $path): bool
     {
-        if (!file_exists($path)) {
+        if (!file_exists($path) && !is_link($path)) {
             abort(404, 'Path not found.');
+        }
+
+        // If it's a symbolic link, always use unlink regardless of whether it points to a directory
+        if (is_link($path)) {
+            if (@unlink($path)) {
+                return true;
+            }
+            // Fallback to sudo if unlink fails
+            return $this->shell->run("sudo rm -f " . escapeshellarg($path))['exit_code'] === 0;
         }
 
         if (is_dir($path)) {
             return $this->deleteDirectory($path);
         }
 
-        return unlink($path);
+        if (@unlink($path)) {
+            return true;
+        }
+
+        // Fallback to sudo rm for regular files if PHP's unlink fails
+        return $this->shell->run("sudo rm -f " . escapeshellarg($path))['exit_code'] === 0;
     }
 
     private function deleteDirectory(string $path): bool
     {
-        $entries = array_diff(scandir($path), ['.', '..']);
-        foreach ($entries as $entry) {
-            $sub = $path . '/' . $entry;
-            if (is_dir($sub)) {
-                $this->deleteDirectory($sub);
-            } else {
-                unlink($sub);
+        // For directories, we first try PHP's internal recursive deletion (cleaner)
+        // But if we encounter any error, we fallback to sudo rm -rf (more robust)
+        try {
+            $entries = array_diff(scandir($path), ['.', '..']);
+            foreach ($entries as $entry) {
+                $sub = $path . '/' . $entry;
+                if (is_link($sub)) {
+                    @unlink($sub);
+                } elseif (is_dir($sub)) {
+                    $this->deleteDirectory($sub);
+                } else {
+                    @unlink($sub);
+                }
             }
+
+            if (@rmdir($path)) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // Log or ignore, fallback handles it
         }
-        return rmdir($path);
+
+        // Final fallback for any directory deletion failure (permissions, non-empty, etc.)
+        return $this->shell->run("sudo rm -rf " . escapeshellarg($path))['exit_code'] === 0;
     }
 
     /**
