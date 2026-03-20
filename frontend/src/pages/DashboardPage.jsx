@@ -176,6 +176,15 @@ export default function DashboardPage() {
             <Button 
               variant="outline" 
               className="w-full justify-start cursor-pointer"
+              onClick={() => handleRestart('pm2_service')}
+              disabled={restarting['pm2_service']}
+            >
+              <Activity className={`mr-2 h-4 w-4 ${restarting['pm2_service'] ? 'animate-spin' : ''}`} />
+              {restarting['pm2_service'] ? 'Restarting...' : 'Restart PM2 Service'}
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start cursor-pointer"
               onClick={() => handleRestart('queue')}
               disabled={restarting['queue']}
             >

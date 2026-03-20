@@ -98,11 +98,15 @@ class ServerController extends Controller
                 ]);
 
             case 'pm2':
-                $result = $this->shell->run("pm2 restart all");
+                $result = $this->shell->run("sudo /usr/bin/pm2 restart all");
+                break;
+
+            case 'pm2_service':
+                $result = $this->shell->run("sudo /usr/bin/systemctl restart pm2-root.service");
                 break;
 
             case 'queue':
-                $result = $this->shell->run("sudo systemctl restart sada-mia-queue.service");
+                $result = $this->shell->run("sudo /usr/bin/systemctl restart sada-mia-queue.service");
                 break;
 
             case 'reboot':

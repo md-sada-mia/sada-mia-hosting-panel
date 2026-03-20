@@ -591,8 +591,9 @@ www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2
 www-data ALL=(ALL) NOPASSWD: /usr/bin/pm2 *
 # PHP & Queue
 www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart php8.4-fpm
-www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sada-mia-queue
-www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sada-mia-queue
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart sada-mia-queue.service
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl status sada-mia-queue.service
+www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart pm2-root.service
 # App directory permissions
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chown -R www-data\:www-data /var/www/hosting-apps/*
 www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod -R 775 /var/www/hosting-apps/*
