@@ -174,6 +174,15 @@ export default function DashboardPage() {
               {restarting['pm2'] ? 'Restarting...' : 'Restart All Apps'}
             </Button>
             <Button 
+              variant="outline" 
+              className="w-full justify-start cursor-pointer"
+              onClick={() => handleRestart('queue')}
+              disabled={restarting['queue']}
+            >
+              <Clock className={`mr-2 h-4 w-4 ${restarting['queue'] ? 'animate-spin' : ''}`} />
+              {restarting['queue'] ? 'Restarting...' : 'Restart Queue'}
+            </Button>
+            <Button 
               variant="destructive" 
               className="w-full justify-start cursor-pointer"
               disabled={restarting['reboot']}

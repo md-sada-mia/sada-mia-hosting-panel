@@ -101,6 +101,10 @@ class ServerController extends Controller
                 $result = $this->shell->run("pm2 restart all");
                 break;
 
+            case 'queue':
+                $result = $this->shell->run("sudo systemctl restart sada-mia-queue.service");
+                break;
+
             case 'reboot':
                 $this->shell->run("sudo shutdown -r +1");
                 return response()->json([
