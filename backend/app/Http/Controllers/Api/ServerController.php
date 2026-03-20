@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ShellService;
+use Illuminate\Support\Facades\Log;
 
 class ServerController extends Controller
 {
@@ -98,16 +99,25 @@ class ServerController extends Controller
                 ]);
 
             case 'pm2':
-                $result = $this->shell->run("sudo /usr/bin/pm2 restart all");
-                break;
+                $this->runAfterResponse("sudo /usr/bin/pm2 restart all");
+                return response()->json([
+                    'message' => 'All PM2 apps are restarting in the background.',
+                    'status'  => 'success'
+                ]);
 
             case 'pm2_service':
-                $result = $this->shell->run("sudo /usr/bin/systemctl restart pm2-root.service");
-                break;
+                $this->runAfterResponse("sudo /usr/bin/systemctl restart pm2-root.service");
+                return response()->json([
+                    'message' => 'PM2 service is restarting in the background.',
+                    'status'  => 'success'
+                ]);
 
             case 'queue':
-                $result = $this->shell->run("sudo /usr/bin/systemctl restart sada-mia-queue.service");
-                break;
+                $this->runAfterResponse("sudo /usr/bin/systemctl restart sada-mia-queue.service");
+                return response()->json([
+                    'message' => 'Queue worker is restarting in the background.',
+                    'status'  => 'success'
+                ]);
 
             case 'reboot':
                 $this->shell->run("sudo shutdown -r +1");
@@ -119,19 +129,6 @@ class ServerController extends Controller
             default:
                 return response()->json(['error' => 'Invalid restart type'], 400);
         }
-
-        if ($result['exit_code'] === 0) {
-            return response()->json([
-                'message' => ucfirst($type) . ' restarted successfully.',
-                'status'  => 'success'
-            ]);
-        }
-
-        return response()->json([
-            'error'   => 'Failed to restart ' . $type,
-            'details' => $result['output'],
-            'status'  => 'error'
-        ], 500);
     }
 
     /**
