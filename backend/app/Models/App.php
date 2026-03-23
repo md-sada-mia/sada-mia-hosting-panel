@@ -59,13 +59,18 @@ class App extends Model
 
     public function updateEnvVars(array $newVars): void
     {
-        $currentEnv = $this->env_vars ?? '';
-        $lines = explode("\n", $currentEnv);
-        $envMap = [];
+        if (!$this->deploy_path) {
+            return;
+        }
 
+        $envFile = "{$this->deploy_path}/.env";
+        $currentContent = file_exists($envFile) ? file_get_contents($envFile) : '';
+
+        $envMap = [];
+        $lines = explode("\n", $currentContent);
         foreach ($lines as $line) {
             $line = trim($line);
-            if ($line && str_contains($line, '=')) {
+            if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
                 [$key, $value] = explode('=', $line, 2);
                 $envMap[trim($key)] = trim($value);
             }
@@ -81,7 +86,7 @@ class App extends Model
             $newEnvString .= "{$key}={$value}\n";
         }
 
-        $this->update(['env_vars' => trim($newEnvString)]);
+        file_put_contents($envFile, $newEnvString);
     }
 
     public function domainRecord(): HasOne

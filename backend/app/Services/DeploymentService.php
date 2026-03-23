@@ -243,58 +243,82 @@ class DeploymentService
         $deployPath = $app->deploy_path;
         $envFile = "{$deployPath}/.env";
 
-        // 1. Scan for example files using regex
-        $files = is_dir($deployPath) ? scandir($deployPath) : [];
-        $regex = '/^\.env\.(example|sample|demo|template|dist)$|^\.env-example$/i';
-        $exampleFiles = preg_grep($regex, $files);
+        // 1. If .env doesn't exist, try to template it from an example file
+        if (!file_exists($envFile)) {
+            $filename = $app->env_vars;
 
-        if (!empty($exampleFiles)) {
-            $foundExample = reset($exampleFiles);
-            $this->shell->run("cp " . escapeshellarg("{$deployPath}/{$foundExample}") . " " . escapeshellarg($envFile));
-        }
+            if (empty($filename) || !file_exists("{$deployPath}/{$filename}")) {
+                // Scan for example files using regex
+                $files = is_dir($deployPath) ? scandir($deployPath) : [];
+                $regex = '/^\.env\.(example|sample|demo|template|dist)$|^\.env-example$/i';
+                $exampleFiles = preg_grep($regex, $files);
 
-        // 2. Load base content (from example or existing)
-        $content = file_exists($envFile) ? file_get_contents($envFile) : '';
-        $userEnv = $app->env_vars ?? '';
-
-        // 3. Prepare special variables
-        $specialVars = [];
-        if ($app->type === 'nextjs' && $app->port) {
-            $specialVars['PORT'] = $app->port;
-        }
-        if ($app->type === 'laravel') {
-            $specialVars['APP_KEY'] = ''; // Ensure placeholder exists
-        }
-
-        // 4. Merge: Base -> Special -> User
-        // We'll parse into a map to ensure uniqueness and order
-        $envMap = [];
-
-        $parseToMap = function (string $raw, &$map) {
-            $lines = explode("\n", $raw);
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
-                    [$key, $value] = explode('=', $line, 2);
-                    $map[trim($key)] = trim($value);
+                if (!empty($exampleFiles)) {
+                    $filename = reset($exampleFiles);
+                    // Save the discovered filename to the database
+                    $app->update(['env_vars' => $filename]);
                 }
             }
-        };
 
-        $parseToMap($content, $envMap);
-        foreach ($specialVars as $key => $val) {
-            if (!isset($envMap[$key])) {
-                $envMap[$key] = $val;
+            if ($filename && file_exists("{$deployPath}/{$filename}")) {
+                $this->shell->run("cp " . escapeshellarg("{$deployPath}/{$filename}") . " " . escapeshellarg($envFile));
             }
         }
-        $parseToMap($userEnv, $envMap);
 
-        // 5. Build final string
-        $finalContent = '';
-        foreach ($envMap as $key => $value) {
-            $finalContent .= "{$key}={$value}\n";
+        // 2. Ensure mandatory variables (PORT for Next.js, APP_KEY placeholder for Laravel)
+        if (file_exists($envFile)) {
+            $content = file_get_contents($envFile);
+            $envMap = [];
+
+            $parseToMap = function (string $raw, &$map) {
+                $lines = explode("\n", $raw);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
+                        [$key, $value] = explode('=', $line, 2);
+                        $map[trim($key)] = trim($value);
+                    }
+                }
+            };
+
+            $parseToMap($content, $envMap);
+
+            $updated = false;
+            if ($app->type === 'nextjs' && $app->port && !isset($envMap['PORT'])) {
+                $envMap['PORT'] = $app->port;
+                $updated = true;
+            }
+            if ($app->type === 'laravel' && !isset($envMap['APP_KEY'])) {
+                $envMap['APP_KEY'] = '';
+                $updated = true;
+            }
+
+            // Inject Database credentials if any associated databases exist
+            $db = $app->databases()->first();
+            if ($db) {
+                $dbEnvs = [
+                    'DB_CONNECTION' => 'pgsql',
+                    'DB_HOST'       => '127.0.0.1',
+                    'DB_PORT'       => '5432',
+                    'DB_DATABASE'   => $db->db_name,
+                    'DB_USERNAME'   => $db->db_user,
+                    'DB_PASSWORD'   => $db->db_password,
+                ];
+                foreach ($dbEnvs as $key => $val) {
+                    if (!isset($envMap[$key]) || @empty($envMap[$key])) {
+                        $envMap[$key] = $val;
+                        $updated = true;
+                    }
+                }
+            }
+
+            if ($updated) {
+                $finalContent = '';
+                foreach ($envMap as $key => $value) {
+                    $finalContent .= "{$key}={$value}\n";
+                }
+                file_put_contents($envFile, $finalContent);
+            }
         }
-
-        file_put_contents($envFile, $finalContent);
     }
 }

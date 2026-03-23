@@ -10,8 +10,13 @@ class EnvController extends Controller
 {
     public function index(App $app)
     {
+        $content = '';
+        if ($app->deploy_path && file_exists("{$app->deploy_path}/.env")) {
+            $content = file_get_contents("{$app->deploy_path}/.env");
+        }
+
         return response()->json([
-            'env_vars' => $app->env_vars ?? ''
+            'env_vars' => $content
         ]);
     }
 
@@ -21,8 +26,12 @@ class EnvController extends Controller
             'env_vars' => 'required|string',
         ]);
 
-        $app->update(['env_vars' => $request->env_vars]);
+        if (!$app->deploy_path) {
+            return response()->json(['error' => 'App is not deployed yet. Please deploy first.'], 422);
+        }
 
-        return response()->json(['message' => 'Environment variables updated']);
+        file_put_contents("{$app->deploy_path}/.env", $request->env_vars);
+
+        return response()->json(['message' => 'Environment variables updated (disk)']);
     }
 }

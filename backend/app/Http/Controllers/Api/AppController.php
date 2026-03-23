@@ -69,7 +69,8 @@ class AppController extends Controller
             'auto_deploy'      => $validated['auto_deploy'] ?? false,
         ]);
 
-        // Save environment variables directly
+        // Note: env_vars column now only stores the filename of the template.
+        // The actual content is managed on disk during/after deployment.
         if (!empty($validated['env_vars'])) {
             $app->update(['env_vars' => $validated['env_vars']]);
         }
