@@ -27,14 +27,15 @@ class DatabaseService
         $dbUser = $dbUser ?? ($dbName . '_u');
         $dbPass = Str::random(24);
 
-        // Sanitize names for psql (though we generate them safely)
+        // Sanitize names for psql
         $quotedDb = "\"" . str_replace("\"", "\"\"", $dbName) . "\"";
         $quotedUser = "\"" . str_replace("\"", "\"\"", $dbUser) . "\"";
+        $dbPassEscaped = str_replace("'", "''", $dbPass);
 
         $cmds = [
-            "sudo -u postgres psql -c \"CREATE USER {$quotedUser} WITH ENCRYPTED PASSWORD '{$dbPass}';\"",
-            "sudo -u postgres psql -c \"CREATE DATABASE {$quotedDb} OWNER {$quotedUser};\"",
-            "sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE {$quotedDb} TO {$quotedUser};\"",
+            "sudo -u postgres psql -c " . escapeshellarg("CREATE USER {$quotedUser} WITH ENCRYPTED PASSWORD '{$dbPassEscaped}';"),
+            "sudo -u postgres psql -c " . escapeshellarg("CREATE DATABASE {$quotedDb} OWNER {$quotedUser};"),
+            "sudo -u postgres psql -c " . escapeshellarg("GRANT ALL PRIVILEGES ON DATABASE {$quotedDb} TO {$quotedUser};"),
         ];
 
         foreach ($cmds as $cmd) {
@@ -56,8 +57,9 @@ class DatabaseService
     public function changePassword(Database $database, string $newPassword): void
     {
         $quotedUser = "\"" . str_replace("\"", "\"\"", $database->db_user) . "\"";
+        $newPasswordEscaped = str_replace("'", "''", $newPassword);
 
-        $cmd = "sudo -u postgres psql -c \"ALTER ROLE {$quotedUser} WITH ENCRYPTED PASSWORD '{$newPassword}';\"";
+        $cmd = "sudo -u postgres psql -c " . escapeshellarg("ALTER ROLE {$quotedUser} WITH ENCRYPTED PASSWORD '{$newPasswordEscaped}';");
 
         $result = $this->shell->run($cmd);
         if ($result['exit_code'] !== 0) {
@@ -73,8 +75,8 @@ class DatabaseService
         $quotedUser = "\"" . str_replace("\"", "\"\"", $database->db_user) . "\"";
 
         $cmds = [
-            "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS {$quotedDb};\"",
-            "sudo -u postgres psql -c \"DROP ROLE IF EXISTS {$quotedUser};\"",
+            "sudo -u postgres psql -c " . escapeshellarg("DROP DATABASE IF EXISTS {$quotedDb};"),
+            "sudo -u postgres psql -c " . escapeshellarg("DROP ROLE IF EXISTS {$quotedUser};"),
         ];
 
         foreach ($cmds as $cmd) {
