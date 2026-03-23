@@ -240,37 +240,61 @@ class DeploymentService
             return;
         }
 
-        $content = $app->env_vars ?? '';
-        $lines = explode("\n", $content);
+        $deployPath = $app->deploy_path;
+        $envFile = "{$deployPath}/.env";
 
-        // For Next.js, ensure PORT is present
+        // 1. Scan for example files using regex
+        $files = is_dir($deployPath) ? scandir($deployPath) : [];
+        $regex = '/^\.env\.(example|sample|demo|template|dist)$|^\.env-example$/i';
+        $exampleFiles = preg_grep($regex, $files);
+
+        if (!empty($exampleFiles)) {
+            $foundExample = reset($exampleFiles);
+            $this->shell->run("cp " . escapeshellarg("{$deployPath}/{$foundExample}") . " " . escapeshellarg($envFile));
+        }
+
+        // 2. Load base content (from example or existing)
+        $content = file_exists($envFile) ? file_get_contents($envFile) : '';
+        $userEnv = $app->env_vars ?? '';
+
+        // 3. Prepare special variables
+        $specialVars = [];
         if ($app->type === 'nextjs' && $app->port) {
-            $hasPort = false;
-            foreach ($lines as $line) {
-                if (str_starts_with(trim($line), 'PORT=')) {
-                    $hasPort = true;
-                    break;
-                }
-            }
-            if (!$hasPort) {
-                $content .= ($content ? "\n" : "") . "PORT={$app->port}";
-            }
+            $specialVars['PORT'] = $app->port;
         }
-
-        // For Laravel, ensure APP_KEY placeholder exists so key:generate can replace it
         if ($app->type === 'laravel') {
-            $hasAppKey = false;
-            foreach ($lines as $line) {
-                if (str_starts_with(trim($line), 'APP_KEY=')) {
-                    $hasAppKey = true;
-                    break;
-                }
-            }
-            if (!$hasAppKey) {
-                $content .= ($content ? "\n" : "") . "APP_KEY=";
-            }
+            $specialVars['APP_KEY'] = ''; // Ensure placeholder exists
         }
 
-        file_put_contents("{$app->deploy_path}/.env", $content . "\n");
+        // 4. Merge: Base -> Special -> User
+        // We'll parse into a map to ensure uniqueness and order
+        $envMap = [];
+
+        $parseToMap = function (string $raw, &$map) {
+            $lines = explode("\n", $raw);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
+                    [$key, $value] = explode('=', $line, 2);
+                    $map[trim($key)] = trim($value);
+                }
+            }
+        };
+
+        $parseToMap($content, $envMap);
+        foreach ($specialVars as $key => $val) {
+            if (!isset($envMap[$key])) {
+                $envMap[$key] = $val;
+            }
+        }
+        $parseToMap($userEnv, $envMap);
+
+        // 5. Build final string
+        $finalContent = '';
+        foreach ($envMap as $key => $value) {
+            $finalContent .= "{$key}={$value}\n";
+        }
+
+        file_put_contents($envFile, $finalContent);
     }
 }
