@@ -16,6 +16,7 @@ use App\Services\DnsService;
 use App\Services\GitHubService;
 use App\Services\NginxConfigService;
 use App\Services\CrmApiService;
+use App\Services\SslService;
 use App\Jobs\DeployApp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ class CustomerController extends Controller
         private GitHubService $github,
         private NginxConfigService $nginxService,
         private CrmApiService $crmApiService,
+        private SslService $sslService,
     ) {}
 
     public function index()
@@ -126,9 +128,17 @@ class CustomerController extends Controller
             $lb = LoadBalancer::findOrFail($validated['load_balancer_id']);
 
             if (!$lb->domains()->where('domain', $validated['domain'])->exists()) {
-                $lb->domains()->create(['domain' => $validated['domain']]);
+                $lbDomain = $lb->domains()->create([
+                    'domain' => $validated['domain'],
+                    'ssl_enabled' => true,
+                    'force_https' => true,
+                ]);
+
                 $lb->load(['apps', 'domains']);
                 $this->nginxService->generateLoadBalancer($lb);
+
+                // Attempt SSL setup immediately for the newly attached domain
+                $this->sslService->setupSsl($lbDomain);
             }
         } else {
             // Create new load balancer
@@ -138,9 +148,17 @@ class CustomerController extends Controller
                 'method' => $validated['lb_method'] ?? 'round_robin',
                 'status' => 'pending',
             ]);
-            $lb->domains()->create(['domain' => $validated['domain']]);
+            $lbDomain = $lb->domains()->create([
+                'domain' => $validated['domain'],
+                'ssl_enabled' => true,
+                'force_https' => true,
+            ]);
             $lb->load(['apps', 'domains']);
             $this->nginxService->generateLoadBalancer($lb);
+
+            // Attempt SSL setup immediately for Load Balancer domains
+            $this->sslService->setupSsl($lbDomain);
+
             $lb->update(['status' => 'active']);
         }
 
@@ -218,6 +236,8 @@ class CustomerController extends Controller
                 'github_id'        => $validated['github_id'] ?? null,
                 'webhook_secret'   => $webhookSecret,
                 'auto_deploy'      => $validated['auto_deploy'] ?? false,
+                'ssl_enabled'      => true,
+                'force_https'      => true,
             ]);
 
             // Parse bulk env vars
@@ -397,6 +417,11 @@ class CustomerController extends Controller
                     // Sync Nginx & DNS
                     $this->nginxService->generate($app);
                     $this->dnsService->createManagedDomain($newDomain, $app->id);
+
+                    // If SSL is enabled, attempt to provision it for the new domain
+                    if ($app->ssl_enabled) {
+                        $this->sslService->setupSsl($app);
+                    }
                 } elseif ($customer->resource_type === 'load_balancer') {
                     $lb = LoadBalancer::findOrFail($customer->resource_id);
 
@@ -416,7 +441,13 @@ class CustomerController extends Controller
                             $domainRecord->update(['domain' => $newDomain]);
                         } else {
                             // Or attach it if it didn't exist
-                            $lb->domains()->create(['domain' => $newDomain]);
+                            $lbDomain = $lb->domains()->create([
+                                'domain' => $newDomain,
+                                'ssl_enabled' => true,
+                                'force_https' => true,
+                            ]);
+                            // Attempt SSL setup for the new domain
+                            $this->sslService->setupSsl($lbDomain);
                         }
                     } else {
                         $lb->domains()->firstOrCreate(['domain' => $newDomain]);

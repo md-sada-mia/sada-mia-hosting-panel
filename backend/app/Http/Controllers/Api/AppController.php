@@ -67,6 +67,8 @@ class AppController extends Controller
             'github_id'        => $validated['github_id'] ?? null,
             'webhook_secret'   => $webhookSecret,
             'auto_deploy'      => $validated['auto_deploy'] ?? false,
+            'ssl_enabled'      => true,
+            'force_https'      => true,
         ]);
 
         // Note: env_vars column now only stores the filename of the template.
