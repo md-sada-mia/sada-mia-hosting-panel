@@ -64,29 +64,18 @@ class App extends Model
         }
 
         $envFile = "{$this->deploy_path}/.env";
-        $currentContent = file_exists($envFile) ? file_get_contents($envFile) : '';
+        $content = file_exists($envFile) ? file_get_contents($envFile) : '';
 
-        $envMap = [];
-        $lines = explode("\n", $currentContent);
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
-                [$key, $value] = explode('=', $line, 2);
-                $envMap[trim($key)] = trim($value);
+        foreach ($newVars as $key => $value) {
+            $pattern = "/^(\s*#?\s*)" . preg_quote($key, '/') . "=.*/m";
+            if (preg_match($pattern, $content)) {
+                $content = preg_replace($pattern, "{$key}={$value}", $content);
+            } else {
+                $content .= (empty($content) || str_ends_with($content, "\n") ? "" : "\n") . "{$key}={$value}\n";
             }
         }
 
-        // Merge new vars
-        foreach ($newVars as $key => $value) {
-            $envMap[trim($key)] = trim($value);
-        }
-
-        $newEnvString = '';
-        foreach ($envMap as $key => $value) {
-            $newEnvString .= "{$key}={$value}\n";
-        }
-
-        file_put_contents($envFile, $newEnvString);
+        file_put_contents($envFile, $content);
     }
 
     public function domainRecord(): HasOne

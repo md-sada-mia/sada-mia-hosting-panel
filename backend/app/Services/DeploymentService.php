@@ -265,59 +265,51 @@ class DeploymentService
             }
         }
 
-        // 2. Ensure mandatory variables (PORT for Next.js, APP_KEY placeholder for Laravel)
+        // 2. Ensure mandatory and database variables using non-destructive regex
         if (file_exists($envFile)) {
             $content = file_get_contents($envFile);
-            $envMap = [];
+            $varsToUpdate = [];
 
-            $parseToMap = function (string $raw, &$map) {
-                $lines = explode("\n", $raw);
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line && !str_starts_with($line, '#') && str_contains($line, '=')) {
-                        [$key, $value] = explode('=', $line, 2);
-                        $map[trim($key)] = trim($value);
-                    }
-                }
-            };
-
-            $parseToMap($content, $envMap);
-
-            $updated = false;
-            if ($app->type === 'nextjs' && $app->port && !isset($envMap['PORT'])) {
-                $envMap['PORT'] = $app->port;
-                $updated = true;
+            if ($app->type === 'nextjs' && $app->port) {
+                $varsToUpdate['PORT'] = $app->port;
             }
-            if ($app->type === 'laravel' && !isset($envMap['APP_KEY'])) {
-                $envMap['APP_KEY'] = '';
-                $updated = true;
+            if ($app->type === 'laravel') {
+                $varsToUpdate['APP_KEY'] = ''; // Ensure placeholder exists if missing
             }
 
             // Inject Database credentials if any associated databases exist
             $db = $app->databases()->first();
             if ($db) {
-                $dbEnvs = [
+                $varsToUpdate = array_merge($varsToUpdate, [
                     'DB_CONNECTION' => 'pgsql',
                     'DB_HOST'       => '127.0.0.1',
                     'DB_PORT'       => '5432',
                     'DB_DATABASE'   => $db->db_name,
                     'DB_USERNAME'   => $db->db_user,
                     'DB_PASSWORD'   => $db->db_password,
-                ];
-                foreach ($dbEnvs as $key => $val) {
-                    if (!isset($envMap[$key]) || @empty($envMap[$key])) {
-                        $envMap[$key] = $val;
+                ]);
+            }
+
+            if (!empty($varsToUpdate)) {
+                $updated = false;
+                foreach ($varsToUpdate as $key => $value) {
+                    $pattern = "/^(\s*#?\s*)" . preg_quote($key, '/') . "=.*/m";
+                    if (preg_match($pattern, $content)) {
+                        // Key exists (possibly commented). Only update if missing value or commented out?
+                        // User said: "if any key is conmmented just comment out and update the value"
+                        // So we ALWAYS update if it exists in any form.
+                        $content = preg_replace($pattern, "{$key}={$value}", $content);
+                        $updated = true;
+                    } else {
+                        // Key missing entirely. Append it.
+                        $content .= (empty($content) || str_ends_with($content, "\n") ? "" : "\n") . "{$key}={$value}\n";
                         $updated = true;
                     }
                 }
-            }
 
-            if ($updated) {
-                $finalContent = '';
-                foreach ($envMap as $key => $value) {
-                    $finalContent .= "{$key}={$value}\n";
+                if ($updated) {
+                    file_put_contents($envFile, $content);
                 }
-                file_put_contents($envFile, $finalContent);
             }
         }
     }
