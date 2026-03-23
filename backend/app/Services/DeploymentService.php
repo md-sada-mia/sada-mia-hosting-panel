@@ -255,6 +255,16 @@ class DeploymentService
 
                 if (!empty($exampleFiles)) {
                     $filename = reset($exampleFiles);
+                } else {
+                    // Fallback: search for any file containing ".env"
+                    $fallbackRegex = '/\.env/i';
+                    $fallbackFiles = preg_grep($fallbackRegex, $files);
+                    if (!empty($fallbackFiles)) {
+                        $filename = reset($fallbackFiles);
+                    }
+                }
+
+                if ($filename) {
                     // Save the discovered filename to the database
                     $app->update(['env_vars' => $filename]);
                 }
@@ -295,9 +305,6 @@ class DeploymentService
                 foreach ($varsToUpdate as $key => $value) {
                     $pattern = "/^(\s*#?\s*)" . preg_quote($key, '/') . "=.*/m";
                     if (preg_match($pattern, $content)) {
-                        // Key exists (possibly commented). Only update if missing value or commented out?
-                        // User said: "if any key is conmmented just comment out and update the value"
-                        // So we ALWAYS update if it exists in any form.
                         $content = preg_replace($pattern, "{$key}={$value}", $content);
                         $updated = true;
                     } else {
