@@ -214,12 +214,24 @@ class DeploymentService
         // Generate APP_KEY if it's not already in the .env or if it's the default
         $envContent = file_get_contents("{$deployPath}/.env");
         if (!str_contains($envContent, 'APP_KEY=base64:')) {
+            // Ensure the placeholder exists, otherwise key:generate fails
+            if (!str_contains($envContent, 'APP_KEY=')) {
+                $log("Adding APP_KEY placeholder to .env...");
+                file_put_contents("{$deployPath}/.env", $envContent . "\nAPP_KEY=\n");
+            }
+
             $log("Generating new application key...");
-            $this->shell->run("php artisan key:generate --force", $deployPath);
+            $result = $this->shell->run("php artisan key:generate --force", $deployPath);
+            if ($result['exit_code'] !== 0) {
+                $log("[WARN] Key generation failed: " . $result['output']);
+            }
         }
 
         // Link storage
-        $this->shell->run("php artisan storage:link", $deployPath);
+        $result = $this->shell->run("php artisan storage:link", $deployPath);
+        if ($result['exit_code'] !== 0) {
+            $log("[WARN] Storage link failed: " . $result['output']);
+        }
     }
 
     public function writeEnvFile(App $app): void
@@ -242,6 +254,20 @@ class DeploymentService
             }
             if (!$hasPort) {
                 $content .= ($content ? "\n" : "") . "PORT={$app->port}";
+            }
+        }
+
+        // For Laravel, ensure APP_KEY placeholder exists so key:generate can replace it
+        if ($app->type === 'laravel') {
+            $hasAppKey = false;
+            foreach ($lines as $line) {
+                if (str_starts_with(trim($line), 'APP_KEY=')) {
+                    $hasAppKey = true;
+                    break;
+                }
+            }
+            if (!$hasAppKey) {
+                $content .= ($content ? "\n" : "") . "APP_KEY=";
             }
         }
 
