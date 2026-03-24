@@ -178,7 +178,10 @@ class NginxConfigService
 
     public function generateLoadBalancerSsl(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
     {
+        \Illuminate\Support\Facades\Log::info("Generating Load Balancer SSL for domain: {$lbDomain->domain}. SSL Enabled: " . ($lbDomain->ssl_enabled ? 'Yes' : 'No'));
+
         if (!$lbDomain->ssl_enabled || !$this->hasCertificate($lbDomain->domain)) {
+            \Illuminate\Support\Facades\Log::warning("Skipping Load Balancer SSL generation for {$lbDomain->domain}. Certificate exists: " . ($this->hasCertificate($lbDomain->domain) ? 'Yes' : 'No'));
             return;
         }
 
@@ -299,12 +302,14 @@ class NginxConfigService
     /**
      * Check if a Let's Encrypt certificate exists for the given domain.
      */
-    private function hasCertificate(string $domain): bool
+    public function hasCertificate(string $domain): bool
     {
         $shell = app(ShellService::class);
         $domain = strtolower(trim($domain));
         $path = "/etc/letsencrypt/live/{$domain}/fullchain.pem";
         $result = $shell->run("sudo test -f " . escapeshellarg($path));
-        return $result['exit_code'] === 0;
+        $exists = ($result['exit_code'] === 0);
+        \Illuminate\Support\Facades\Log::info("Certificate check for {$domain}: " . ($exists ? 'EXISTS' : 'MISSING') . " at {$path}");
+        return $exists;
     }
 }

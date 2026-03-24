@@ -62,18 +62,30 @@ class SslService
         $result = $this->shell->run($command);
         $output = $result['output'] ?? '';
 
-        if ($result['exit_code'] === 0 && (
-            str_contains(strtolower($output), 'successfully received certificate') ||
-            str_contains(strtolower($output), 'certificate is already active') ||
-            str_contains(strtolower($output), 'congratulations') ||
-            str_contains(strtolower($output), 'successfully enabled https')
-        )) {
+        $isSuccess = ($result['exit_code'] === 0);
+        $outputLower = strtolower($output);
+
+        // Even if strings don't match, if exit code is 0 and cert file exists, we consider it success
+        if (
+            $isSuccess ||
+            str_contains($outputLower, 'successfully received certificate') ||
+            str_contains($outputLower, 'certificate is already active') ||
+            str_contains($outputLower, 'congratulations') ||
+            str_contains($outputLower, 'successfully enabled https')
+        ) {
+            // Re-verify that the file actually exists if exit code was 0 but strings didn't match
+            if (!$isSuccess && !$this->nginxService->hasCertificate($model->domain)) {
+                Log::warning("Certbot output seemed successful but certificate file was not found for {$model->domain}");
+                goto failed;
+            }
+
             $model->update([
                 'ssl_status' => 'active',
                 'ssl_enabled' => true,
                 'ssl_last_check_at' => now(),
                 'ssl_log' => $output,
             ]);
+            $model->refresh();
 
             // Generate the separate SSL config file
             if ($model instanceof App) {
@@ -82,10 +94,15 @@ class SslService
                     $this->nginxService->generate($model); // Update HTTP for redirect
                 }
             } else {
-                // For LoadBalancerDomain, use the new simplified methods
-                $this->nginxService->generateLoadBalancerSsl($model->loadBalancer, $model);
-                if ($model->force_https) {
-                    $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+                $model->refresh();
+                $lb = $model->loadBalancer;
+                if ($lb) {
+                    $this->nginxService->generateLoadBalancerSsl($lb, $model);
+                    if ($model->force_https) {
+                        $this->nginxService->generateLoadBalancerDomain($lb, $model);
+                    }
+                } else {
+                    Log::error("LoadBalancer not found for Domain: {$model->domain} (ID: {$model->id})");
                 }
             }
 
@@ -93,6 +110,7 @@ class SslService
             return ['success' => true, 'message' => "SSL enabled successfully."];
         }
 
+        failed:
         $model->update([
             'ssl_status' => 'failed',
             'ssl_enabled' => false,
@@ -420,10 +438,7 @@ class SslService
 
         // Try a few times with a small delay for local DNS propagation
         for ($i = 0; $i < 3; $i++) {
-            $ips = array_merge(
-                (array)@gethostbynamel($domain),
-                // (array)@gethostbynamel("www.{$domain}") // Check WWW too if common
-            );
+            $ips = (array)@gethostbynamel($domain);
 
             if (in_array($serverIp, $ips)) {
                 return true;
