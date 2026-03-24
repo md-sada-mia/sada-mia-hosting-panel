@@ -125,6 +125,9 @@ class CustomerController extends Controller
 
         $validated['domain'] = strtolower(trim($validated['domain']));
 
+        // Register DNS record first (new/managed or subdomain under parent)
+        $this->dnsService->createManagedDomain($validated['domain']);
+
         if (!empty($validated['load_balancer_id'])) {
             // Link existing load balancer + attach domain
             $lb = LoadBalancer::findOrFail($validated['load_balancer_id']);
@@ -163,9 +166,6 @@ class CustomerController extends Controller
 
             $lb->update(['status' => 'active']);
         }
-
-        // Register DNS record (new/managed or subdomain under parent)
-        $this->dnsService->createManagedDomain($validated['domain']);
 
         $customer->update([
             'resource_type' => 'load_balancer',
