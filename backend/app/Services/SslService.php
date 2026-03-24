@@ -44,18 +44,6 @@ class SslService
         Log::info("Starting SSL setup for domain: {$model->domain}");
         $model->update(['ssl_status' => 'pending']);
 
-        // Verify DNS record exists and points here before calling Certbot
-        if (!$this->verifyDns($model->domain)) {
-            $msg = "DNS verification failed for '{$model->domain}'. Ensure the domain points to this server's IP address and has propagated.";
-            Log::warning($msg);
-            $model->update([
-                'ssl_status' => 'failed',
-                'ssl_enabled' => false,
-                'ssl_log' => $msg,
-            ]);
-            return ['success' => false, 'message' => $msg];
-        }
-
         // Run certbot certonly --nginx (using the nginx plugin for challenge but not touching config)
         $command = "sudo certbot certonly --nginx -d " . escapeshellarg($model->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
 
@@ -423,33 +411,6 @@ class SslService
             'message' => $enable ? 'Panel Force HTTPS enabled.' : 'Panel Force HTTPS disabled.',
             'panel_force_https' => $enable,
         ];
-    }
-
-    /**
-     * Verify if the domain has a valid DNS record pointing to this server.
-     */
-    private function verifyDns(string $domain): bool
-    {
-        $serverIp = \App\Models\Setting::get('server_ip');
-        if (!$serverIp) {
-            // If server IP is not set, we can't reliably verify, so we skip and let certbot try
-            return true;
-        }
-
-        // Try for about 30 seconds for DNS propagation
-        for ($i = 0; $i < 10; $i++) {
-            $ips = (array)@gethostbynamel($domain);
-
-            if (in_array($serverIp, $ips)) {
-                Log::info("DNS verification passed for {$domain} on attempt " . ($i + 1));
-                return true;
-            }
-
-            if ($i < 9) sleep(3);
-        }
-
-        Log::warning("DNS verification timed out for {$domain} after 10 attempts. Proceeding with caution.");
-        return true; // Return true anyway to let Certbot try if we've waited enough
     }
 
     /**
