@@ -70,8 +70,11 @@ class SslService
                     $this->nginxService->generate($model); // Update HTTP for redirect
                 }
             } else {
-                // For LoadBalancerDomain, generateLoadBalancerDomain handles both
-                $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+                // For LoadBalancerDomain, use the new simplified methods
+                $this->nginxService->generateLoadBalancerSsl($model->loadBalancer, $model);
+                if ($model->force_https) {
+                    $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
+                }
             }
 
             Log::info("SSL successfully enabled for {$model->domain}");
@@ -106,6 +109,7 @@ class SslService
             $this->nginxService->removeSsl($model);
             $this->nginxService->generate($model); // Re-generate HTTP without redirect
         } else {
+            $this->nginxService->removeLoadBalancerSsl($model->domain);
             $this->nginxService->generateLoadBalancerDomain($model->loadBalancer, $model);
         }
 

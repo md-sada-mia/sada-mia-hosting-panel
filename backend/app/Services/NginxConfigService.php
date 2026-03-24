@@ -173,29 +173,46 @@ class NginxConfigService
             $shell->run("sudo ln -sf {$httpFile} {$httpSymlink}");
         }
 
-        // 2. Generate SSL Config if enabled and certificate exists
-        if ($lbDomain->ssl_enabled && $this->hasCertificate($domain)) {
-            $sslStub = $this->getStub('load_balancer-ssl');
-            $sslConfig = str_replace(
-                ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
-                [$lb->id, $domain, $phpFpmSock],
-                $sslStub
-            );
+        $shell->run("sudo nginx -t && sudo nginx -s reload");
+    }
 
-            $sslFile = "{$sitesAvailable}/{$domain}-ssl";
-            $sslSymlink = "{$sitesEnabled}/{$domain}-ssl";
-            $escapedSsl = escapeshellarg($sslConfig);
-            $shell->run("echo {$escapedSsl} | sudo tee {$sslFile} > /dev/null");
-            if (!file_exists($sslSymlink)) {
-                $shell->run("sudo ln -sf {$sslFile} {$sslSymlink}");
-            }
-        } else {
-            // Remove SSL config if disabled
-            $shell->run("sudo rm -f {$sitesEnabled}/{$domain}-ssl");
-            $shell->run("sudo rm -f {$sitesAvailable}/{$domain}-ssl");
+    public function generateLoadBalancerSsl(\App\Models\LoadBalancer $lb, \App\Models\LoadBalancerDomain $lbDomain): void
+    {
+        if (!$lbDomain->ssl_enabled || !$this->hasCertificate($lbDomain->domain)) {
+            return;
+        }
+
+        $shell = app(ShellService::class);
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+        $domain = $lbDomain->domain;
+
+        $sslStub = $this->getStub('load_balancer-ssl');
+        $sslConfig = str_replace(
+            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
+            [$lb->id, $domain, $phpFpmSock],
+            $sslStub
+        );
+
+        $sslFile = "{$sitesAvailable}/{$domain}-ssl";
+        $sslSymlink = "{$sitesEnabled}/{$domain}-ssl";
+        $escapedSsl = escapeshellarg($sslConfig);
+        $shell->run("echo {$escapedSsl} | sudo tee {$sslFile} > /dev/null");
+
+        if (!file_exists($sslSymlink)) {
+            $shell->run("sudo ln -sf {$sslFile} {$sslSymlink}");
         }
 
         $shell->run("sudo nginx -t && sudo nginx -s reload");
+    }
+
+    public function removeLoadBalancerSsl(string $domain): void
+    {
+        $shell = app(ShellService::class);
+        $shell->run("sudo rm -f /etc/nginx/sites-enabled/{$domain}-ssl");
+        $shell->run("sudo rm -f /etc/nginx/sites-available/{$domain}-ssl");
+        $shell->run("sudo nginx -s reload");
     }
 
     public function removeLoadBalancerDomain(string $domain): void
@@ -270,7 +287,7 @@ class NginxConfigService
             ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}', '{{internal_port}}'],
             [
                 $app->domain,
-                $app->port,
+                $app->port ?: '80',
                 $app->deploy_path,
                 config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
                 $internalPort ?? ''
@@ -285,6 +302,7 @@ class NginxConfigService
     private function hasCertificate(string $domain): bool
     {
         $shell = app(ShellService::class);
+        $domain = strtolower(trim($domain));
         $path = "/etc/letsencrypt/live/{$domain}/fullchain.pem";
         $result = $shell->run("sudo test -f " . escapeshellarg($path));
         return $result['exit_code'] === 0;

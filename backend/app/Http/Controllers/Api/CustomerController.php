@@ -123,6 +123,8 @@ class CustomerController extends Controller
             'domain_mode'      => 'nullable|string', // Support for tracking subdomain vs custom
         ]);
 
+        $validated['domain'] = strtolower(trim($validated['domain']));
+
         if (!empty($validated['load_balancer_id'])) {
             // Link existing load balancer + attach domain
             $lb = LoadBalancer::findOrFail($validated['load_balancer_id']);
@@ -439,6 +441,10 @@ class CustomerController extends Controller
                         $domainRecord = $lb->domains()->where('domain', $trackedDeploymentDomain)->first();
                         if ($domainRecord) {
                             $domainRecord->update(['domain' => $newDomain]);
+                            // Ensure SSL is re-evaluated for the updated domain
+                            if ($domainRecord->ssl_enabled) {
+                                $this->sslService->setupSsl($domainRecord);
+                            }
                         } else {
                             // Or attach it if it didn't exist
                             $lbDomain = $lb->domains()->create([
