@@ -108,17 +108,24 @@ class CrmApiService
 
     private function replaceVariables($template, Customer $customer)
     {
+        if (empty($template)) return '';
+
+        // Fetch the latest deployment for this customer to ensure we use the info of the app being currently created/updated
+        $deployment = $customer->deployment()->latest('id')->first();
+
         $domain = '';
-        if ($customer->resource_type === 'app') {
-            $app = \App\Models\App::find($customer->resource_id);
-            $domain = $app ? $app->domain : '';
-        } elseif ($customer->resource_type === 'load_balancer') {
-            $lb = \App\Models\LoadBalancer::with('domains')->find($customer->resource_id);
-            $domain = $lb && $lb->domains->first() ? $lb->domains->first()->domain : '';
+        $resourceId = $customer->resource_id;
+        $resourceType = $customer->resource_type;
+
+        if ($deployment) {
+            $domain = $deployment->domain;
+            $resourceId = $deployment->app_id ?: $deployment->load_balancer_id;
+            $resourceType = $deployment->resource_type;
         }
 
         $variables = [
             '{id}'            => $customer->id,
+            '{customer_id}'   => $customer->id,
             '{name}'          => $customer->name,
             '{business_name}' => $customer->business_name,
             '{email}'         => $customer->email,
@@ -126,8 +133,12 @@ class CrmApiService
             '{address}'       => $customer->address,
             '{status}'        => $customer->status,
             '{domain}'        => $domain,
-            '{resource_type}' => $customer->resource_type,
-            '{resource_id}'   => $customer->resource_id,
+            '{resource_type}' => $resourceType,
+            '{resource_id}'   => $resourceId,
+            '{app_id}'        => $deployment?->app_id ?? $resourceId,
+            '{app_type}'      => $deployment?->app_type ?? '',
+            '{git_url}'       => $deployment?->git_url ?? '',
+            '{branch}'        => $deployment?->branch ?? '',
         ];
 
         return str_replace(array_keys($variables), array_values($variables), $template);
