@@ -881,7 +881,7 @@ EOF
 ln -sf /etc/nginx/sites-available/00-default /etc/nginx/sites-enabled/
 fi
 
-nginx -t && nginx -s reload
+nginx -t && systemctl restart nginx
 
 echo "==================================================="
 echo "  Installation Complete!                           "
