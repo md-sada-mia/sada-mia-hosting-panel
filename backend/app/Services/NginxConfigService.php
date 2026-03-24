@@ -307,9 +307,13 @@ class NginxConfigService
         $shell = app(ShellService::class);
         $domain = strtolower(trim($domain));
         $path = "/etc/letsencrypt/live/{$domain}/fullchain.pem";
-        $result = $shell->run("sudo test -f " . escapeshellarg($path));
+
+        // Use ls instead of test -f for better visibility
+        $result = $shell->run("sudo ls " . escapeshellarg($path));
         $exists = ($result['exit_code'] === 0);
-        \Illuminate\Support\Facades\Log::info("Certificate check for {$domain}: " . ($exists ? 'EXISTS' : 'MISSING') . " at {$path}");
+
+        \Illuminate\Support\Facades\Log::info("Certificate check for {$domain}: " . ($exists ? 'EXISTS' : 'MISSING') . " (Path: {$path}, Code: {$result['exit_code']}, Output: " . trim($result['output']) . ")");
+
         return $exists;
     }
 }
