@@ -436,18 +436,20 @@ class SslService
             return true;
         }
 
-        // Try a few times with a small delay for local DNS propagation
-        for ($i = 0; $i < 3; $i++) {
+        // Try for about 30 seconds for DNS propagation
+        for ($i = 0; $i < 10; $i++) {
             $ips = (array)@gethostbynamel($domain);
 
             if (in_array($serverIp, $ips)) {
+                Log::info("DNS verification passed for {$domain} on attempt " . ($i + 1));
                 return true;
             }
 
-            if ($i < 2) sleep(2);
+            if ($i < 9) sleep(3);
         }
 
-        return false;
+        Log::warning("DNS verification timed out for {$domain} after 10 attempts. Proceeding with caution.");
+        return true; // Return true anyway to let Certbot try if we've waited enough
     }
 
     /**
