@@ -83,10 +83,11 @@ class SslService
 
         $model->update([
             'ssl_status' => 'failed',
+            'ssl_enabled' => false,
             'ssl_log' => $output
         ]);
         Log::error("SSL setup failed for {$model->domain}. Exit code: {$result['exit_code']}. Output: " . $output);
-        return ['success' => false, 'message' => "SSL setup failed. Check logs for details.", 'output' => $output];
+        return ['success' => false, 'message' => "SSL setup failed. Check logs for details. (Code: {$result['exit_code']})", 'output' => $output];
     }
 
     /**
