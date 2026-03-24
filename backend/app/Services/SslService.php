@@ -44,8 +44,8 @@ class SslService
         Log::info("Starting SSL setup for domain: {$model->domain}");
         $model->update(['ssl_status' => 'pending']);
 
-        // Run certbot --nginx
-        $command = "sudo certbot --nginx -d " . escapeshellarg($model->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
+        // Run certbot certonly --nginx (using the nginx plugin for challenge but not touching config)
+        $command = "sudo certbot certonly --nginx -d " . escapeshellarg($model->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
 
         $result = $this->shell->run($command);
         $output = $result['output'] ?? '';

@@ -14,7 +14,7 @@ class NginxConfigService
 
         // If force HTTPS is on, we might need to handle it differently.
         // But for now, let's keep the port 80 config as is, or with a redirect if force_https is on.
-        if ($app->force_https && $app->ssl_enabled) {
+        if ($app->force_https && $app->ssl_enabled && $this->hasCertificate($app->domain)) {
             $config = "server {\n" .
                 "    listen 80;\n" .
                 "    server_name {$app->domain};\n" .
@@ -40,7 +40,9 @@ class NginxConfigService
 
     public function generateSsl(App $app): void
     {
-        if (!$app->ssl_enabled) return;
+        if (!$app->ssl_enabled || !$this->hasCertificate($app->domain)) {
+            return;
+        }
 
         $stub = $this->getStub($app->type . '-ssl');
         $config = $this->replacePlaceholders($stub, $app);
@@ -155,7 +157,7 @@ class NginxConfigService
             $httpStub
         );
 
-        if ($lbDomain->force_https && $lbDomain->ssl_enabled) {
+        if ($lbDomain->force_https && $lbDomain->ssl_enabled && $this->hasCertificate($domain)) {
             $httpConfig = "server {\n" .
                 "    listen 80;\n" .
                 "    server_name {$domain};\n" .
@@ -171,8 +173,8 @@ class NginxConfigService
             $shell->run("sudo ln -sf {$httpFile} {$httpSymlink}");
         }
 
-        // 2. Generate SSL Config if enabled
-        if ($lbDomain->ssl_enabled) {
+        // 2. Generate SSL Config if enabled and certificate exists
+        if ($lbDomain->ssl_enabled && $this->hasCertificate($domain)) {
             $sslStub = $this->getStub('load_balancer-ssl');
             $sslConfig = str_replace(
                 ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
@@ -275,5 +277,16 @@ class NginxConfigService
             ],
             $stub
         );
+    }
+
+    /**
+     * Check if a Let's Encrypt certificate exists for the given domain.
+     */
+    private function hasCertificate(string $domain): bool
+    {
+        $shell = app(ShellService::class);
+        $path = "/etc/letsencrypt/live/{$domain}/fullchain.pem";
+        $result = $shell->run("sudo test -f " . escapeshellarg($path));
+        return $result['exit_code'] === 0;
     }
 }
