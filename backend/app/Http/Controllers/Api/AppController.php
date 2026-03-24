@@ -71,8 +71,8 @@ class AppController extends Controller
             'force_https'      => true,
         ]);
 
-        // Note: env_vars column now only stores the filename of the template.
-        // The actual content is managed on disk during/after deployment.
+        // Note: env_vars column stores the actual environment file name (e.g. .env or .env.production).
+        // If empty, it defaults based on app type in the App model's getEnvFilePath().
         if (!empty($validated['env_vars'])) {
             $app->update(['env_vars' => $validated['env_vars']]);
         }

@@ -40,6 +40,13 @@ class App extends Model
         'ssl_last_check_at' => 'datetime',
     ];
 
+    public function getEnvFilePath(): string
+    {
+        $default = ($this->type === 'nextjs') ? '.env.production' : '.env';
+        $name = $this->env_vars ?: $default;
+        return ($this->deploy_path ?: '') . "/{$name}";
+    }
+
     protected static function booted()
     {
         static::created(function (App $app) {
@@ -63,7 +70,7 @@ class App extends Model
             return;
         }
 
-        $envFile = "{$this->deploy_path}/.env";
+        $envFile = $this->getEnvFilePath();
         $content = file_exists($envFile) ? file_get_contents($envFile) : '';
 
         foreach ($newVars as $key => $value) {

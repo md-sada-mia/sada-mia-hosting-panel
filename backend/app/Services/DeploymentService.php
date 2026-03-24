@@ -212,12 +212,13 @@ class DeploymentService
         }
 
         // Generate APP_KEY if it's not already in the .env or if it's the default
-        $envContent = file_get_contents("{$deployPath}/.env");
+        $envFile = $app->getEnvFilePath();
+        $envContent = file_get_contents($envFile);
         if (!str_contains($envContent, 'APP_KEY=base64:')) {
             // Ensure the placeholder exists, otherwise key:generate fails
             if (!str_contains($envContent, 'APP_KEY=')) {
-                $log("Adding APP_KEY placeholder to .env...");
-                file_put_contents("{$deployPath}/.env", $envContent . "\nAPP_KEY=\n");
+                $log("Adding APP_KEY placeholder to " . basename($envFile) . "...");
+                file_put_contents($envFile, $envContent . "\nAPP_KEY=\n");
             }
 
             $log("Generating new application key...");
@@ -241,37 +242,34 @@ class DeploymentService
         }
 
         $deployPath = $app->deploy_path;
-        $envFile = "{$deployPath}/.env";
+        $envFile = $app->getEnvFilePath();
+        $envFileName = basename($envFile);
 
-        // 1. If .env doesn't exist, try to template it from an example file
+        // 1. If the environment file doesn't exist, try to template it from an example file
         if (!file_exists($envFile)) {
-            $filename = $app->env_vars;
+            $templateFile = null;
 
-            if (empty($filename) || !file_exists("{$deployPath}/{$filename}")) {
-                // Scan for example files using regex
-                $files = is_dir($deployPath) ? scandir($deployPath) : [];
-                $regex = '/^\.env\.(example|sample|demo|template|dist)$|^\.env-example$/i';
-                $exampleFiles = preg_grep($regex, $files);
+            // Scan for example files using regex
+            $files = is_dir($deployPath) ? scandir($deployPath) : [];
+            $regex = '/^\.env\.(example|sample|demo|template|dist)$|^\.env-example$/i';
+            $exampleFiles = preg_grep($regex, $files);
 
-                if (!empty($exampleFiles)) {
-                    $filename = reset($exampleFiles);
-                } else {
-                    // Fallback: search for any file containing ".env"
-                    $fallbackRegex = '/\.env/i';
-                    $fallbackFiles = preg_grep($fallbackRegex, $files);
-                    if (!empty($fallbackFiles)) {
-                        $filename = reset($fallbackFiles);
+            if (!empty($exampleFiles)) {
+                $templateFile = reset($exampleFiles);
+            } else {
+                // Fallback: search for any file containing ".env" except the target file itself
+                $fallbackRegex = '/\.env/i';
+                $fallbackFiles = preg_grep($fallbackRegex, $files);
+                foreach ($fallbackFiles as $file) {
+                    if ($file !== $envFileName) {
+                        $templateFile = $file;
+                        break;
                     }
-                }
-
-                if ($filename) {
-                    // Save the discovered filename to the database
-                    $app->update(['env_vars' => $filename]);
                 }
             }
 
-            if ($filename && file_exists("{$deployPath}/{$filename}")) {
-                $this->shell->run("cp " . escapeshellarg("{$deployPath}/{$filename}") . " " . escapeshellarg($envFile));
+            if ($templateFile && file_exists("{$deployPath}/{$templateFile}")) {
+                $this->shell->run("cp " . escapeshellarg("{$deployPath}/{$templateFile}") . " " . escapeshellarg($envFile));
             }
         }
 
