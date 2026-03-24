@@ -44,6 +44,18 @@ class SslService
         Log::info("Starting SSL setup for domain: {$model->domain}");
         $model->update(['ssl_status' => 'pending']);
 
+        // Verify DNS record exists and points here before calling Certbot
+        if (!$this->verifyDns($model->domain)) {
+            $msg = "DNS verification failed for '{$model->domain}'. Ensure the domain points to this server's IP address and has propagated.";
+            Log::warning($msg);
+            $model->update([
+                'ssl_status' => 'failed',
+                'ssl_enabled' => false,
+                'ssl_log' => $msg,
+            ]);
+            return ['success' => false, 'message' => $msg];
+        }
+
         // Run certbot certonly --nginx (using the nginx plugin for challenge but not touching config)
         $command = "sudo certbot certonly --nginx -d " . escapeshellarg($model->domain) . " --non-interactive --agree-tos --register-unsafely-without-email";
 
@@ -393,6 +405,34 @@ class SslService
             'message' => $enable ? 'Panel Force HTTPS enabled.' : 'Panel Force HTTPS disabled.',
             'panel_force_https' => $enable,
         ];
+    }
+
+    /**
+     * Verify if the domain has a valid DNS record pointing to this server.
+     */
+    private function verifyDns(string $domain): bool
+    {
+        $serverIp = \App\Models\Setting::get('server_ip');
+        if (!$serverIp) {
+            // If server IP is not set, we can't reliably verify, so we skip and let certbot try
+            return true;
+        }
+
+        // Try a few times with a small delay for local DNS propagation
+        for ($i = 0; $i < 3; $i++) {
+            $ips = array_merge(
+                (array)@gethostbynamel($domain),
+                // (array)@gethostbynamel("www.{$domain}") // Check WWW too if common
+            );
+
+            if (in_array($serverIp, $ips)) {
+                return true;
+            }
+
+            if ($i < 2) sleep(2);
+        }
+
+        return false;
     }
 
     /**
