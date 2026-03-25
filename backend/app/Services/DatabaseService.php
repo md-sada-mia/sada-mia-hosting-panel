@@ -86,12 +86,18 @@ class DatabaseService
         $database->delete();
     }
 
-    public function createUser(string $username, string $password): \App\Models\DatabaseUser
+    public function createUser(string $username, string $password, array $globalPrivileges = []): \App\Models\DatabaseUser
     {
         $quotedUser = "\"" . str_replace("\"", "\"\"", $username) . "\"";
         $passwordEscaped = str_replace("'", "''", $password);
 
-        $cmd = "sudo -u postgres psql -c " . escapeshellarg("CREATE USER {$quotedUser} WITH ENCRYPTED PASSWORD '{$passwordEscaped}';");
+        $opts = [];
+        if (in_array('CREATEDB', $globalPrivileges)) $opts[] = 'CREATEDB';
+        if (in_array('CREATEROLE', $globalPrivileges)) $opts[] = 'CREATEROLE';
+        if (in_array('SUPERUSER', $globalPrivileges)) $opts[] = 'SUPERUSER';
+        $optsStr = implode(' ', $opts);
+
+        $cmd = "sudo -u postgres psql -c " . escapeshellarg("CREATE USER {$quotedUser} WITH ENCRYPTED PASSWORD '{$passwordEscaped}' {$optsStr};");
 
         $result = $this->shell->run($cmd);
         if ($result['exit_code'] !== 0) {
@@ -102,7 +108,29 @@ class DatabaseService
             'username' => $username,
             'password' => $password,
             'status' => 'active',
+            'global_privileges' => array_intersect($globalPrivileges, ['CREATEDB', 'CREATEROLE', 'SUPERUSER']),
         ]);
+    }
+
+    public function syncGlobalPrivileges(\App\Models\DatabaseUser $user, array $privileges): void
+    {
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $user->username) . "\"";
+
+        $opts = [];
+        $opts[] = in_array('CREATEDB', $privileges) ? 'CREATEDB' : 'NOCREATEDB';
+        $opts[] = in_array('CREATEROLE', $privileges) ? 'CREATEROLE' : 'NOCREATEROLE';
+        $opts[] = in_array('SUPERUSER', $privileges) ? 'SUPERUSER' : 'NOSUPERUSER';
+
+        $optsStr = implode(' ', $opts);
+
+        $cmd = "sudo -u postgres psql -c " . escapeshellarg("ALTER ROLE {$quotedUser} WITH {$optsStr};");
+
+        $result = $this->shell->run($cmd);
+        if ($result['exit_code'] !== 0) {
+            throw new \RuntimeException("Failed to sync global privileges: " . $result['output']);
+        }
+
+        $user->update(['global_privileges' => array_intersect($privileges, ['CREATEDB', 'CREATEROLE', 'SUPERUSER'])]);
     }
 
     public function changeUserPassword(\App\Models\DatabaseUser $user, string $newPassword): void

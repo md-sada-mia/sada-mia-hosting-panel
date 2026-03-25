@@ -21,15 +21,32 @@ class DatabaseUserController extends Controller
         $validated = $request->validate([
             'username' => 'required|string|regex:/^[a-zA-Z0-9_]+$/|unique:database_users,username|unique:databases,db_user',
             'password' => 'required|string|min:8',
+            'global_privileges' => 'nullable|array',
+            'global_privileges.*' => 'string|in:CREATEDB,CREATEROLE,SUPERUSER',
         ]);
 
         try {
-            $user = $this->dbService->createUser($validated['username'], $validated['password']);
+            $user = $this->dbService->createUser($validated['username'], $validated['password'], $validated['global_privileges'] ?? []);
 
             $data = $user->toArray();
             $data['password'] = $user->password;
 
             return response()->json($data, 201);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function syncGlobalPrivileges(Request $request, DatabaseUser $user)
+    {
+        $validated = $request->validate([
+            'global_privileges' => 'nullable|array',
+            'global_privileges.*' => 'string|in:CREATEDB,CREATEROLE,SUPERUSER',
+        ]);
+
+        try {
+            $this->dbService->syncGlobalPrivileges($user, $validated['global_privileges'] ?? []);
+            return response()->json(['message' => 'Global privileges updated successfully', 'user' => $user->fresh()]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

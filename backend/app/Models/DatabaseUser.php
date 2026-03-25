@@ -11,10 +11,15 @@ class DatabaseUser extends Model
         'username',
         'password',
         'status',
+        'global_privileges',
     ];
 
     protected $hidden = [
         'password',
+    ];
+
+    protected $casts = [
+        'global_privileges' => 'array',
     ];
 
     public function databases(): BelongsToMany

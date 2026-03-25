@@ -24,6 +24,7 @@ export default function DatabaseUsersPage() {
   const [creating, setCreating] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newGlobalPrivs, setNewGlobalPrivs] = useState({ CREATEDB: false, CREATEROLE: false, SUPERUSER: false });
   
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,6 +36,10 @@ export default function DatabaseUsersPage() {
   const [userToManagePermissions, setUserToManagePermissions] = useState(null);
   const [selectedDbs, setSelectedDbs] = useState({});
   const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
+
+  const [userToManageGlobalPrivs, setUserToManageGlobalPrivs] = useState(null);
+  const [selectedGlobalPrivs, setSelectedGlobalPrivs] = useState({ CREATEDB: false, CREATEROLE: false, SUPERUSER: false });
+  const [isSyncingGlobalPrivs, setIsSyncingGlobalPrivs] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -64,12 +69,15 @@ export default function DatabaseUsersPage() {
     
     setCreating(true);
     try {
+      const global_privileges = Object.keys(newGlobalPrivs).filter(k => newGlobalPrivs[k]);
       await api.post('/databases/users', { 
         username: newUsername,
-        password: newPassword
+        password: newPassword,
+        global_privileges
       });
       setNewUsername('');
       setNewPassword('');
+      setNewGlobalPrivs({ CREATEDB: false, CREATEROLE: false, SUPERUSER: false });
       fetchData();
       toast.success('Database user created successfully');
     } catch (err) {
@@ -159,6 +167,34 @@ export default function DatabaseUsersPage() {
     }
   };
 
+  const openManageGlobalPrivs = (user) => {
+    setUserToManageGlobalPrivs(user);
+    const flags = user.global_privileges || [];
+    setSelectedGlobalPrivs({
+      CREATEDB: flags.includes('CREATEDB'),
+      CREATEROLE: flags.includes('CREATEROLE'),
+      SUPERUSER: flags.includes('SUPERUSER'),
+    });
+  };
+
+  const handleSyncGlobalPrivs = async (e) => {
+    e.preventDefault();
+    if (!userToManageGlobalPrivs) return;
+
+    setIsSyncingGlobalPrivs(true);
+    try {
+      const global_privileges = Object.keys(selectedGlobalPrivs).filter(k => selectedGlobalPrivs[k]);
+      await api.post(`/databases/users/${userToManageGlobalPrivs.id}/global-privileges`, { global_privileges });
+      toast.success('Global privileges updated successfully');
+      setUserToManageGlobalPrivs(null);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to sync global privileges');
+    } finally {
+      setIsSyncingGlobalPrivs(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -215,7 +251,23 @@ export default function DatabaseUsersPage() {
                     required 
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={creating || !newUsername || newPassword.length < 8}>
+                <div className="space-y-3 pt-2">
+                  <label className="text-sm font-medium">Global Privileges (Optional)</label>
+                  <div className="flex flex-col gap-2">
+                    {['CREATEDB', 'CREATEROLE', 'SUPERUSER'].map(priv => (
+                      <label key={priv} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={newGlobalPrivs[priv]} 
+                          onChange={(e) => setNewGlobalPrivs({...newGlobalPrivs, [priv]: e.target.checked})}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="font-mono">{priv}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <Button type="submit" className="w-full mt-4" disabled={creating || !newUsername || newPassword.length < 8}>
                   {creating ? 'Creating...' : <><Plus className="mr-2 h-4 w-4" /> Create User</>}
                 </Button>
               </form>
@@ -265,6 +317,14 @@ export default function DatabaseUsersPage() {
                          <Shield className="mr-2 h-4 w-4" /> Permissions
                        </Button>
                        <Button 
+                         variant="outline" 
+                         size="sm" 
+                         className="border-primary/20 hover:bg-primary/5"
+                         onClick={() => openManageGlobalPrivs(user)}
+                       >
+                         <Shield className="mr-2 h-4 w-4" /> Global Privileges
+                       </Button>
+                       <Button 
                          variant="ghost" 
                          size="icon" 
                          className="text-muted-foreground hover:text-primary hover:bg-primary/10" 
@@ -278,9 +338,14 @@ export default function DatabaseUsersPage() {
                        </Button>
                      </div>
                    </div>
-                   {user.databases?.length > 0 && (
+                   {((user.databases?.length > 0) || (user.global_privileges?.length > 0)) && (
                      <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
-                       {user.databases.map(db => (
+                       {user.global_privileges?.map(priv => (
+                         <div key={priv} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-mono text-xs font-semibold">
+                           {priv}
+                         </div>
+                       ))}
+                       {user.databases?.map(db => (
                          <div key={db.id} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground font-mono text-xs">
                            <span>{db.db_name}</span>
                            <span className="opacity-50 text-[10px] uppercase border-l pl-1.5 ml-0.5 border-secondary-foreground/20">{db.pivot?.privileges || 'read'}</span>
@@ -334,6 +399,47 @@ export default function DatabaseUsersPage() {
               </Button>
               <Button type="submit" disabled={isChangingPassword || changePasswordValue.length < 8}>
                 {isChangingPassword ? 'Changing...' : 'Change Password'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!userToManageGlobalPrivs} onOpenChange={(open) => !open && setUserToManageGlobalPrivs(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleSyncGlobalPrivs}>
+            <DialogHeader>
+              <DialogTitle>Mange Global Privileges</DialogTitle>
+              <DialogDescription>
+                Select Postgres-level privileges for <span className="font-semibold">{userToManageGlobalPrivs?.username}</span>.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {['CREATEDB', 'CREATEROLE', 'SUPERUSER'].map(priv => (
+                <label key={priv} className="flex items-start gap-3 p-3 rounded border hover:bg-accent cursor-pointer transition-colors">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 mt-0.5 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={selectedGlobalPrivs[priv]}
+                    onChange={(e) => setSelectedGlobalPrivs({...selectedGlobalPrivs, [priv]: e.target.checked})}
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium font-mono text-sm">{priv}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {priv === 'CREATEDB' && 'Allows user to create new databases.'}
+                      {priv === 'CREATEROLE' && 'Allows user to create and manage other roles.'}
+                      {priv === 'SUPERUSER' && 'WARNING: Bypasses all permission checks in PostgreSQL.'}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUserToManageGlobalPrivs(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSyncingGlobalPrivs}>
+                {isSyncingGlobalPrivs ? 'Saving...' : 'Save Privileges'}
               </Button>
             </DialogFooter>
           </form>

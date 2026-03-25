@@ -80,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/databases/users/{user}/password', [\App\Http\Controllers\Api\DatabaseUserController::class, 'updatePassword']);
     Route::delete('/databases/users/{user}', [\App\Http\Controllers\Api\DatabaseUserController::class, 'destroy']);
     Route::post('/databases/users/{user}/permissions', [\App\Http\Controllers\Api\DatabaseUserController::class, 'syncPermissions']);
+    Route::post('/databases/users/{user}/global-privileges', [\App\Http\Controllers\Api\DatabaseUserController::class, 'syncGlobalPrivileges']);
 
     // Server stats
     Route::get('/server/stats', [ServerController::class, 'stats']);
