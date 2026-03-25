@@ -74,15 +74,29 @@ class SettingsController extends Controller
         ]);
 
         $file = $request->file('logo');
-        $filename = 'gateway_logo.' . $file->getClientOriginalExtension();
+        $filename = 'logo.' . $file->getClientOriginalExtension();
 
-        // Save to backend/public/logos
-        $file->move(public_path('logos'), $filename);
+        // Save to storage/app/public/logos (gitignored)
+        $result = $file->storeAs('logos', $filename, 'public');
 
-        $url = url('/logos/' . $filename);
+        if (!$result) {
+            return response()->json(['message' => 'Failed to save logo to storage. Check folder permissions.'], 500);
+        }
+
+        // Construct a clean, port-less public URL if payment subdomain is set
+        $baseUrl = Setting::get('payment_callback_base_url');
+        if ($baseUrl) {
+            $url = rtrim($baseUrl, '/') . '/storage/logos/' . $filename;
+        } else {
+            $url = asset('storage/logos/' . $filename);
+        }
+
         Setting::set('gateway_logo_url', $url);
 
-        return response()->json(['url' => $url, 'message' => 'Logo uploaded successfully.']);
+        // Add cache-buster for the response so the UI refreshes
+        $urlWithCacheBuster = $url . '?t=' . time();
+
+        return response()->json(['url' => $urlWithCacheBuster, 'message' => 'Logo uploaded successfully.']);
     }
 
     public function update(Request $request)
@@ -192,18 +206,54 @@ class SettingsController extends Controller
             $dnsService->syncRecords($domainRecord);
         }
 
-        // 2. Setup Nginx proxy block
+        // 2. Setup Nginx block (Direct serving instead of port 8083 proxying)
+        // This ensures the payment domain works perfectly without port issues.
+        $baseDir = base_path('..');
+        $frontendDist = "{$baseDir}/frontend/dist";
+        $backendPublic = "{$baseDir}/backend/public";
+        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+
         $nginxConfig = <<<NGINX
 server {
     listen 80;
     server_name {$paymentDomain};
+    root {$frontendDist};
+    index index.html;
 
+    # Landing page redirect to subscription
+    location = / {
+        return 301 /subscription;
+    }
+
+    # Frontend routing
     location / {
-        proxy_pass http://127.0.0.1:8083;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # API Proxy to Laravel
+    location ^~ /api {
+        alias {$backendPublic};
+        try_files \$uri \$uri/ @laravel_payment;
+        
+        location ~ \.php$ {
+            fastcgi_pass unix:{$phpFpmSock};
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$request_filename;
+        }
+    }
+
+    location @laravel_payment {
+        fastcgi_pass unix:{$phpFpmSock};
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME {$backendPublic}/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param REQUEST_URI \$request_uri;
+    }
+
+    # Handle SSL Let's Encrypt challenges
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
     }
 }
 NGINX;
@@ -225,7 +275,7 @@ NGINX;
         Setting::set('payment_callback_base_url', $url);
 
         return response()->json([
-            'message' => "Payment domain {$paymentDomain} configured successfully.",
+            'message' => "Payment domain {$paymentDomain} configured successfully with landing redirect to /subscription.",
             'url' => $url
         ]);
     }
