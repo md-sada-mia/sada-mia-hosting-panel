@@ -9,7 +9,7 @@ class RequestUsageLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'user_id',
+        'domain',
         'billable_route_id',
         'path_hit',
         'credits_charged',

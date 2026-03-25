@@ -278,6 +278,7 @@ export default function BillableRoutesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Domain</TableHead>
                   <TableHead>Path</TableHead>
                   <TableHead>Credits Charged</TableHead>
                   <TableHead>Date</TableHead>
@@ -293,7 +294,8 @@ export default function BillableRoutesPage() {
                 ) : (
                   usageLogs.map((log) => (
                     <TableRow key={log.id}>
-                      <TableCell className="font-mono text-sm">/{log.path_hit}</TableCell>
+                    <TableCell className="font-medium">{log.domain || 'N/A'}</TableCell>
+                    <TableCell className="font-mono text-sm">/{log.path_hit}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-amber-400 border-amber-400/30">
                           -{log.credits_charged} cr

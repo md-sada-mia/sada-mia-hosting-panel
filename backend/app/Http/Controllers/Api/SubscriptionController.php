@@ -19,6 +19,42 @@ class SubscriptionController extends Controller
     ) {}
 
     /**
+     * Admin: Get overall billing statistics.
+     */
+    public function adminStats()
+    {
+        $totalRevenue = PaymentTransaction::where('status', 'completed')->sum('amount');
+        $activeFlat   = \App\Models\Subscription::where('status', 'active')
+            ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
+            ->count();
+        $totalCredits = \App\Models\Subscription::where('status', 'active')
+            ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
+            ->sum('credit_balance');
+
+        return response()->json([
+            'total_revenue'      => $totalRevenue,
+            'active_flat_rate'   => $activeFlat,
+            'total_credits_held' => $totalCredits,
+            'recent_transactions' => PaymentTransaction::with('plan')
+                ->latest()
+                ->limit(10)
+                ->get()
+        ]);
+    }
+
+    /**
+     * Admin: List all transactions.
+     */
+    public function transactions()
+    {
+        return response()->json(
+            PaymentTransaction::with(['plan'])
+                ->latest()
+                ->paginate(20)
+        );
+    }
+
+    /**
      * List all active subscription plans.
      * Optionally filter by type: ?type=flat_rate|request_credit
      */
