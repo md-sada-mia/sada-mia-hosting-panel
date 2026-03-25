@@ -14,16 +14,22 @@ export default function PaymentResultPage() {
   const navigate  = useNavigate();
   const status    = params.get('status');   // 'success' | 'failed'
   const gateway   = params.get('gateway');
+  const domain    = params.get('domain');
 
   const isSuccess = status === 'success';
+  const isPaymentDomain = window.location.hostname.startsWith('payment.');
+  
+  const dashboardUrl = isPaymentDomain 
+    ? (domain ? `/?domain=${domain}` : `/`)
+    : '/subscription';
 
   // Auto-redirect to subscription page after success
   useEffect(() => {
     if (isSuccess) {
-      const t = setTimeout(() => navigate('/subscription'), 5000);
+      const t = setTimeout(() => navigate(dashboardUrl), 5000);
       return () => clearTimeout(t);
     }
-  }, [isSuccess, navigate]);
+  }, [isSuccess, navigate, dashboardUrl]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-6">
@@ -50,15 +56,15 @@ export default function PaymentResultPage() {
         </p>
         {isSuccess && (
           <p className="text-sm text-muted-foreground">
-            Redirecting to subscription page in 5 seconds…
+            Redirecting to dashboard in 5 seconds…
           </p>
         )}
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={() => navigate('/subscription')}>
+        <Button variant="outline" onClick={() => navigate(dashboardUrl)}>
           <CreditCard className="h-4 w-4 mr-2" />
-          View Subscription
+          {isPaymentDomain ? 'View Portal Dashboard' : 'View Subscription'}
         </Button>
         {!isSuccess && (
           <Button onClick={() => navigate(-1)}>

@@ -22,17 +22,17 @@ class CheckSubscription
             return $next($request);
         }
 
-        $user = $request->user();
+        $domain = $request->query('domain') ?? $request->header('X-Domain');
 
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+        if (!$domain) {
+            return response()->json(['message' => 'Domain identifier is required for subscription/billing checks.'], 400);
         }
 
         if ($mode === 'flat_rate') {
             // Check active flat-rate plan (cached 1 day)
-            if (!$this->subscriptionService->isActive($user)) {
+            if (!$this->subscriptionService->isActive($domain)) {
                 return response()->json([
-                    'message'              => 'An active subscription is required.',
+                    'message'              => 'An active subscription is required for this domain.',
                     'subscription_expired' => true,
                 ], 403);
             }
@@ -41,13 +41,13 @@ class CheckSubscription
         if ($mode === 'request_billing') {
             // Deduct credits for matching billable routes
             $path = BillableRoute::normalizePath($request->path());
-            $charged = $this->billingService->charge($user, $path);
+            $charged = $this->billingService->charge($domain, $path);
 
             if (!$charged) {
                 return response()->json([
-                    'message'              => 'Insufficient request credits.',
+                    'message'              => 'Insufficient request credits for this domain.',
                     'insufficient_credits' => true,
-                    'credit_balance'       => $this->subscriptionService->getCredits($user),
+                    'credit_balance'       => $this->subscriptionService->getCredits($domain),
                 ], 402);
             }
         }

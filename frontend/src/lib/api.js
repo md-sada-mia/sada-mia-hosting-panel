@@ -21,8 +21,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('panel_token');
-      // Only redirect if not already on login
-      if (window.location.pathname !== '/login') {
+      // Only redirect if not already on login and not on payment domain
+      const isPaymentDomain = window.location.hostname.startsWith('payment.');
+      if (!isPaymentDomain && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }

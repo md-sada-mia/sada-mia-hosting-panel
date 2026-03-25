@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,8 @@ const GATEWAY_META = {
 export default function PaymentPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const domain = searchParams.get('domain');
   const plan = state?.plan;
 
   const [selected, setSelected]   = useState(null);
@@ -45,8 +47,8 @@ export default function PaymentPage() {
   if (!plan) {
     return (
       <div className="flex flex-col items-center justify-center h-48 gap-4 text-muted-foreground">
-        <p>No plan selected. Go back to Subscription.</p>
-        <Button variant="outline" onClick={() => navigate('/subscription')}>
+        <p>No plan selected. Go back to Packages.</p>
+        <Button variant="outline" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
       </div>
@@ -61,10 +63,16 @@ export default function PaymentPage() {
 
     setLoading(true);
     try {
-      const { data } = await api.post('/subscription/subscribe', {
-        plan_id: plan.id,
-        gateway: selected,
-      });
+      const isPaymentDomain = window.location.hostname.startsWith('payment.');
+      let endpoint = '/subscription/subscribe';
+      let payload = { plan_id: plan.id, gateway: selected };
+
+      if (isPaymentDomain) {
+        endpoint = '/public/portal/subscribe';
+        payload.domain = domain;
+      }
+
+      const { data } = await api.post(endpoint, payload);
 
       if (data.payment_url) {
         window.location.href = data.payment_url;

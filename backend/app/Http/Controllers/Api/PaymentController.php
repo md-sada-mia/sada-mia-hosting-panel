@@ -30,14 +30,15 @@ class PaymentController extends Controller
         $status    = $request->query('status'); // success | cancel | failure
 
         $transaction = PaymentTransaction::find($txId);
+        $domain = $transaction ? $transaction->domain : null;
 
         if (!$transaction || !$transaction->isPending()) {
-            return $this->redirectResult('failed', 'bkash');
+            return $this->redirectResult('failed', 'bkash', $domain);
         }
 
         if ($status !== 'success' || !$paymentId) {
             $transaction->update(['status' => 'failed', 'raw_response' => $request->all()]);
-            return $this->redirectResult('failed', 'bkash');
+            return $this->redirectResult('failed', 'bkash', $domain);
         }
 
         try {
@@ -45,15 +46,15 @@ class PaymentController extends Controller
 
             if (($executeResult['statusCode'] ?? '') !== '0000') {
                 $transaction->update(['status' => 'failed', 'raw_response' => $executeResult]);
-                return $this->redirectResult('failed', 'bkash');
+                return $this->redirectResult('failed', 'bkash', $domain);
             }
 
             $this->completeTransaction($transaction, $executeResult['trxID'] ?? null, $executeResult);
-            return $this->redirectResult('success', 'bkash');
+            return $this->redirectResult('success', 'bkash', $domain);
         } catch (\Exception $e) {
             Log::error('bKash callback execution error: ' . $e->getMessage());
             $transaction->update(['status' => 'failed']);
-            return $this->redirectResult('failed', 'bkash');
+            return $this->redirectResult('failed', 'bkash', $domain);
         }
     }
 
@@ -65,9 +66,10 @@ class PaymentController extends Controller
         $paymentRefId = $request->query('payment_ref_id');
 
         $transaction = PaymentTransaction::find($txId);
+        $domain = $transaction ? $transaction->domain : null;
 
         if (!$transaction || !$transaction->isPending()) {
-            return $this->redirectResult('failed', 'nagad');
+            return $this->redirectResult('failed', 'nagad', $domain);
         }
 
         try {
@@ -75,15 +77,15 @@ class PaymentController extends Controller
 
             if (($result['status'] ?? '') !== 'Success') {
                 $transaction->update(['status' => 'failed', 'raw_response' => $result]);
-                return $this->redirectResult('failed', 'nagad');
+                return $this->redirectResult('failed', 'nagad', $domain);
             }
 
             $this->completeTransaction($transaction, $result['merchantOrderId'] ?? $paymentRefId, $result);
-            return $this->redirectResult('success', 'nagad');
+            return $this->redirectResult('success', 'nagad', $domain);
         } catch (\Exception $e) {
             Log::error('Nagad callback error: ' . $e->getMessage());
             $transaction->update(['status' => 'failed']);
-            return $this->redirectResult('failed', 'nagad');
+            return $this->redirectResult('failed', 'nagad', $domain);
         }
     }
 
@@ -134,9 +136,10 @@ class PaymentController extends Controller
     {
         $txId = $request->query('tx_id');
         $transaction = PaymentTransaction::find($txId);
+        $domain = $transaction ? $transaction->domain : null;
 
         if (!$transaction || !$transaction->isPending()) {
-            return $this->redirectResult($outcome, 'sslcommerz');
+            return $this->redirectResult($outcome, 'sslcommerz', $domain);
         }
 
         if ($outcome === 'success') {
@@ -145,7 +148,7 @@ class PaymentController extends Controller
                 $validated = $this->sslCommerz->validatePayment($data['val_id'] ?? $data['tran_id'] ?? '');
                 if (($validated['status'] ?? '') === 'VALID') {
                     $this->completeTransaction($transaction, $data['bank_tran_id'] ?? null, $validated);
-                    return $this->redirectResult('success', 'sslcommerz');
+                    return $this->redirectResult('success', 'sslcommerz', $domain);
                 }
             } catch (\Exception $e) {
                 Log::error('SSL Commerce validation error: ' . $e->getMessage());
@@ -153,7 +156,7 @@ class PaymentController extends Controller
         }
 
         $transaction->update(['status' => 'failed', 'raw_response' => $request->all()]);
-        return $this->redirectResult('failed', 'sslcommerz');
+        return $this->redirectResult('failed', 'sslcommerz', $domain);
     }
 
     /**
@@ -167,16 +170,16 @@ class PaymentController extends Controller
             'raw_response'   => $raw,
         ]);
 
-        $user = $transaction->user;
+        $domain = $transaction->domain;
         $plan = SubscriptionPlan::findOrFail($transaction->plan_id);
 
-        $this->subscriptionService->activate($user, $plan, $transaction);
+        $this->subscriptionService->activate($domain, $plan, $transaction);
     }
 
     /**
      * Redirect to the frontend result page.
      */
-    private function redirectResult(string $status, string $gateway)
+    private function redirectResult(string $status, string $gateway, ?string $domain = null)
     {
         $baseUrl = \App\Models\Setting::get('payment_callback_base_url');
 
@@ -185,6 +188,12 @@ class PaymentController extends Controller
         }
 
         $baseUrl = rtrim($baseUrl, '/');
-        return redirect("{$baseUrl}/payment/result?status={$status}&gateway={$gateway}");
+        $url = "{$baseUrl}/payment/result?status={$status}&gateway={$gateway}";
+
+        if ($domain) {
+            $url .= "&domain=" . urlencode($domain);
+        }
+
+        return redirect($url);
     }
 }

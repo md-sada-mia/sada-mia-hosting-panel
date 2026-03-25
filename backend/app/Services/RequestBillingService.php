@@ -29,10 +29,10 @@ class RequestBillingService
     }
 
     /**
-     * Attempt to charge the user for hitting a billable route.
+     * Attempt to charge the domain for hitting a billable route.
      * Returns true on success, false if insufficient credits or route not found/inactive.
      */
-    public function charge(User $user, string $requestPath): bool
+    public function charge(string $domain, string $requestPath): bool
     {
         $route = $this->matchRoute($requestPath);
 
@@ -40,15 +40,15 @@ class RequestBillingService
             return true; // Not a billable route — allow
         }
 
-        return DB::transaction(function () use ($user, $route) {
-            $newBalance = $this->subscriptionService->deductCredits($user, $route->charge_per_request);
+        return DB::transaction(function () use ($domain, $route) {
+            $newBalance = $this->subscriptionService->deductCredits($domain, $route->charge_per_request);
 
             if ($newBalance === -1) {
                 return false; // Insufficient credits
             }
 
             RequestUsageLog::create([
-                'user_id'          => $user->id,
+                'domain'           => $domain,
                 'billable_route_id' => $route->id,
                 'path_hit'         => $route->path,
                 'credits_charged'  => $route->charge_per_request,
@@ -60,12 +60,12 @@ class RequestBillingService
     }
 
     /**
-     * Get paginated usage history for a user.
+     * Get paginated usage history for a domain.
      */
-    public function getUsageHistory(User $user, int $perPage = 20)
+    public function getUsageHistory(string $domain, int $perPage = 20)
     {
         return RequestUsageLog::with('billableRoute')
-            ->where('user_id', $user->id)
+            ->where('domain', $domain)
             ->orderByDesc('created_at')
             ->paginate($perPage);
     }

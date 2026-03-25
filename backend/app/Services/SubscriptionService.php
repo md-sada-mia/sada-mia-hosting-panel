@@ -24,33 +24,33 @@ class SubscriptionService
     }
 
     /**
-     * Cache key for user subscription status.
+     * Cache key for domain subscription status.
      */
-    private function cacheKey(User $user): string
+    private function cacheKey(string $domain): string
     {
-        return "subscription_status_{$user->id}";
+        return "subscription_status_{$domain}";
     }
 
     /**
-     * Flush the 1-day cache for a user. Call on payment success / plan change.
+     * Flush the 1-day cache for a domain. Call on payment success / plan change.
      */
-    public function invalidateCache(User $user): void
+    public function invalidateCache(string $domain): void
     {
-        Cache::forget($this->cacheKey($user));
+        Cache::forget($this->cacheKey($domain));
         // Also flush billable credit cache
-        Cache::forget("subscription_credits_{$user->id}");
+        Cache::forget("subscription_credits_{$domain}");
     }
 
     /**
-     * Get the user's current active flat-rate subscription (cached 1 day).
+     * Get the domain's current active flat-rate subscription (cached 1 day).
      */
-    public function getCurrentSubscription(User $user): ?Subscription
+    public function getCurrentSubscription(string $domain): ?Subscription
     {
-        $cacheKey = $this->cacheKey($user);
+        $cacheKey = $this->cacheKey($domain);
 
-        $data = Cache::remember($cacheKey, self::CACHE_TTL_MINUTES * 60, function () use ($user) {
+        $data = Cache::remember($cacheKey, self::CACHE_TTL_MINUTES * 60, function () use ($domain) {
             $sub = Subscription::with('plan')
-                ->where('user_id', $user->id)
+                ->where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
                 ->latest()
@@ -71,26 +71,26 @@ class SubscriptionService
     }
 
     /**
-     * Check if user has an active flat-rate subscription.
+     * Check if domain has an active flat-rate subscription.
      * If subscription system is off, always returns true.
      */
-    public function isActive(User $user): bool
+    public function isActive(string $domain): bool
     {
         if (!$this->isSubscriptionSystemEnabled()) {
             return true;
         }
 
-        $sub = $this->getCurrentSubscription($user);
+        $sub = $this->getCurrentSubscription($domain);
         return $sub !== null && $sub->isActive();
     }
 
     /**
-     * Get user's remaining request credits (from latest request_credit subscription).
+     * Get domain's remaining request credits (from latest request_credit subscription).
      */
-    public function getCredits(User $user): int
+    public function getCredits(string $domain): int
     {
-        return Cache::remember("subscription_credits_{$user->id}", 30, function () use ($user) {
-            $sub = Subscription::where('user_id', $user->id)
+        return Cache::remember("subscription_credits_{$domain}", 30, function () use ($domain) {
+            $sub = Subscription::where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
                 ->orderByDesc('created_at')
@@ -101,12 +101,12 @@ class SubscriptionService
     }
 
     /**
-     * Deduct credits from the user's latest request_credit subscription.
+     * Deduct credits from the domain's latest request_credit subscription.
      * Returns the new balance or -1 if insufficient.
      */
-    public function deductCredits(User $user, int $amount): int
+    public function deductCredits(string $domain, int $amount): int
     {
-        $sub = Subscription::where('user_id', $user->id)
+        $sub = Subscription::where('domain', $domain)
             ->where('status', 'active')
             ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
             ->orderByDesc('created_at')
@@ -120,7 +120,7 @@ class SubscriptionService
         $sub->decrement('credit_balance', $amount);
 
         // Flush short-lived credit cache
-        Cache::forget("subscription_credits_{$user->id}");
+        Cache::forget("subscription_credits_{$domain}");
 
         return $sub->fresh()->credit_balance;
     }
@@ -128,7 +128,7 @@ class SubscriptionService
     /**
      * Activate a subscription after successful payment.
      */
-    public function activate(User $user, SubscriptionPlan $plan, PaymentTransaction $transaction): Subscription
+    public function activate(string $domain, SubscriptionPlan $plan, PaymentTransaction $transaction): Subscription
     {
         if ($plan->isFlatRate()) {
             // Calculate period
@@ -141,13 +141,13 @@ class SubscriptionService
             };
 
             // Expire any existing active flat-rate subscription
-            Subscription::where('user_id', $user->id)
+            Subscription::where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
                 ->update(['status' => 'expired']);
 
             $subscription = Subscription::create([
-                'user_id'    => $user->id,
+                'domain'     => $domain,
                 'plan_id'    => $plan->id,
                 'status'     => 'active',
                 'starts_at'  => $starts,
@@ -155,7 +155,7 @@ class SubscriptionService
             ]);
         } else {
             // Request credit: top up the latest active credit subscription or create new
-            $existing = Subscription::where('user_id', $user->id)
+            $existing = Subscription::where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
                 ->first();
@@ -165,7 +165,7 @@ class SubscriptionService
                 $subscription = $existing;
             } else {
                 $subscription = Subscription::create([
-                    'user_id'        => $user->id,
+                    'domain'         => $domain,
                     'plan_id'        => $plan->id,
                     'status'         => 'active',
                     'credit_balance' => $plan->credit_amount ?? 0,
@@ -176,7 +176,7 @@ class SubscriptionService
         // Link transaction → subscription
         $transaction->update(['subscription_id' => $subscription->id]);
 
-        $this->invalidateCache($user);
+        $this->invalidateCache($domain);
 
         return $subscription;
     }
@@ -184,17 +184,17 @@ class SubscriptionService
     /**
      * Get summary of subscription status for API responses.
      */
-    public function getStatusSummary(User $user): array
+    public function getStatusSummaryForDomain(string $domain): array
     {
         $systemEnabled = $this->isSubscriptionSystemEnabled();
 
         return [
             'system_enabled'     => $systemEnabled,
-            'flat_rate_active'   => $systemEnabled ? $this->isActive($user) : null,
-            'credit_balance'     => $this->getCredits($user),
-            'flat_subscription'  => $this->getCurrentSubscription($user)?->load('plan'),
+            'flat_rate_active'   => $systemEnabled ? $this->isActive($domain) : null,
+            'credit_balance'     => $this->getCredits($domain),
+            'flat_subscription'  => $this->getCurrentSubscription($domain)?->load('plan'),
             'credit_subscription' => Subscription::with('plan')
-                ->where('user_id', $user->id)
+                ->where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
                 ->first(),

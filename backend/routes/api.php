@@ -254,6 +254,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // GitHub Webhook (Public)
 Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);
 
+// ── Public Payment Portal (Domain-Centric) ─────────────────────────────────
+Route::get('/public/portal/info', [\App\Http\Controllers\Api\PublicPortalController::class, 'info']);
+Route::post('/public/portal/subscribe', [\App\Http\Controllers\Api\PublicPortalController::class, 'subscribe']);
+
 // ── Payment Gateway Callbacks (Public) ─────────────────────────────────────
 Route::get('/payment/bkash/callback',         [PaymentController::class, 'bkashCallback']);
 Route::get('/payment/nagad/callback',         [PaymentController::class, 'nagadCallback']);
