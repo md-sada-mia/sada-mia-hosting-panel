@@ -34,15 +34,52 @@ class CustomerController extends Controller
         private SslService $sslService,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $customers = Customer::orderBy('created_at', 'desc')->get();
+        $query = Customer::query();
 
-        return response()->json($customers->map(function ($customer) {
+        // Stats before filtering
+        $stats = [
+            'total' => Customer::count(),
+            'active' => Customer::where('status', 'active')->count(),
+            'leads' => Customer::where('status', 'lead')->count(),
+            'deployed' => Customer::whereNotNull('resource_type')->count(),
+        ];
+
+        // Search
+        if ($request->filled('search')) {
+            $search = strtolower(trim($request->search));
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(business_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$search}%"]);
+            });
+        }
+
+        // Filter by status
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $paginated = $query->orderBy('created_at', 'desc')->paginate(15);
+
+        $paginated->getCollection()->transform(function ($customer) {
             $data = $customer->toArray();
             $data['resource'] = $this->resolveResource($customer);
             return $data;
-        }));
+        });
+
+        return response()->json([
+            'data' => $paginated->items(),
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+            'stats' => $stats,
+        ]);
     }
 
     public function store(Request $request)

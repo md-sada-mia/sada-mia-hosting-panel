@@ -54,14 +54,26 @@ export default function CrmPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState(null);
+  const [stats, setStats] = useState({ total: 0, active: 0, leads: 0, deployed: 0 });
 
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchCustomers();
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search, statusFilter, page]);
 
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const { data } = await api.get('/customers');
-      setCustomers(data);
+      const { data } = await api.get('/customers', {
+        params: { search, status: statusFilter, page }
+      });
+      setCustomers(data.data || []);
+      setMeta(data.meta || null);
+      if (data.stats) setStats(data.stats);
     } catch {
       toast.error('Failed to load customers');
     } finally {
@@ -73,28 +85,22 @@ export default function CrmPage() {
     if (!confirm(`Delete customer "${c.name}"? This will not remove linked resources.`)) return;
     try {
       await api.delete(`/customers/${c.id}`);
-      setCustomers(prev => prev.filter(x => x.id !== c.id));
+      fetchCustomers();
       toast.success('Customer deleted');
     } catch {
       toast.error('Failed to delete customer');
     }
   };
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
-  const stats = {
-    total: customers.length,
-    active: customers.filter(c => c.status === 'active').length,
-    leads: customers.filter(c => c.status === 'lead').length,
-    deployed: customers.filter(c => c.resource_type).length,
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setPage(1);
   };
 
-  // ── Filtered customers ─────────────────────────────────────────────────────
-  const filtered = customers.filter(c => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || [c.name, c.business_name, c.email, c.phone].some(v => v?.toLowerCase().includes(q));
-    const matchStatus = statusFilter === 'all' || c.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const handleStatusChange = (val) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -136,11 +142,11 @@ export default function CrmPage() {
             type="text"
             placeholder="Search by name, business, email or phone..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-9 pr-4 py-2 border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -158,7 +164,7 @@ export default function CrmPage() {
         <div className="flex justify-center items-center h-64">
           <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : customers.length === 0 ? (
         <div className="text-center py-20 bg-card rounded-xl border border-dashed text-sm">
           <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-30 mb-4" />
           <h3 className="text-lg font-semibold">
@@ -190,7 +196,7 @@ export default function CrmPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map(customer => (
+                {customers.map(customer => (
                   <tr key={customer.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -286,11 +292,32 @@ export default function CrmPage() {
         </div>
       )}
 
-      {/* Total count */}
-      {!isLoading && filtered.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center">
-          Showing {filtered.length} of {customers.length} customers
-        </p>
+      {/* Pagination & Count */}
+      {!isLoading && customers.length > 0 && meta && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {(meta.current_page - 1) * meta.per_page + 1} to {Math.min(meta.current_page * meta.per_page, meta.total)} of {meta.total} customers
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-xs font-medium border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted transition-colors"
+            >
+              Previous
+            </button>
+            <span className="text-xs font-medium px-2">
+              Page {meta.current_page} of {meta.last_page || 1}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(meta.last_page, p + 1))}
+              disabled={page === meta.last_page || !meta.last_page}
+              className="px-3 py-1.5 text-xs font-medium border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
