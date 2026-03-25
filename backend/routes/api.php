@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
     Route::post('/settings/logo', [SettingsController::class, 'uploadLogo']);
+    Route::post('/settings/setup-payment-domain', [SettingsController::class, 'setupPaymentDomain']);
 
     // CRM Customers
     Route::apiResource('customers', CustomerController::class);

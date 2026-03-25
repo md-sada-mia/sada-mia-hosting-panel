@@ -167,4 +167,66 @@ class SettingsController extends Controller
 
         return response()->json(['message' => 'Settings updated successfully']);
     }
+
+    public function setupPaymentDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell)
+    {
+        $primaryDomain = Setting::get('ns_default_domain');
+        if (empty($primaryDomain)) {
+            return response()->json(['message' => 'Primary domain (ns_default_domain) is not configured.'], 400);
+        }
+        $primaryDomain = rtrim($primaryDomain, '.');
+        $paymentDomain = "payment.{$primaryDomain}";
+        $serverIp = Setting::get('server_ip', '127.0.0.1');
+
+        // 1. Setup DNS A record
+        $domainRecord = \App\Models\Domain::where('domain', $primaryDomain)->first();
+        if ($domainRecord) {
+            \App\Models\DnsRecord::firstOrCreate([
+                'domain_id' => $domainRecord->id,
+                'type' => 'A',
+                'name' => 'payment',
+                'value' => $serverIp
+            ], [
+                'ttl' => 3600
+            ]);
+            $dnsService->syncRecords($domainRecord);
+        }
+
+        // 2. Setup Nginx proxy block
+        $nginxConfig = <<<NGINX
+server {
+    listen 80;
+    server_name {$paymentDomain};
+
+    location / {
+        proxy_pass http://127.0.0.1:8083;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX;
+
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $configFile     = "{$sitesAvailable}/{$paymentDomain}";
+        $symlinkFile    = "{$sitesEnabled}/{$paymentDomain}";
+
+        $escapedConfig = escapeshellarg($nginxConfig);
+        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+        $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        $shell->run("sudo nginx -t && sudo nginx -s reload");
+
+        // 3. Procure SSL via certbot directly
+        $shell->run("sudo certbot --nginx -d {$paymentDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+
+        $url = "https://{$paymentDomain}";
+        Setting::set('payment_callback_base_url', $url);
+
+        return response()->json([
+            'message' => "Payment domain {$paymentDomain} configured successfully.",
+            'url' => $url
+        ]);
+    }
 }

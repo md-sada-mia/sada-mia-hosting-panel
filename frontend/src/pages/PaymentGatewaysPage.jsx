@@ -5,8 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Zap, ArrowLeft, RefreshCw, Upload, Copy } from 'lucide-react';
+import { Zap, ArrowLeft, RefreshCw, Upload, Copy, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PaymentGatewaysPage() {
   const navigate = useNavigate();
@@ -33,7 +41,11 @@ export default function PaymentGatewaysPage() {
     sslcommerz_store_id: '',
     sslcommerz_store_password: '',
     sslcommerz_sandbox: true,
+    ns_default_domain: '',
   });
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -205,14 +217,80 @@ export default function PaymentGatewaysPage() {
 
             <div className="grid gap-2">
               <label className="text-sm font-medium">Payment Callback Base URL (Optional)</label>
-              <Input 
-                name="payment_callback_base_url" 
-                value={settings.payment_callback_base_url || ''} 
-                onChange={handleChange} 
-                placeholder="e.g. https://panel.yourdomain.com (Defaults to APP_URL)" 
-              />
+              <div className="flex gap-2">
+                <Input 
+                  name="payment_callback_base_url" 
+                  value={settings.payment_callback_base_url || ''} 
+                  onChange={handleChange} 
+                  placeholder="e.g. https://panel.yourdomain.com (Defaults to APP_URL)" 
+                />
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <Zap className="h-4 w-4 mr-2 text-yellow-500" />
+                  Auto-Setup (payment)
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground italic">If your frontend runs on a different URL than the backend, set it here so gateways redirect correctly.</p>
             </div>
+
+            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-yellow-500" />
+                    Configure Payment Subdomain
+                  </DialogTitle>
+                  <DialogDescription>
+                    This will automatically configure your server for billing callbacks.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+                    <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium">Summary of automation:</p>
+                      <ul className="mt-2 space-y-2 list-disc list-inside text-muted-foreground">
+                        <li>Create DNS A record for <span className="font-mono text-primary font-semibold">payment.{(settings.ns_default_domain || "your-domain").replace(/^\.?/, '')}</span></li>
+                        <li>Configure Nginx proxy (Port 80/443)</li>
+                        <li>Procure SSL certificate via Let's Encrypt</li>
+                        <li>Set <span className="font-mono text-primary font-semibold">https://payment.{(settings.ns_default_domain || "your-domain").replace(/^\.?/, '')}</span> as callback base URL</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter className="sm:justify-end gap-2">
+                  <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={provisioning}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    disabled={provisioning}
+                    onClick={async () => {
+                      setProvisioning(true);
+                      try {
+                        toast.loading("Provisioning payment subdomain...", { id: "dns_setup" });
+                        const { data } = await api.post('/settings/setup-payment-domain');
+                        setSettings(prev => ({ ...prev, payment_callback_base_url: data.url }));
+                        toast.success("Domain configured successfully!", { id: "dns_setup" });
+                        setConfirmOpen(false);
+                      } catch (err) {
+                        toast.error(err.response?.data?.message || "Failed to setup payment domain", { id: "dns_setup" });
+                      } finally {
+                        setProvisioning(false);
+                      }
+                    }}
+                  >
+                    {provisioning ? (
+                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Provisioning...</>
+                    ) : (
+                      "Confirm & Setup"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">

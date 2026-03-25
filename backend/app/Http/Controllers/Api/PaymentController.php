@@ -178,7 +178,13 @@ class PaymentController extends Controller
      */
     private function redirectResult(string $status, string $gateway)
     {
-        $frontendUrl = config('app.frontend_url', rtrim(config('app.url'), '/'));
-        return redirect("{$frontendUrl}/payment/result?status={$status}&gateway={$gateway}");
+        $baseUrl = \App\Models\Setting::get('payment_callback_base_url');
+
+        if (!$baseUrl) {
+            $baseUrl = config('app.frontend_url', rtrim(config('app.url'), '/'));
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+        return redirect("{$baseUrl}/payment/result?status={$status}&gateway={$gateway}");
     }
 }
