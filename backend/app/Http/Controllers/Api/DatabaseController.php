@@ -14,7 +14,7 @@ class DatabaseController extends Controller
 
     public function index()
     {
-        return response()->json(Database::with('app:id,name')->get());
+        return response()->json(Database::with(['app:id,name', 'users:id,username'])->get());
     }
 
     public function store(Request $request)

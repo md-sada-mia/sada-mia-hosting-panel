@@ -24,6 +24,6 @@ class Database extends Model
 
     public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(DatabaseUser::class);
+        return $this->belongsToMany(DatabaseUser::class)->withPivot('privileges');
     }
 }
