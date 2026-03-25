@@ -251,22 +251,6 @@ export default function DatabaseUsersPage() {
                     required 
                   />
                 </div>
-                <div className="space-y-3 pt-2">
-                  <label className="text-sm font-medium">Global Privileges (Optional)</label>
-                  <div className="flex flex-col gap-2">
-                    {['CREATEDB', 'CREATEROLE', 'SUPERUSER'].map(priv => (
-                      <label key={priv} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={newGlobalPrivs[priv]} 
-                          onChange={(e) => setNewGlobalPrivs({...newGlobalPrivs, [priv]: e.target.checked})}
-                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span className="font-mono">{priv}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
                 <Button type="submit" className="w-full mt-4" disabled={creating || !newUsername || newPassword.length < 8}>
                   {creating ? 'Creating...' : <><Plus className="mr-2 h-4 w-4" /> Create User</>}
                 </Button>
