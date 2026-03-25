@@ -170,7 +170,7 @@ export default function DatabasesPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Create DB Form */}
-        <div className="md:col-span-1 space-y-6">
+        <div className="md:col-span-1 space-y-6 md:sticky md:top-6 self-start">
           <Card>
             <CardHeader>
               <CardTitle>Create Database</CardTitle>
