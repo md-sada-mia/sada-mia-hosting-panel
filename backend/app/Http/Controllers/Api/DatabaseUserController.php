@@ -63,7 +63,8 @@ class DatabaseUserController extends Controller
     {
         $validated = $request->validate([
             'databases' => 'array',
-            'databases.*' => 'exists:databases,id',
+            'databases.*.id' => 'required|exists:databases,id',
+            'databases.*.privileges' => 'required|string',
         ]);
 
         try {

@@ -139,30 +139,85 @@ class DatabaseService
         $user->delete();
     }
 
-    public function syncUserPermissions(\App\Models\DatabaseUser $user, array $newDatabaseIds): void
+    public function syncUserPermissions(\App\Models\DatabaseUser $user, array $newDatabases): void
     {
-        $currentDatabaseIds = $user->databases()->pluck('databases.id')->toArray();
+        $newDatabaseIds = array_column($newDatabases, 'id');
+        $newPermissionsMap = collect($newDatabases)->keyBy('id')->map(fn($item) => ['privileges' => $item['privileges']])->toArray();
+
+        $currentDbRecords = $user->databases()->get();
+        $currentDatabaseIds = $currentDbRecords->pluck('id')->toArray();
+        $currentPermissionsMap = $currentDbRecords->keyBy('id')->map(fn($db) => $db->pivot->privileges)->toArray();
 
         $addedIds = array_diff($newDatabaseIds, $currentDatabaseIds);
         $removedIds = array_diff($currentDatabaseIds, $newDatabaseIds);
+        $keptIds = array_intersect($newDatabaseIds, $currentDatabaseIds);
 
-        $addedDbs = Database::whereIn('id', $addedIds)->get();
-        $removedDbs = Database::whereIn('id', $removedIds)->get();
+        $changedPrivilegeIds = [];
+        foreach ($keptIds as $id) {
+            if (($currentPermissionsMap[$id] ?? null) !== $newPermissionsMap[$id]['privileges']) {
+                $changedPrivilegeIds[] = $id;
+            }
+        }
 
         $quotedUser = "\"" . str_replace("\"", "\"\"", $user->username) . "\"";
 
-        foreach ($addedDbs as $db) {
-            $quotedDb = "\"" . str_replace("\"", "\"\"", $db->db_name) . "\"";
-            $cmd = "sudo -u postgres psql -c " . escapeshellarg("GRANT ALL PRIVILEGES ON DATABASE {$quotedDb} TO {$quotedUser};");
-            $this->shell->run($cmd);
-        }
-
+        $removedDbs = Database::whereIn('id', $removedIds)->get();
         foreach ($removedDbs as $db) {
             $quotedDb = "\"" . str_replace("\"", "\"\"", $db->db_name) . "\"";
-            $cmd = "sudo -u postgres psql -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON DATABASE {$quotedDb} FROM {$quotedUser};");
-            $this->shell->run($cmd);
+            $quotedOwner = "\"" . str_replace("\"", "\"\"", $db->db_user) . "\"";
+
+            $cmds = [
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public REVOKE ALL ON TABLES FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public REVOKE ALL ON SEQUENCES FROM {$quotedUser};"),
+                "sudo -u postgres psql -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON DATABASE {$quotedDb} FROM {$quotedUser};"),
+            ];
+            foreach ($cmds as $cmd) {
+                $this->shell->run($cmd);
+            }
         }
 
-        $user->databases()->sync($newDatabaseIds);
+        $dbsToSetup = Database::whereIn('id', array_merge($addedIds, $changedPrivilegeIds))->get();
+        foreach ($dbsToSetup as $db) {
+            $privilege = $newPermissionsMap[$db->id]['privileges'] ?? 'read';
+            $quotedDb = "\"" . str_replace("\"", "\"\"", $db->db_name) . "\"";
+            $quotedOwner = "\"" . str_replace("\"", "\"\"", $db->db_user) . "\"";
+
+            // Reset existing privileges in case of downgrade
+            $cmds = [
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public REVOKE ALL ON TABLES FROM {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public REVOKE ALL ON SEQUENCES FROM {$quotedUser};"),
+                "sudo -u postgres psql -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON DATABASE {$quotedDb} FROM {$quotedUser};"),
+                "sudo -u postgres psql -c " . escapeshellarg("GRANT CONNECT ON DATABASE {$quotedDb} TO {$quotedUser};"),
+                "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT USAGE ON SCHEMA public TO {$quotedUser};"),
+            ];
+
+            if ($privilege === 'all') {
+                $cmds[] = "sudo -u postgres psql -c " . escapeshellarg("GRANT ALL PRIVILEGES ON DATABASE {$quotedDb} TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT ALL ON TABLES TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT ALL ON SEQUENCES TO {$quotedUser};");
+            } elseif ($privilege === 'write') {
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {$quotedUser};");
+            } else { // read
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT SELECT ON TABLES TO {$quotedUser};");
+                $cmds[] = "sudo -u postgres psql -d {$quotedDb} -c " . escapeshellarg("ALTER DEFAULT PRIVILEGES FOR ROLE {$quotedOwner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO {$quotedUser};");
+            }
+
+            foreach ($cmds as $cmd) {
+                $this->shell->run($cmd);
+            }
+        }
+
+        $user->databases()->sync($newPermissionsMap);
     }
 }

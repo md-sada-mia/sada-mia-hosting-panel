@@ -19,6 +19,6 @@ class DatabaseUser extends Model
 
     public function databases(): BelongsToMany
     {
-        return $this->belongsToMany(Database::class);
+        return $this->belongsToMany(Database::class)->withPivot('privileges');
     }
 }

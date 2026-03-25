@@ -33,7 +33,7 @@ export default function DatabaseUsersPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [userToManagePermissions, setUserToManagePermissions] = useState(null);
-  const [selectedDbIds, setSelectedDbIds] = useState([]);
+  const [selectedDbs, setSelectedDbs] = useState({});
   const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,13 +113,29 @@ export default function DatabaseUsersPage() {
 
   const openManagePermissions = (user) => {
     setUserToManagePermissions(user);
-    setSelectedDbIds(user.databases.map(db => db.id));
+    const initialDbs = {};
+    if (user.databases) {
+      user.databases.forEach(db => {
+        initialDbs[db.id] = db.pivot?.privileges || 'all';
+      });
+    }
+    setSelectedDbs(initialDbs);
   };
 
   const toggleDbSelection = (dbId) => {
-    setSelectedDbIds(prev => 
-      prev.includes(dbId) ? prev.filter(id => id !== dbId) : [...prev, dbId]
-    );
+    setSelectedDbs(prev => {
+      const next = { ...prev };
+      if (next[dbId]) {
+        delete next[dbId];
+      } else {
+        next[dbId] = 'all';
+      }
+      return next;
+    });
+  };
+
+  const updatePrivilege = (dbId, newPriv) => {
+    setSelectedDbs(prev => ({ ...prev, [dbId]: newPriv }));
   };
 
   const handleSyncPermissions = async (e) => {
@@ -128,7 +144,11 @@ export default function DatabaseUsersPage() {
 
     setIsSyncingPermissions(true);
     try {
-      await api.post(`/databases/users/${userToManagePermissions.id}/permissions`, { databases: selectedDbIds });
+      const databasesPayload = Object.entries(selectedDbs).map(([id, privileges]) => ({
+        id: parseInt(id, 10),
+        privileges
+      }));
+      await api.post(`/databases/users/${userToManagePermissions.id}/permissions`, { databases: databasesPayload });
       toast.success('Permissions synced successfully');
       setUserToManagePermissions(null);
       fetchData();
@@ -261,9 +281,10 @@ export default function DatabaseUsersPage() {
                    {user.databases?.length > 0 && (
                      <div className="mt-4 pt-4 border-t flex flex-wrap gap-2">
                        {user.databases.map(db => (
-                         <Badge key={db.id} variant="secondary" className="font-mono text-xs">
-                           {db.db_name}
-                         </Badge>
+                         <div key={db.id} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground font-mono text-xs">
+                           <span>{db.db_name}</span>
+                           <span className="opacity-50 text-[10px] uppercase border-l pl-1.5 ml-0.5 border-secondary-foreground/20">{db.pivot?.privileges || 'read'}</span>
+                         </div>
                        ))}
                      </div>
                    )}
@@ -334,23 +355,58 @@ export default function DatabaseUsersPage() {
                   <div className="p-4 text-center text-muted-foreground text-sm">No databases exist.</div>
                 ) : (
                   <div className="space-y-1">
-                    {databases.map(db => (
-                      <label 
-                        key={db.id} 
-                        className="flex items-center gap-3 p-3 rounded hover:bg-accent cursor-pointer transition-colors"
-                      >
-                        <input 
-                          type="checkbox" 
-                          className="h-4 w-4 rounded border-gray-300 rounded text-primary focus:ring-primary"
-                          checked={selectedDbIds.includes(db.id)}
-                          onChange={() => toggleDbSelection(db.id)}
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{db.db_name}</div>
-                          <div className="text-xs text-muted-foreground">Owner: {db.db_user}</div>
-                        </div>
-                      </label>
-                    ))}
+                    {databases.map(db => {
+                      const isSelected = !!selectedDbs[db.id];
+                      return (
+                      <div key={db.id} className="flex flex-col gap-2 p-3 border-b last:border-0 hover:bg-accent/50 transition-colors rounded">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            checked={isSelected}
+                            onChange={() => toggleDbSelection(db.id)}
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{db.db_name}</div>
+                            <div className="text-xs text-muted-foreground">Owner: {db.db_user}</div>
+                          </div>
+                        </label>
+                        {isSelected && (
+                          <div className="ml-7 flex items-center flex-wrap gap-4 text-sm mt-1">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name={`priv_${db.id}`} 
+                                checked={selectedDbs[db.id] === 'read'} 
+                                onChange={() => updatePrivilege(db.id, 'read')}
+                                className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300" 
+                              />
+                              <span className="text-muted-foreground hover:text-foreground">Read-only</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name={`priv_${db.id}`} 
+                                checked={selectedDbs[db.id] === 'write'} 
+                                onChange={() => updatePrivilege(db.id, 'write')}
+                                className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300" 
+                              />
+                              <span className="text-muted-foreground hover:text-foreground">Read/Write</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name={`priv_${db.id}`} 
+                                checked={selectedDbs[db.id] === 'all'} 
+                                onChange={() => updatePrivilege(db.id, 'all')}
+                                className="h-3.5 w-3.5 text-primary focus:ring-primary border-gray-300" 
+                              />
+                              <span className="text-muted-foreground hover:text-foreground">All Privileges</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )})}
                   </div>
                 )}
               </div>
