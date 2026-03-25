@@ -13,6 +13,7 @@ import AppsPage from './pages/AppsPage';
 import CreateAppPage from './pages/CreateAppPage';
 import AppDetailPage from './pages/AppDetailPage';
 import DatabasesPage from './pages/DatabasesPage';
+import DatabaseUsersPage from './pages/DatabaseUsersPage';
 import CronPage from './pages/CronPage';
 import SettingsPage from './pages/SettingsPage';
 import GitHubCallbackPage from './pages/GitHubCallbackPage';
@@ -50,6 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/load-balancers" element={<LoadBalancersPage />} />
             <Route path="/load-balancers/:id/manage" element={<LoadBalancerManagePage />} />
             <Route path="/databases" element={<DatabasesPage />} />
+            <Route path="/databases/users" element={<DatabaseUsersPage />} />
             <Route path="/domains" element={<DomainsPage />} />
             <Route path="/email" element={<EmailPage />} />
             <Route path="/cron-jobs" element={<CronPage />} />

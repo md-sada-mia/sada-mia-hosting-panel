@@ -74,6 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/databases/{database}/password', [DatabaseController::class, 'updatePassword']);
     Route::delete('/databases/{database}', [DatabaseController::class, 'destroy']);
 
+    // Database Users
+    Route::get('/databases/users', [\App\Http\Controllers\Api\DatabaseUserController::class, 'index']);
+    Route::post('/databases/users', [\App\Http\Controllers\Api\DatabaseUserController::class, 'store']);
+    Route::post('/databases/users/{user}/password', [\App\Http\Controllers\Api\DatabaseUserController::class, 'updatePassword']);
+    Route::delete('/databases/users/{user}', [\App\Http\Controllers\Api\DatabaseUserController::class, 'destroy']);
+    Route::post('/databases/users/{user}/permissions', [\App\Http\Controllers\Api\DatabaseUserController::class, 'syncPermissions']);
+
     // Server stats
     Route::get('/server/stats', [ServerController::class, 'stats']);
     Route::post('/server/restart', [ServerController::class, 'restart']);

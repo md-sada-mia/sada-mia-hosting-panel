@@ -85,4 +85,84 @@ class DatabaseService
 
         $database->delete();
     }
+
+    public function createUser(string $username, string $password): \App\Models\DatabaseUser
+    {
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $username) . "\"";
+        $passwordEscaped = str_replace("'", "''", $password);
+
+        $cmd = "sudo -u postgres psql -c " . escapeshellarg("CREATE USER {$quotedUser} WITH ENCRYPTED PASSWORD '{$passwordEscaped}';");
+
+        $result = $this->shell->run($cmd);
+        if ($result['exit_code'] !== 0) {
+            throw new \RuntimeException("Failed to create database user: " . $result['output']);
+        }
+
+        return \App\Models\DatabaseUser::create([
+            'username' => $username,
+            'password' => $password,
+            'status' => 'active',
+        ]);
+    }
+
+    public function changeUserPassword(\App\Models\DatabaseUser $user, string $newPassword): void
+    {
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $user->username) . "\"";
+        $newPasswordEscaped = str_replace("'", "''", $newPassword);
+
+        $cmd = "sudo -u postgres psql -c " . escapeshellarg("ALTER ROLE {$quotedUser} WITH ENCRYPTED PASSWORD '{$newPasswordEscaped}';");
+
+        $result = $this->shell->run($cmd);
+        if ($result['exit_code'] !== 0) {
+            throw new \RuntimeException("Failed to change database user password: " . $result['output']);
+        }
+
+        $user->update(['password' => $newPassword]);
+    }
+
+    public function deleteUser(\App\Models\DatabaseUser $user): void
+    {
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $user->username) . "\"";
+
+        // First, drop role might fail if it has privileges, but we revoke privileges via DB first or DROP OWNED BY
+        // A clean way is to REASSIGN OWNED BY postgres and DROP OWNED BY user before DROP ROLE
+        $cmds = [
+            "sudo -u postgres psql -c " . escapeshellarg("REASSIGN OWNED BY {$quotedUser} TO postgres;"),
+            "sudo -u postgres psql -c " . escapeshellarg("DROP OWNED BY {$quotedUser};"),
+            "sudo -u postgres psql -c " . escapeshellarg("DROP ROLE IF EXISTS {$quotedUser};")
+        ];
+
+        foreach ($cmds as $cmd) {
+            $this->shell->run($cmd);
+        }
+
+        $user->delete();
+    }
+
+    public function syncUserPermissions(\App\Models\DatabaseUser $user, array $newDatabaseIds): void
+    {
+        $currentDatabaseIds = $user->databases()->pluck('databases.id')->toArray();
+
+        $addedIds = array_diff($newDatabaseIds, $currentDatabaseIds);
+        $removedIds = array_diff($currentDatabaseIds, $newDatabaseIds);
+
+        $addedDbs = Database::whereIn('id', $addedIds)->get();
+        $removedDbs = Database::whereIn('id', $removedIds)->get();
+
+        $quotedUser = "\"" . str_replace("\"", "\"\"", $user->username) . "\"";
+
+        foreach ($addedDbs as $db) {
+            $quotedDb = "\"" . str_replace("\"", "\"\"", $db->db_name) . "\"";
+            $cmd = "sudo -u postgres psql -c " . escapeshellarg("GRANT ALL PRIVILEGES ON DATABASE {$quotedDb} TO {$quotedUser};");
+            $this->shell->run($cmd);
+        }
+
+        foreach ($removedDbs as $db) {
+            $quotedDb = "\"" . str_replace("\"", "\"\"", $db->db_name) . "\"";
+            $cmd = "sudo -u postgres psql -c " . escapeshellarg("REVOKE ALL PRIVILEGES ON DATABASE {$quotedDb} FROM {$quotedUser};");
+            $this->shell->run($cmd);
+        }
+
+        $user->databases()->sync($newDatabaseIds);
+    }
 }

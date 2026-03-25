@@ -21,4 +21,9 @@ class Database extends Model
     {
         return $this->belongsTo(App::class);
     }
+
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(DatabaseUser::class);
+    }
 }

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink, Key } from 'lucide-react';
+import { Database, Plus, Trash2, Copy, CheckCircle2, ExternalLink, Key, Users } from 'lucide-react';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import { 
   Dialog, 
@@ -159,6 +159,9 @@ export default function DatabasesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full sm:w-48 h-9"
           />
+          <Button variant="outline" onClick={() => window.location.href = '/databases/users'}>
+            <Users className="mr-2 h-4 w-4" /> Manage Users
+          </Button>
           <Button variant="outline" onClick={() => window.open('/adminer', '_blank')}>
             <ExternalLink className="mr-2 h-4 w-4" /> Open Adminer
           </Button>
