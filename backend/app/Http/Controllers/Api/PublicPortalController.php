@@ -74,7 +74,7 @@ class PublicPortalController extends Controller
 
         try {
             $svc = $this->gatewayFactory->make($gateway);
-            $callbackUrl = "{$baseUrl}/api/payment/{$gateway}/callback?tx_id={$transaction->id}";
+            $callbackUrl = "{$baseUrl}/payment/{$gateway}/callback?tx_id={$transaction->id}&domain=" . urlencode($domain);
 
             $result = match ($gateway) {
                 'bkash'      => $svc->createPayment($txRef, $plan->price, $callbackUrl),
@@ -82,9 +82,9 @@ class PublicPortalController extends Controller
                 'sslcommerz' => $svc->initiatePayment(
                     $txRef,
                     $plan->price,
-                    "{$baseUrl}/api/payment/sslcommerz/success?tx_id={$transaction->id}",
-                    "{$baseUrl}/api/payment/sslcommerz/fail?tx_id={$transaction->id}",
-                    "{$baseUrl}/api/payment/sslcommerz/cancel?tx_id={$transaction->id}",
+                    "{$baseUrl}/payment/sslcommerz/success?tx_id={$transaction->id}&domain=" . urlencode($domain),
+                    "{$baseUrl}/payment/sslcommerz/fail?tx_id={$transaction->id}&domain=" . urlencode($domain),
+                    "{$baseUrl}/payment/sslcommerz/cancel?tx_id={$transaction->id}&domain=" . urlencode($domain),
                 ),
             };
 

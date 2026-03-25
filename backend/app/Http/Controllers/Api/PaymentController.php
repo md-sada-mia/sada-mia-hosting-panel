@@ -30,7 +30,7 @@ class PaymentController extends Controller
         $status    = $request->query('status'); // success | cancel | failure
 
         $transaction = PaymentTransaction::find($txId);
-        $domain = $transaction ? $transaction->domain : null;
+        $domain = $request->query('domain') ?: ($transaction ? $transaction->domain : null);
 
         if (!$transaction || !$transaction->isPending()) {
             return $this->redirectResult('failed', 'bkash', $domain);
@@ -66,7 +66,7 @@ class PaymentController extends Controller
         $paymentRefId = $request->query('payment_ref_id');
 
         $transaction = PaymentTransaction::find($txId);
-        $domain = $transaction ? $transaction->domain : null;
+        $domain = $request->query('domain') ?: ($transaction ? $transaction->domain : null);
 
         if (!$transaction || !$transaction->isPending()) {
             return $this->redirectResult('failed', 'nagad', $domain);
@@ -136,7 +136,7 @@ class PaymentController extends Controller
     {
         $txId = $request->query('tx_id');
         $transaction = PaymentTransaction::find($txId);
-        $domain = $transaction ? $transaction->domain : null;
+        $domain = $request->query('domain') ?: ($transaction ? $transaction->domain : null);
 
         if (!$transaction || !$transaction->isPending()) {
             return $this->redirectResult($outcome, 'sslcommerz', $domain);

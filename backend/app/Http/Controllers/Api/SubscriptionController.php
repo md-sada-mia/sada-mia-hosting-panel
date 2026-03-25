@@ -202,7 +202,9 @@ class SubscriptionController extends Controller
 
         try {
             $svc = $this->gatewayFactory->make($gateway);
-            $callbackUrl = "{$baseUrl}/api/payment/{$gateway}/callback?tx_id={$transaction->id}";
+            $callbackDomain = $request->input('domain'); // Optional domain to carry over
+            $domainParam = $callbackDomain ? "&domain=" . urlencode($callbackDomain) : "";
+            $callbackUrl = "{$baseUrl}/payment/{$gateway}/callback?tx_id={$transaction->id}{$domainParam}";
 
             $result = match ($gateway) {
                 'bkash'      => $svc->createPayment($txRef, $plan->price, $callbackUrl),
@@ -210,9 +212,9 @@ class SubscriptionController extends Controller
                 'sslcommerz' => $svc->initiatePayment(
                     $txRef,
                     $plan->price,
-                    "{$baseUrl}/api/payment/sslcommerz/success?tx_id={$transaction->id}",
-                    "{$baseUrl}/api/payment/sslcommerz/fail?tx_id={$transaction->id}",
-                    "{$baseUrl}/api/payment/sslcommerz/cancel?tx_id={$transaction->id}",
+                    "{$baseUrl}/payment/sslcommerz/success?tx_id={$transaction->id}{$domainParam}",
+                    "{$baseUrl}/payment/sslcommerz/fail?tx_id={$transaction->id}{$domainParam}",
+                    "{$baseUrl}/payment/sslcommerz/cancel?tx_id={$transaction->id}{$domainParam}",
                 ),
             };
 

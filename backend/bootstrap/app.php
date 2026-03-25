@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Allow CORS for the frontend SPA
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
 
+        // Exclude payment callbacks from CSRF
+        $middleware->validateCsrfTokens(except: [
+            'payment/*',
+        ]);
+
         // Subscription enforcement middleware (applied selectively per route)
         $middleware->alias([
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
