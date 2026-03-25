@@ -48,7 +48,13 @@ export function DatePickerWithRange({
             mode="range"
             defaultMonth={date?.from}
             selected={date}
-            onSelect={setDate}
+            onSelect={(selectedRange, selectedDay) => {
+              if (date?.from && date?.to) {
+                setDate({ from: selectedDay, to: undefined })
+              } else {
+                setDate(selectedRange)
+              }
+            }}
             numberOfMonths={2}
             className="p-4"
           />

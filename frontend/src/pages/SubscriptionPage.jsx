@@ -46,7 +46,7 @@ export default function SubscriptionPage() {
 
   useEffect(() => { fetchStats(); }, [date]);
 
-  if (loading) {
+  if (loading && !stats) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
         <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading merchant dashboard…
