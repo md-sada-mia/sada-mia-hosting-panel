@@ -38,7 +38,7 @@ class SettingsController extends Controller
             'crm_api_auth_token_type' => Setting::get('crm_api_auth_token_type', 'Bearer'),
 
             // ── Subscription & Payment Settings ──────────────────────────────
-            'subscription_enabled'           => (bool) Setting::get('subscription_enabled', false),
+            'subscription_enabled'           => filter_var(Setting::get('subscription_enabled', false), FILTER_VALIDATE_BOOLEAN),
             'payment_callback_base_url'      => Setting::get('payment_callback_base_url'),
 
             // bKash

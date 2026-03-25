@@ -39,15 +39,7 @@ export default function SubscriptionPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleToggleSystem = async (checked) => {
-    try {
-      await api.post('/settings', { subscription_enabled: checked });
-      setSystemEnabled(checked);
-      toast.success(checked ? 'Subscription system enabled' : 'Subscription system disabled');
-    } catch (err) {
-      toast.error('Failed to toggle subscription system');
-    }
-  };
+
 
   const filteredPlans = plans.filter(p => p.type === planTab);
 
@@ -84,12 +76,13 @@ export default function SubscriptionPage() {
           <h2 className="text-3xl font-bold tracking-tight">Subscription System</h2>
           <p className="text-muted-foreground mt-1">Manage plans, credits, and system settings.</p>
         </div>
-        <div className="flex items-center gap-3 bg-muted/30 p-2 px-4 rounded-xl border">
-          <span className="text-sm font-medium">System Status</span>
-          <Switch 
-            checked={systemEnabled}
-            onCheckedChange={handleToggleSystem}
-          />
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={systemEnabled ? "success" : "secondary"}>
+             {systemEnabled ? 'System Active' : 'System Disabled'}
+          </Badge>
+          <Link to="/settings#system" className="text-[10px] text-muted-foreground hover:underscore">
+             Configure in Settings
+          </Link>
         </div>
       </div>
 

@@ -20,7 +20,8 @@ class SubscriptionService
      */
     public function isSubscriptionSystemEnabled(): bool
     {
-        return (bool) Setting::get('subscription_enabled', false);
+        $val = Setting::get('subscription_enabled', false);
+        return filter_var($val, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -179,6 +180,17 @@ class SubscriptionService
         $this->invalidateCache($domain);
 
         return $subscription;
+    }
+
+    /**
+     * Compatibility for Admin Panel: Get summary for a user (uses panel domain as context).
+     */
+    public function getStatusSummary(User $user): array
+    {
+        // For the admin panel, we use the panel's own address as the domain context 
+        // to show the user their "panel subscription" status.
+        $domain = parse_url(Setting::get('panel_url', config('app.url')), PHP_URL_HOST) ?? 'localhost';
+        return $this->getStatusSummaryForDomain($domain);
     }
 
     /**
