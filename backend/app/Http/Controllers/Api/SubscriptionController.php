@@ -21,24 +21,44 @@ class SubscriptionController extends Controller
     /**
      * Admin: Get overall billing statistics.
      */
-    public function adminStats()
+    public function adminStats(Request $request)
     {
-        $totalRevenue = PaymentTransaction::where('status', 'completed')->sum('amount');
+        $from   = $request->query('from');
+        $to     = $request->query('to');
+        $domain = $request->query('domain');
+
+        $revenueQuery = PaymentTransaction::where('status', 'completed');
+        $txQuery      = PaymentTransaction::with('plan');
+        $subQuery     = \App\Models\Subscription::where('status', 'active');
+
+        if ($from) {
+            $revenueQuery->whereDate('created_at', '>=', $from);
+            $txQuery->whereDate('created_at', '>=', $from);
+        }
+        if ($to) {
+            $revenueQuery->whereDate('created_at', '<=', $to);
+            $txQuery->whereDate('created_at', '<=', $to);
+        }
+
+        $totalRevenue = $revenueQuery->sum('amount');
+
+        // For active subscriptions, we usually look at the current state, 
+        // but if filtering by date, we might want to see how many were active/created then.
+        // However, user usually wants to see "Revenue in this period". 
+        // I'll keep active counts as "current" unless the user asks for historical snapshots.
+
         $activeFlat   = \App\Models\Subscription::where('status', 'active')
             ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
             ->count();
-        $totalCredits = \App\Models\Subscription::where('status', 'active')
-            ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
+
+        $totalCredits = (clone $subQuery)->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
             ->sum('credit_balance');
 
         return response()->json([
             'total_revenue'      => $totalRevenue,
             'active_flat_rate'   => $activeFlat,
             'total_credits_held' => $totalCredits,
-            'recent_transactions' => PaymentTransaction::with('plan')
-                ->latest()
-                ->limit(10)
-                ->get()
+            'recent_transactions' => $txQuery->latest()->limit(20)->get()
         ]);
     }
 

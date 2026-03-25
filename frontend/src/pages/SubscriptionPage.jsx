@@ -5,21 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { format, startOfMonth } from 'date-fns';
 import {
   Zap, CheckCircle2, Star, RefreshCw,
   TrendingUp, Coins, Settings, Package,
   DollarSign, Activity, History, ArrowRight
 } from 'lucide-react';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 
 export default function SubscriptionPage() {
   const [loading, setLoading]   = useState(true);
   const [stats, setStats]       = useState(null);
   const [systemEnabled, setSystemEnabled] = useState(false);
+  
+  // Premium Date Picker State
+  const [date, setDate] = useState({
+    from: startOfMonth(new Date()),
+    to: new Date()
+  });
 
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/subscription/stats');
+      const params = {};
+      if (date?.from) params.from = format(date.from, 'yyyy-MM-dd');
+      if (date?.to) params.to = format(date.to, 'yyyy-MM-dd');
+
+      const { data } = await api.get('/subscription/stats', { params });
       setStats(data);
       
       const { data: config } = await api.get('/subscription/plans');
@@ -32,7 +44,7 @@ export default function SubscriptionPage() {
     }
   };
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => { fetchStats(); }, [date]);
 
   if (loading) {
     return (
@@ -44,6 +56,13 @@ export default function SubscriptionPage() {
 
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Billing Dashboard</h2>
+          <p className="text-muted-foreground mt-1">Overall subscription and revenue overview.</p>
+        </div>
+        
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -58,6 +77,7 @@ export default function SubscriptionPage() {
              Configure in Settings
           </Link>
         </div>
+      </div>
       </div>
 
       {/* Quick Actions */}
@@ -74,12 +94,27 @@ export default function SubscriptionPage() {
             Payment Gateways
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" className="h-12 px-6 border-primary/20 hover:border-primary/50 transition-all bg-background/50 backdrop-blur-sm" asChild>
           <Link to="/subscription/billable-routes">
-            <Zap className="w-4 h-4 mr-2" />
+            <Zap className="h-5 w-5 mr-2 text-primary" />
             Billable Routes
           </Link>
         </Button>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <DatePickerWithRange date={date} setDate={setDate} className="h-12" />
+          {date?.from && (
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-12 w-12 border-primary/20 hover:border-primary/50 text-muted-foreground hover:text-destructive bg-background/50 backdrop-blur-sm"
+              onClick={() => { setDate(null); }}
+              title="Clear Filter"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
