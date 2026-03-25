@@ -28,6 +28,12 @@ import CrmLoadBalancerDetailPage from './pages/CrmLoadBalancerDetailPage';
 import TerminalPage from './pages/TerminalPage';
 import GuidelinePage from './pages/GuidelinePage';
 import QueueMonitorPage from './pages/QueueMonitorPage';
+import SubscriptionPage from './pages/SubscriptionPage';
+import PaymentPage from './pages/PaymentPage';
+import PaymentResultPage from './pages/PaymentResultPage';
+import BillableRoutesPage from './pages/BillableRoutesPage';
+import PaymentGatewaysPage from './pages/PaymentGatewaysPage';
+import ManagePlansPage from './pages/ManagePlansPage';
 
 // App entry point config
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -59,6 +65,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/files" element={<FileManagerPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/queue" element={<QueueMonitorPage />} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/payment" element={<PaymentPage />} />
+            <Route path="/payment/result" element={<PaymentResultPage />} />
+            <Route path="/subscription/billable-routes" element={<BillableRoutesPage />} />
+            <Route path="/subscription/gateways" element={<PaymentGatewaysPage />} />
+            <Route path="/subscription/plans-manage" element={<ManagePlansPage />} />
             <Route path="/github/callback" element={<GitHubCallbackPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\AppServiceController;
 use App\Http\Controllers\Api\LoadBalancerSslController;
+use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\BillableRouteController;
+use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
@@ -95,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Settings
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
+    Route::post('/settings/logo', [SettingsController::class, 'uploadLogo']);
 
     // CRM Customers
     Route::apiResource('customers', CustomerController::class);
@@ -223,8 +227,36 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/queue/retry/{id}', [QueueController::class, 'retry']);
     Route::delete('/queue/cancel/{id}', [QueueController::class, 'cancel']);
     Route::post('/queue/clear', [QueueController::class, 'clear']);
+
+    // ── Subscription Plans & Status ────────────────────────────────────────────
+    Route::get('/subscription/plans',   [SubscriptionController::class, 'plans']);
+    Route::get('/subscription/current', [SubscriptionController::class, 'current']);
+    Route::post('/subscription/subscribe', [SubscriptionController::class, 'subscribe']);
+    Route::post('/subscription/cancel',    [SubscriptionController::class, 'cancel']);
+
+    // Admin Plan Management
+    Route::get('/subscription/admin-plans', [SubscriptionController::class, 'indexPlansAdmin']);
+    Route::post('/subscription/admin-plans', [SubscriptionController::class, 'storePlan']);
+    Route::put('/subscription/admin-plans/{plan}', [SubscriptionController::class, 'updatePlan']);
+    Route::delete('/subscription/admin-plans/{plan}', [SubscriptionController::class, 'destroyPlan']);
+
+    // ── Billable Routes (admin-managed metered paths) ──────────────────────────
+    Route::get('/subscription/billable-routes',          [BillableRouteController::class, 'index']);
+    Route::post('/subscription/billable-routes',         [BillableRouteController::class, 'store']);
+    Route::put('/subscription/billable-routes/{billableRoute}',    [BillableRouteController::class, 'update']);
+    Route::delete('/subscription/billable-routes/{billableRoute}', [BillableRouteController::class, 'destroy']);
+    Route::get('/subscription/usage-logs',               [BillableRouteController::class, 'usageLogs']);
 });
+
 
 
 // GitHub Webhook (Public)
 Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);
+
+// ── Payment Gateway Callbacks (Public) ─────────────────────────────────────
+Route::get('/payment/bkash/callback',         [PaymentController::class, 'bkashCallback']);
+Route::get('/payment/nagad/callback',         [PaymentController::class, 'nagadCallback']);
+Route::post('/payment/sslcommerz/ipn',        [PaymentController::class, 'sslIpn']);
+Route::post('/payment/sslcommerz/success',    [PaymentController::class, 'sslSuccess']);
+Route::post('/payment/sslcommerz/fail',       [PaymentController::class, 'sslFail']);
+Route::post('/payment/sslcommerz/cancel',     [PaymentController::class, 'sslCancel']);

@@ -69,8 +69,9 @@ export default function SettingsPage() {
     crm_api_auth_enabled: false,
     crm_api_auth_url: '',
     crm_api_auth_payload: '',
-    crm_api_auth_token_key: 'access_token',
-    crm_api_auth_token_type: 'Bearer',
+    
+    // Subscription feature flag
+    subscription_enabled: false,
   });
 
   const [loadBalancers, setLoadBalancers] = useState([]);
@@ -259,7 +260,8 @@ export default function SettingsPage() {
       const { data } = await api.post('/settings', {
         panel_url: githubSettings.panel_url,
         server_ip: githubSettings.server_ip,
-        panel_force_https: githubSettings.panel_force_https
+        panel_force_https: githubSettings.panel_force_https,
+        subscription_enabled: githubSettings.subscription_enabled,
       });
 
       if (githubSettings.panel_force_https !== initialGithubSettings?.panel_force_https) {
@@ -286,8 +288,9 @@ export default function SettingsPage() {
         server_ip: data.server_ip,
         ns_default_domain: data.ns_default_domain,
         panel_force_https: githubSettings.panel_force_https,
+        subscription_enabled: githubSettings.subscription_enabled,
       }));
-      setInitialGithubSettings(prev => ({ ...prev, ...data, panel_force_https: githubSettings.panel_force_https }));
+      setInitialGithubSettings(prev => ({ ...prev, ...data, panel_force_https: githubSettings.panel_force_https, subscription_enabled: githubSettings.subscription_enabled }));
       toast.success('System settings saved successfully');
       setMessage('System settings saved successfully.');
       fetchSettings();
@@ -1162,6 +1165,28 @@ export default function SettingsPage() {
                             checked={githubSettings.panel_force_https}
                             onCheckedChange={(checked) => {
                               setGithubSettings(s => ({ ...s, panel_force_https: checked }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 pt-4 border-t">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <label className="text-sm font-semibold flex items-center gap-2">
+                            <Zap className="h-4 w-4 text-primary" />
+                            Enable Subscription System
+                          </label>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed italic mt-1 max-w-xl">
+                            When enabled, this displays the Subscriptions menu and enforces plans/credits via middleware on routes mapped to `CheckSubscription`.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={githubSettings.subscription_enabled}
+                            onCheckedChange={(checked) => {
+                              setGithubSettings(s => ({ ...s, subscription_enabled: checked }));
                             }}
                           />
                         </div>

@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Layers, Database, Clock, Settings, LogOut, Globe, Mail, FolderOpen, Network, Users, Terminal, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Layers, Database, Clock, Settings, LogOut, Globe, Mail, FolderOpen, Network, Users, Terminal, Menu, X, Zap } from 'lucide-react';
+import api from '@/lib/api';
 import PanelUrlAlert from './PanelUrlAlert';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
+
+  useEffect(() => {
+    api.get('/settings')
+      .then(res => setSubscriptionEnabled(res.data?.subscription_enabled || false))
+      .catch(console.error);
+  }, []);
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -24,6 +32,7 @@ export default function Layout() {
     { label: 'Cron Jobs',     path: '/cron-jobs',     icon: Clock },
     { label: 'Terminal',      path: '/terminal',      icon: Terminal },
     { label: 'File Manager',  path: '/files',         icon: FolderOpen },
+    ...(subscriptionEnabled ? [{ label: 'Subscription',  path: '/subscription',  icon: Zap }] : []),
     { label: 'Settings',      path: '/settings',      icon: Settings },
   ];
 

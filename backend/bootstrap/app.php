@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Allow CORS for the frontend SPA
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+
+        // Subscription enforcement middleware (applied selectively per route)
+        $middleware->alias([
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
