@@ -45,13 +45,22 @@ class DatabaseService
             }
         }
 
-        return Database::create([
+        $database = Database::create([
             'app_id'      => $appId,
             'db_name'     => $dbName,
             'db_user'     => $dbUser,
             'db_password' => $dbPass,
             'status'      => 'active',
         ]);
+
+        $dbUserRecord = \App\Models\DatabaseUser::firstOrCreate(
+            ['username' => $dbUser],
+            ['password' => $dbPass, 'status' => 'active']
+        );
+
+        $database->users()->syncWithoutDetaching([$dbUserRecord->id => ['privileges' => 'all']]);
+
+        return $database;
     }
 
     public function changePassword(Database $database, string $newPassword): void
@@ -146,6 +155,7 @@ class DatabaseService
         }
 
         $user->update(['password' => $newPassword]);
+        \App\Models\Database::where('db_user', $user->username)->update(['db_password' => $newPassword]);
     }
 
     public function deleteUser(\App\Models\DatabaseUser $user): void

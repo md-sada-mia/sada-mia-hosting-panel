@@ -251,12 +251,12 @@ export default function DatabasesPage() {
                          <h3 className="font-semibold text-lg truncate">{db.db_name}</h3>
                          <div className="text-sm text-muted-foreground mt-1 truncate flex items-center gap-2">
                            <span>Owner: <span className="font-mono">{db.db_user}</span></span>
-                           {db.users?.length > 0 && (
+                           {db.users?.filter(u => u.username !== db.db_user).length > 0 && (
                              <>
                                <span className="text-muted-foreground/30">•</span>
                                <span className="flex items-center gap-1.5 flex-wrap">
                                  Additional: 
-                                 {db.users.map(u => (
+                                 {db.users.filter(u => u.username !== db.db_user).map(u => (
                                    <Badge key={u.id} variant="secondary" className="font-mono text-[10px] px-1.5 py-0">
                                      {u.username}
                                      <span className="opacity-50 border-l border-secondary-foreground/20 ml-1 pl-1 uppercase">{u.pivot?.privileges || 'read'}</span>
