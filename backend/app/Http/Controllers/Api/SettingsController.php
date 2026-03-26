@@ -216,6 +216,7 @@ class SettingsController extends Controller
         $nginxConfig = <<<NGINX
 server {
     listen 80;
+    listen [::]:80;
     server_name {$paymentDomain};
     root {$frontendDist};
     index index.html;
