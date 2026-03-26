@@ -45,21 +45,24 @@ class SettingsController extends Controller
             'bkash_enabled'                  => (bool) Setting::get('bkash_enabled', false),
             'bkash_base_url'                 => Setting::get('bkash_base_url', 'https://tokenized.sandbox.bka.sh/v1.2.0-beta'),
             'bkash_app_key'                  => Setting::get('bkash_app_key'),
-            'bkash_app_secret'               => Setting::get('bkash_app_secret') ? '**hidden**' : null,
+            'bkash_app_secret'               => Setting::get('bkash_app_secret'),
             'bkash_username'                 => Setting::get('bkash_username'),
+            'bkash_password'                 => Setting::get('bkash_password'),
             'bkash_sandbox'                  => (bool) Setting::get('bkash_sandbox', true),
 
             // Nagad
             'nagad_enabled'                  => (bool) Setting::get('nagad_enabled', false),
             'nagad_base_url'                 => Setting::get('nagad_base_url', 'https://sandbox.mynagad.com:10080/remote-payment-gateway-1.0'),
             'nagad_merchant_id'              => Setting::get('nagad_merchant_id'),
+            'nagad_merchant_private_key'     => Setting::get('nagad_merchant_private_key'),
+            'nagad_pg_public_key'            => Setting::get('nagad_pg_public_key'),
             'nagad_sandbox'                  => (bool) Setting::get('nagad_sandbox', true),
 
             // SSL Commerce
             'sslcommerz_enabled'             => (bool) Setting::get('sslcommerz_enabled', false),
             'sslcommerz_base_url'            => Setting::get('sslcommerz_base_url', 'https://sandbox.sslcommerz.com'),
             'sslcommerz_store_id'            => Setting::get('sslcommerz_store_id'),
-            'sslcommerz_sandbox'             => (bool) Setting::get('sslcommerz_sandbox', true),
+            'sslcommerz_store_password'      => Setting::get('sslcommerz_store_password'),
             'sslcommerz_sandbox'             => (bool) Setting::get('sslcommerz_sandbox', true),
 
             // Branding

@@ -313,9 +313,9 @@ export default function PaymentGatewaysPage() {
                   </div>
                   <Input name="bkash_base_url" value={settings.bkash_base_url || ''} onChange={handleChange} placeholder="Base URL" />
                   <Input name="bkash_app_key" value={settings.bkash_app_key || ''} onChange={handleChange} placeholder="App Key" />
-                  <Input type="password" name="bkash_app_secret" value={settings.bkash_app_secret || ''} onChange={handleChange} placeholder="App Secret" />
+                  <Input name="bkash_app_secret" value={settings.bkash_app_secret || ''} onChange={handleChange} placeholder="App Secret" />
                   <Input name="bkash_username" value={settings.bkash_username || ''} onChange={handleChange} placeholder="Username" />
-                  <Input type="password" name="bkash_password" value={settings.bkash_password || ''} onChange={handleChange} placeholder="Password" />
+                  <Input name="bkash_password" value={settings.bkash_password || ''} onChange={handleChange} placeholder="Password" />
                 </div>
               )}
             </div>
@@ -368,7 +368,7 @@ export default function PaymentGatewaysPage() {
                   </div>
                   <Input name="sslcommerz_base_url" value={settings.sslcommerz_base_url || ''} onChange={handleChange} placeholder="Base URL" />
                   <Input name="sslcommerz_store_id" value={settings.sslcommerz_store_id || ''} onChange={handleChange} placeholder="Store ID" />
-                  <Input type="password" name="sslcommerz_store_password" value={settings.sslcommerz_store_password || ''} onChange={handleChange} placeholder="Store Password" />
+                  <Input name="sslcommerz_store_password" value={settings.sslcommerz_store_password || ''} onChange={handleChange} placeholder="Store Password" />
                 </div>
               )}
             </div>
