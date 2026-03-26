@@ -71,6 +71,9 @@ class SettingsController extends Controller
             'support_whatsapp'               => Setting::get('support_whatsapp'),
             'support_facebook'               => Setting::get('support_facebook'),
             'support_mobile'                 => Setting::get('support_mobile'),
+
+
+
         ]);
     }
 

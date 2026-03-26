@@ -20,5 +20,19 @@ class GeneralSettingsSeeder extends Seeder
         if (!Setting::get('crm_creation_type')) {
             Setting::set('crm_creation_type', 'load_balancer');
         }
+
+        // Support Contact Settings
+        if (!Setting::get('support_email')) {
+            Setting::set('support_email', 'support@sadamiahosing.com');
+        }
+        if (!Setting::get('support_whatsapp')) {
+            Setting::set('support_whatsapp', '+8801700000000');
+        }
+        if (!Setting::get('support_facebook')) {
+            Setting::set('support_facebook', 'https://facebook.com/sadamiahosing');
+        }
+        if (!Setting::get('support_mobile')) {
+            Setting::set('support_mobile', '01700000000');
+        }
     }
 }
