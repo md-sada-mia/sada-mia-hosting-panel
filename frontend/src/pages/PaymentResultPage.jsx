@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  CheckCircle2, XCircle, RefreshCw, CreditCard, Loader2,
+  CheckCircle2, XCircle, RefreshCw, CreditCard,
   Calendar, Package, Globe, Zap, Hash, ArrowRight, Home,
   CalendarCheck, ShieldCheck, Star, Clock
 } from 'lucide-react';
@@ -35,18 +35,6 @@ function InfoRow({ icon: Icon, label, value, highlight }) {
   );
 }
 
-function CountdownBar({ seconds, total }) {
-  const pct = (seconds / total) * 100;
-  return (
-    <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-      <div
-        className="h-full bg-emerald-500 transition-all duration-1000 ease-linear"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
 export default function PaymentResultPage() {
   const [params]   = useSearchParams();
   const navigate   = useNavigate();
@@ -57,8 +45,6 @@ export default function PaymentResultPage() {
 
   const [loading, setLoading]   = useState(true);
   const [details, setDetails]   = useState(null);
-  const [countdown, setCountdown] = useState(12);
-  const [autoNavigate, setAutoNavigate] = useState(true);
 
   const isSuccess      = status === 'success';
   const isPaymentDomain = window.location.hostname.startsWith('payment.');
@@ -89,14 +75,6 @@ export default function PaymentResultPage() {
     const t = setTimeout(fetchDetails, isSuccess ? 1500 : 0);
     return () => clearTimeout(t);
   }, [fetchDetails, isSuccess]);
-
-  // Auto-redirect countdown (success only)
-  useEffect(() => {
-    if (!isSuccess || loading || !autoNavigate) return;
-    if (countdown <= 0) { navigate(dashboardUrl); return; }
-    const t = setInterval(() => setCountdown(c => c - 1), 1000);
-    return () => clearInterval(t);
-  }, [isSuccess, loading, countdown, autoNavigate, navigate, dashboardUrl]);
 
   // Loading spinner
   if (loading) {
@@ -269,29 +247,10 @@ export default function PaymentResultPage() {
             </div>
           )}
 
-          {/* No details fallback for success */}
           {isSuccess && !plan && (
             <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-5 py-4 text-center">
               <ShieldCheck className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
               <p className="text-sm text-emerald-600 font-medium">Your subscription has been activated successfully.</p>
-            </div>
-          )}
-
-          {/* Auto-redirect countdown */}
-          {isSuccess && autoNavigate && (
-            <div
-              className="bg-card border border-border rounded-xl px-4 py-3 space-y-2 cursor-pointer group"
-              onClick={() => setAutoNavigate(false)}
-              title="Click to cancel auto-redirect"
-            >
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: '3s' }} />
-                  Redirecting to dashboard in <span className="font-bold text-foreground">{countdown}s</span>
-                </span>
-                <span className="text-xs text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">Click to cancel</span>
-              </div>
-              <CountdownBar seconds={countdown} total={12} />
             </div>
           )}
         </div>
