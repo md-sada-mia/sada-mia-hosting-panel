@@ -72,7 +72,14 @@ export default function SettingsPage() {
     
     // Subscription feature flag
     subscription_enabled: false,
+    
+    // Support channels
+    support_email: '',
+    support_whatsapp: '',
+    support_facebook: '',
+    support_mobile: '',
   });
+
 
   const [loadBalancers, setLoadBalancers] = useState([]);
   const [systemDomains, setSystemDomains] = useState([]);
@@ -305,7 +312,28 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveSupportTab = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/settings', {
+        support_email: githubSettings.support_email,
+        support_whatsapp: githubSettings.support_whatsapp,
+        support_facebook: githubSettings.support_facebook,
+        support_mobile: githubSettings.support_mobile,
+      });
+      fetchSettings();
+      toast.success('Support contact settings saved!');
+    } catch (err) {
+      toast.error('Failed to save support settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const handleConnectGithub = async () => {
+
     try {
       await api.post('/github/disconnect');
 
@@ -373,7 +401,15 @@ export default function SettingsPage() {
               <Settings className="w-4 h-4 mr-2" />
               System Settings
             </TabsTrigger>
+            <TabsTrigger 
+              value="support" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none text-primary"
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Support / Contact
+            </TabsTrigger>
           </TabsList>
+
         </aside>
 
         <div className="flex-1">
@@ -1212,6 +1248,100 @@ export default function SettingsPage() {
               </form>
             </Card>
           </TabsContent>
+
+          <TabsContent value="support" className="mt-0">
+            <Card>
+              <form onSubmit={handleSaveSupportTab}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <HelpCircle className="h-5 w-5 text-primary" />
+                    Support & Contact Channels
+                  </CardTitle>
+                  <CardDescription>
+                    Configure how customers reach you when their services are suspended.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary" />
+                        Support Email Address
+                      </label>
+                      <Input 
+                        type="email"
+                        name="support_email" 
+                        value={githubSettings.support_email || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="support@yourcompany.com" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">Primary contact for renewal issues.</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-green-500" />
+                        WhatsApp Number
+                      </label>
+                      <Input 
+                        name="support_whatsapp" 
+                        value={githubSettings.support_whatsapp || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="e.g. +8801700000000" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">Include country code (e.g. +880).</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-blue-500" />
+                        Facebook Page URL
+                      </label>
+                      <Input 
+                        name="support_facebook" 
+                        value={githubSettings.support_facebook || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="https://facebook.com/yourpage" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">Full URL to your business page.</p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Network className="h-4 w-4 text-orange-500" />
+                        Mobile / Phone Number
+                      </label>
+                      <Input 
+                        name="support_mobile" 
+                        value={githubSettings.support_mobile || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="e.g. 01700000000" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">Direct line for urgent support.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 mt-2">
+                    <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-primary">Display Logic</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        These contact methods will be displayed on the <strong>Subscription Expired</strong> page shown to customers. 
+                        Leave a field empty if you do not want that channel to be displayed.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save Support Channels'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
 
         </div>
       </Tabs>

@@ -39,8 +39,9 @@
             align-items: center;
             justify-content: center;
             padding: 2rem;
-            overflow: hidden;
+            overflow-y: auto;
             position: relative;
+
         }
 
         /* Animated background grid */
@@ -456,24 +457,58 @@
 
             <!-- Footer -->
             <div class="footer">
-                <div class="footer-actions" style="display: flex; gap: 12px; width: 100%;">
-                    <a href="{{ $payment_url }}/packages?domain={{ $domain }}" class="contact-link" style="background: var(--red); color: white; border: none; flex: 1; justify-content: center; font-weight: 700; padding: 12px;">
-
+                <div class="footer-actions" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                    <!-- Primary CTA -->
+                    <a href="{{ $payment_url }}/packages?domain={{ $domain }}" class="contact-link" style="background: var(--red); color: white; border: none; width: 100%; justify-content: center; font-weight: 700; padding: 14px; font-size: 16px; margin-bottom: 4px;">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
                             <path d="M12 2v10"></path>
                             <path d="M18.4 4.6a10 10 0 1 1-12.8 0"></path>
                         </svg>
                         Renew Subscription
                     </a>
-                    <a href="mailto:{{ $support_email }}?subject=Subscription%20Issue%20for%20{{ $domain }}" class="contact-link" style="flex: 1; justify-content: center;">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                        </svg>
-                        Contact Support
-                    </a>
+
+                    <!-- Priority Support Channels -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; width: 100%; justify-content: center;">
+                        @if($support_whatsapp)
+                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $support_whatsapp) }}" target="_blank" class="contact-link" style="padding: 10px 16px; font-size: 13px; flex: 1; min-width: 140px; border-color: #25D366; color: #25D366; justify-content: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                            </svg>
+                            WhatsApp
+                        </a>
+                        @endif
+
+                        @if($support_facebook)
+                        <a href="{{ $support_facebook }}" target="_blank" class="contact-link" style="padding: 10px 16px; font-size: 13px; flex: 1; min-width: 140px; border-color: #1877F2; color: #1877F2; justify-content: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                            </svg>
+                            Facebook
+                        </a>
+                        @endif
+
+                        @if($support_mobile)
+                        <a href="tel:{{ $support_mobile }}" class="contact-link" style="padding: 10px 16px; font-size: 13px; flex: 1; min-width: 140px; border-color: #f59e0b; color: #f59e0b; justify-content: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                            </svg>
+                            Call Us
+                        </a>
+                        @endif
+
+                        <a href="mailto:{{ $support_email }}?subject=Subscription%20Issue%20for%20{{ $domain }}" class="contact-link" style="padding: 10px 16px; font-size: 13px; flex: 1; min-width: 140px; justify-content: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            Email Support
+                        </a>
+                    </div>
                 </div>
+
+
 
                 <div class="footer-info" style="margin-top: 1.5rem; width: 100%; justify-content: center; opacity: 0.7;">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"

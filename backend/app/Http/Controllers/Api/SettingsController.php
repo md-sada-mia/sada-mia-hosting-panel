@@ -67,6 +67,10 @@ class SettingsController extends Controller
 
             // Branding
             'gateway_logo_url'               => Setting::get('gateway_logo_url'),
+            'support_email'                  => Setting::get('support_email', 'support@sadamiahosing.com'),
+            'support_whatsapp'               => Setting::get('support_whatsapp'),
+            'support_facebook'               => Setting::get('support_facebook'),
+            'support_mobile'                 => Setting::get('support_mobile'),
         ]);
     }
 
@@ -157,7 +161,13 @@ class SettingsController extends Controller
             'sslcommerz_store_id'         => 'nullable|string',
             'sslcommerz_store_password'   => 'nullable|string',
             'sslcommerz_sandbox'          => 'nullable|boolean',
+            'support_email'               => 'nullable|email',
+            'support_whatsapp'            => 'nullable|string',
+            'support_facebook'            => 'nullable|string',
+            'support_mobile'              => 'nullable|string',
         ]);
+
+
 
         if (isset($validated['panel_url']) && !empty($validated['panel_url'])) {
             $url = $validated['panel_url'];
