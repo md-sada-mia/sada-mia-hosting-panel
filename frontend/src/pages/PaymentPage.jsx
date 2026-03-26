@@ -210,7 +210,7 @@ export default function PaymentPage() {
 
       {/* Full error display */}
       {errorMsg && (
-        <div className="relative rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="relative rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed flex-1">
