@@ -82,7 +82,9 @@ export default function PortalHomePage() {
           <h2 className="text-3xl font-bold tracking-tight">Subscription Dashboard</h2>
           <div className="flex items-center gap-2 mt-2 text-muted-foreground">
             <Globe className="h-4 w-4" />
-            <span className="font-medium text-foreground">{domain}</span>
+            <a href={`http://${domain}`} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground hover:text-primary transition-colors hover:underline">
+              {domain}
+            </a>
             <Button variant="ghost" size="sm" onClick={clearDomain} className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive shrink-0">
               <XCircle className="h-3.5 w-3.5 mr-1" /> Change Domain
             </Button>
