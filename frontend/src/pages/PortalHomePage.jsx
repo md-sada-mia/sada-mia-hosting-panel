@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Globe, Clock, Coins, Search, ShieldCheck, XCircle } from 'lucide-react';
+import { Globe, Clock, Search, ShieldCheck, XCircle, History } from 'lucide-react';
 
 export default function PortalHomePage() {
   const { domain, setDomain, portalInfo } = useOutletContext();
@@ -66,7 +66,7 @@ export default function PortalHomePage() {
 
   const current = portalInfo?.current;
   const flatSubs = current?.flat_subscriptions || [];
-  const creditSub = current?.credit_subscription;
+  const recentTransactions = portalInfo?.recent_transactions || [];
   const systemEnabled = current?.system_enabled !== false;
 
   const daysLeft = (endsAt) => {
@@ -157,37 +157,56 @@ export default function PortalHomePage() {
           )}
         </div>
 
-        {/* Credits */}
-        <Card className={`relative overflow-hidden ${creditSub ? 'border-violet-500/50 shadow-violet-500/10' : ''}`}>
-          {creditSub && <div className="absolute top-0 left-0 w-1 h-full bg-violet-500" />}
-          <CardHeader className="pb-3">
+        {/* Recent Transactions */}
+        <Card className="relative overflow-hidden h-fit shadow-md">
+          <CardHeader className="pb-3 border-b border-border/50 bg-muted/10">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Coins className={`h-5 w-5 ${creditSub ? 'text-violet-500' : 'text-muted-foreground'}`} />
-              Request Credits
+              <History className="h-5 w-5 text-primary" />
+              Recent Transactions
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {creditSub ? (
-              <div className="space-y-3">
-                <p className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
-                  {(current?.credit_balance ?? 0).toLocaleString()}
-                </p>
-                <p className="text-sm font-medium text-muted-foreground bg-muted/40 p-2 rounded-md border border-border/50">
-                  Available for metered API usage
-                </p>
-              </div>
-            ) : (
-              <div className="py-2">
-                <p className="text-muted-foreground mb-4">No credits purchased. Required only if your CRM uses metered billing routes.</p>
-              </div>
-            )}
-            
-            <div className="mt-6">
-              <Button asChild className="w-full shadow-sm" variant="outline">
-                <Link to={`/packages?domain=${domain}&type=credits`}>
-                  Buy More Credits
-                </Link>
-              </Button>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              {recentTransactions.length > 0 ? (
+                <table className="w-full text-sm text-left">
+                  <thead className="text-[10px] uppercase bg-muted/30 text-muted-foreground tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3">Plan</th>
+                      <th className="px-4 py-3">Amount</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50 bg-background/50">
+                    {recentTransactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors duration-150">
+                        <td className="px-4 py-3.5 font-medium">{tx.plan?.name || 'N/A'}</td>
+                        <td className="px-4 py-3.5 font-bold text-foreground">
+                          {tx.currency === 'BDT' ? '৳' : (tx.currency + ' ')}{Number(tx.amount).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <Badge 
+                            variant={tx.status === 'completed' ? 'success' : tx.status === 'pending' ? 'secondary' : 'destructive'}
+                            className="text-[10px]"
+                          >
+                            {tx.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3.5 text-muted-foreground shrink-0 text-xs">
+                          {new Date(tx.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="py-10 text-center px-4">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-4">
+                    <History className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-muted-foreground text-sm font-medium">No recent transactions found.</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -31,16 +31,23 @@ class PublicPortalController extends Controller
         }
 
         $currentStatus = null;
+        $recentTransactions = [];
         if ($domain) {
             $currentStatus = $this->subscriptionService->getStatusSummaryForDomain($domain);
+            $recentTransactions = PaymentTransaction::with('plan')
+                ->where('domain', $domain)
+                ->latest()
+                ->limit(5)
+                ->get();
         }
 
         return response()->json([
-            'plans'            => $query->get(),
-            'enabled_gateways' => $this->gatewayFactory->enabledGateways(),
-            'system_enabled'   => $this->subscriptionService->isSubscriptionSystemEnabled(),
-            'current'          => $currentStatus,
-            'portal_name'      => Setting::get('app_name', 'Sada Mia Hosting'),
+            'plans'               => $query->get(),
+            'enabled_gateways'    => $this->gatewayFactory->enabledGateways(),
+            'system_enabled'      => $this->subscriptionService->isSubscriptionSystemEnabled(),
+            'current'             => $currentStatus,
+            'recent_transactions' => $recentTransactions,
+            'portal_name'         => Setting::get('app_name', 'Sada Mia Hosting'),
         ]);
     }
 
