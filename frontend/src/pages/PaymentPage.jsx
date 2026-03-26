@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -54,14 +54,38 @@ export default function PaymentPage() {
   const domain = searchParams.get('domain');
   const plan = state?.plan;
 
-  // Use enabled gateways from state (passed by PortalPackagesPage / SubscriptionPage).
-  // If not provided (e.g. direct navigation), show all.
-  const enabledGateways = state?.enabledGateways ?? Object.keys(GATEWAY_META);
-  const gateways = enabledGateways.filter((gw) => GATEWAY_META[gw]);
-
-  const [selected, setSelected] = useState(gateways[0] ?? null);
+  const [selected, setSelected] = useState(null);
   const [loading, setLoading]   = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null); // full server error
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [gateways, setGateways] = useState([]);
+
+  // Always fetch fresh enabled gateways from the API — navigation state can be stale
+  useEffect(() => {
+    const fetchGateways = async () => {
+      try {
+        const url = domain ? `/public/portal/info?domain=${domain}` : '/public/portal/info';
+        const { data } = await api.get(url);
+        const enabled = (data.enabled_gateways || []).filter((gw) => GATEWAY_META[gw]);
+        setGateways(enabled);
+        setSelected((prev) => {
+          // Keep selection if still valid, else default to first enabled
+          if (prev && enabled.includes(prev)) return prev;
+          return enabled[0] ?? null;
+        });
+      } catch {
+        // Keep whatever came from state as fallback
+      }
+    };
+    fetchGateways();
+  }, [domain]);
+
+  // Auto-select first if gateways loaded from state and none selected yet
+  useEffect(() => {
+    if (!selected && gateways.length > 0) {
+      setSelected(gateways[0]);
+    }
+  }, [gateways, selected]);
+
 
   if (!plan) {
     return (
