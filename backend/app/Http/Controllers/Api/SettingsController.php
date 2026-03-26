@@ -223,11 +223,6 @@ server {
     root {$frontendDist};
     index index.html;
 
-    # Landing page redirect to subscription
-    location = / {
-        return 301 /subscription;
-    }
-
     # API → Laravel backend (must come before the SPA catch-all)
     location ^~ /api/ {
         try_files \$uri \$uri/ @laravel_payment;
