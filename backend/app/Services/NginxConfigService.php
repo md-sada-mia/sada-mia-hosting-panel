@@ -17,6 +17,7 @@ class NginxConfigService
         if ($app->force_https && $app->ssl_enabled && $this->hasCertificate($app->domain)) {
             $config = "server {\n" .
                 "    listen 80;\n" .
+                "    listen [::]:80;\n" .
                 "    server_name {$app->domain};\n" .
                 "    return 301 https://\$host\$request_uri;\n" .
                 "}\n";
@@ -160,6 +161,7 @@ class NginxConfigService
         if ($lbDomain->force_https && $lbDomain->ssl_enabled && $this->hasCertificate($domain)) {
             $httpConfig = "server {\n" .
                 "    listen 80;\n" .
+                "    listen [::]:80;\n" .
                 "    server_name {$domain};\n" .
                 "    return 301 https://\$host\$request_uri;\n" .
                 "}\n";
