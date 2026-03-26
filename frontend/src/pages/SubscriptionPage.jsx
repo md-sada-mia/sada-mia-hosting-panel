@@ -162,8 +162,10 @@ export default function SubscriptionPage() {
               Recent Transactions
             </CardTitle>
           </div>
-          <Button variant="ghost" size="sm" className="text-xs" disabled>
-            View All <ArrowRight className="ml-1 h-3 w-3" />
+          <Button variant="ghost" size="sm" className="text-xs" asChild>
+            <Link to="/subscription/transactions">
+              View All <ArrowRight className="ml-1 h-3 w-3" />
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>

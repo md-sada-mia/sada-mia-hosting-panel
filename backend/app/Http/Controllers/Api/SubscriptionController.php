@@ -58,20 +58,35 @@ class SubscriptionController extends Controller
             'total_revenue'      => $totalRevenue,
             'active_flat_rate'   => $activeFlat,
             'total_credits_held' => $totalCredits,
-            'recent_transactions' => $txQuery->latest()->limit(20)->get()
+            'recent_transactions' => $txQuery->latest()->limit(10)->get()
         ]);
     }
 
     /**
-     * Admin: List all transactions.
+     * Admin: List all transactions (paginated + searchable).
      */
-    public function transactions()
+    public function transactions(Request $request)
     {
-        return response()->json(
-            PaymentTransaction::with(['plan'])
-                ->latest()
-                ->paginate(20)
-        );
+        $query = PaymentTransaction::with(['plan'])->latest();
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('domain', 'like', "%{$search}%")
+                    ->orWhere('transaction_id', 'like', "%{$search}%")
+                    ->orWhere('gateway_ref', 'like', "%{$search}%")
+                    ->orWhereHas('plan', fn($p) => $p->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($gateway = $request->query('gateway')) {
+            $query->where('gateway', $gateway);
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        return response()->json($query->paginate(20));
     }
 
     /**

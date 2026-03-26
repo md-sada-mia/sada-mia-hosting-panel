@@ -34,6 +34,7 @@ import PaymentResultPage from './pages/PaymentResultPage';
 import BillableRoutesPage from './pages/BillableRoutesPage';
 import PaymentGatewaysPage from './pages/PaymentGatewaysPage';
 import ManagePlansPage from './pages/ManagePlansPage';
+import TransactionsPage from './pages/TransactionsPage';
 
 // Portal
 import PortalLayout from './components/PortalLayout';
@@ -89,6 +90,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/subscription/billable-routes" element={<BillableRoutesPage />} />
               <Route path="/subscription/gateways" element={<PaymentGatewaysPage />} />
               <Route path="/subscription/plans-manage" element={<ManagePlansPage />} />
+              <Route path="/subscription/transactions" element={<TransactionsPage />} />
               <Route path="/github/callback" element={<GitHubCallbackPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
