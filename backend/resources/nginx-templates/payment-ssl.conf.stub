@@ -1,0 +1,53 @@
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name {{domain}};
+
+    ssl_certificate /etc/letsencrypt/live/{{domain}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{domain}}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Frontend static root
+    root {{frontend_dist}};
+    index index.html;
+
+    # API → Laravel backend  (alias pattern, same as sada-mia-panel)
+    location ^~ /api {
+        alias {{backend_public}};
+        try_files $uri $uri/ @laravel_payment;
+
+        location ~ \.php$ {
+            fastcgi_pass unix:{{php_fpm_sock}};
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $request_filename;
+        }
+    }
+
+    # Payment gateway callbacks → Laravel backend (web.php routes, no /api/ prefix)
+    location ^~ /payment/bkash/ {
+        try_files $uri $uri/ @laravel_payment;
+    }
+
+    location ^~ /payment/nagad/ {
+        try_files $uri $uri/ @laravel_payment;
+    }
+
+    location ^~ /payment/sslcommerz/ {
+        try_files $uri $uri/ @laravel_payment;
+    }
+
+    location @laravel_payment {
+        fastcgi_pass unix:{{php_fpm_sock}};
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME {{backend_public}}/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param REQUEST_URI $request_uri;
+    }
+
+    # Frontend SPA routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

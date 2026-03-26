@@ -185,7 +185,7 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Settings updated successfully']);
     }
 
-    public function setupPaymentDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell)
+    public function setupPaymentDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell, \App\Services\NginxConfigService $nginxService)
     {
         $primaryDomain = Setting::get('ns_default_domain');
         if (empty($primaryDomain)) {
@@ -209,81 +209,58 @@ class SettingsController extends Controller
             $dnsService->syncRecords($domainRecord);
         }
 
-        // 2. Setup Nginx block (Direct serving instead of port 8083 proxying)
-        // This ensures the payment domain works perfectly without port issues.
+        // 2. Setup Nginx block using stub template
         $baseDir = base_path('..');
         $frontendDist = "{$baseDir}/frontend/dist";
         $backendPublic = "{$baseDir}/backend/public";
         $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
-
-        $nginxConfig = <<<NGINX
-server {
-    listen 80;
-    listen [::]:80;
-    server_name {$paymentDomain};
-
-    # Frontend static root
-    root {$frontendDist};
-    index index.html;
-
-    # API → Laravel backend  (alias pattern, same as sada-mia-panel)
-    location ^~ /api {
-        alias {$backendPublic};
-        try_files \$uri \$uri/ @laravel_payment;
-
-        location ~ \.php$ {
-            fastcgi_pass unix:{$phpFpmSock};
-            fastcgi_index index.php;
-            include fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME \$request_filename;
-        }
-    }
-
-    # Payment gateway callbacks → Laravel backend (web.php routes, no /api/ prefix)
-    location ^~ /payment/bkash/ {
-        try_files \$uri \$uri/ @laravel_payment;
-    }
-
-    location ^~ /payment/nagad/ {
-        try_files \$uri \$uri/ @laravel_payment;
-    }
-
-    location ^~ /payment/sslcommerz/ {
-        try_files \$uri \$uri/ @laravel_payment;
-    }
-
-    location @laravel_payment {
-        fastcgi_pass unix:{$phpFpmSock};
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME {$backendPublic}/index.php;
-        fastcgi_param SCRIPT_NAME /index.php;
-        fastcgi_param REQUEST_URI \$request_uri;
-    }
-
-    # Frontend SPA routing
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    # Handle SSL Let's Encrypt challenges
-    location /.well-known/acme-challenge/ {
-        root /var/www/html;
-    }
-}
-NGINX;
 
         $sitesAvailable = '/etc/nginx/sites-available';
         $sitesEnabled   = '/etc/nginx/sites-enabled';
         $configFile     = "{$sitesAvailable}/{$paymentDomain}";
         $symlinkFile    = "{$sitesEnabled}/{$paymentDomain}";
 
-        $escapedConfig = escapeshellarg($nginxConfig);
+        // Read base HTTP stub
+        $httpStubPath = resource_path('nginx-templates/payment.conf.stub');
+        $httpStub = file_get_contents($httpStubPath);
+
+        $placeholders = ['{{domain}}', '{{frontend_dist}}', '{{backend_public}}', '{{php_fpm_sock}}'];
+        $replacements = [$paymentDomain, $frontendDist, $backendPublic, $phpFpmSock];
+        $httpConfig = str_replace($placeholders, $replacements, $httpStub);
+
+        $escapedConfig = escapeshellarg($httpConfig);
         $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
         $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
         $shell->run("sudo nginx -t && sudo nginx -s reload");
 
-        // 3. Procure SSL via certbot directly
-        $shell->run("sudo certbot --nginx -d {$paymentDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+        // 3. Procure SSL via certbot directly (certonly so it doesn't mangle config)
+        $shell->run("sudo certbot certonly --nginx -d {$paymentDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+
+        // 4. Generate SSL specific config if certificate was procured
+        if ($nginxService->hasCertificate($paymentDomain)) {
+            // Overwrite HTTP config with redirect
+            $redirectConfig = "server {\n" .
+                "    listen 80;\n" .
+                "    listen [::]:80;\n" .
+                "    server_name {$paymentDomain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n";
+            $escapedRedirect = escapeshellarg($redirectConfig);
+            $shell->run("echo {$escapedRedirect} | sudo tee {$configFile} > /dev/null");
+
+            // Generate SSL config
+            $sslStubPath = resource_path('nginx-templates/payment-ssl.conf.stub');
+            $sslStub = file_get_contents($sslStubPath);
+            $sslConfig = str_replace($placeholders, $replacements, $sslStub);
+
+            $sslConfigFile = "{$sitesAvailable}/{$paymentDomain}-ssl";
+            $sslSymlinkFile = "{$sitesEnabled}/{$paymentDomain}-ssl";
+            $escapedSslConfig = escapeshellarg($sslConfig);
+
+            $shell->run("echo {$escapedSslConfig} | sudo tee {$sslConfigFile} > /dev/null");
+            $shell->run("sudo ln -sf {$sslConfigFile} {$sslSymlinkFile}");
+            $shell->run("sudo nginx -t && sudo nginx -s reload");
+        }
 
         $url = "https://{$paymentDomain}";
         Setting::set('payment_callback_base_url', $url);
