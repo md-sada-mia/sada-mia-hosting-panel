@@ -258,3 +258,4 @@ Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);
 
 Route::get('/public/portal/info', [\App\Http\Controllers\Api\PublicPortalController::class, 'info']);
 Route::post('/public/portal/subscribe', [\App\Http\Controllers\Api\PublicPortalController::class, 'subscribe']);
+Route::get('/public/payment/result/{txId}', [\App\Http\Controllers\Api\PublicPortalController::class, 'paymentResult']);

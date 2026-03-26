@@ -106,4 +106,58 @@ class PublicPortalController extends Controller
             return response()->json(['message' => 'Payment initiation failed: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Public: Fetch full payment result details for the result page.
+     * No auth required — only returns safe, non-sensitive info.
+     */
+    public function paymentResult(Request $request, $txId)
+    {
+        $transaction = PaymentTransaction::with(['plan'])->find($txId);
+
+        if (!$transaction) {
+            return response()->json(['message' => 'Transaction not found.'], 404);
+        }
+
+        $domain = $transaction->domain;
+        $plan   = $transaction->plan;
+
+        // Load linked subscription if completed
+        $subscription = null;
+        if ($transaction->status === 'completed' && $domain) {
+            $subscription = \App\Models\Subscription::with('plan')
+                ->where('domain', $domain)
+                ->where('status', 'active')
+                ->whereHas('plan', fn($q) => $q->where('type', $plan?->type ?? 'flat_rate'))
+                ->latest()
+                ->first();
+        }
+
+        return response()->json([
+            'status'         => $transaction->status,
+            'gateway'        => $transaction->gateway,
+            'amount'         => $transaction->amount,
+            'currency'       => $transaction->currency ?? 'BDT',
+            'transaction_id' => $transaction->transaction_id,
+            'gateway_ref'    => $transaction->gateway_ref,
+            'created_at'     => $transaction->created_at,
+            'domain'         => $domain,
+            'plan'           => $plan ? [
+                'id'             => $plan->id,
+                'name'           => $plan->name,
+                'type'           => $plan->type,
+                'billing_cycle'  => $plan->billing_cycle,
+                'price'          => $plan->price,
+                'credit_amount'  => $plan->credit_amount,
+                'features'       => $plan->features ?? [],
+                'description'    => $plan->description,
+            ] : null,
+            'subscription'   => $subscription ? [
+                'starts_at'      => $subscription->starts_at,
+                'ends_at'        => $subscription->ends_at,
+                'credit_balance' => $subscription->credit_balance,
+                'status'         => $subscription->status,
+            ] : null,
+        ]);
+    }
 }

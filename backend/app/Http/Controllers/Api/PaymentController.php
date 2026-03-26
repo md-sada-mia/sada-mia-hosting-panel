@@ -38,7 +38,7 @@ class PaymentController extends Controller
 
         if ($status !== 'success' || !$paymentId) {
             $transaction->update(['status' => 'failed', 'raw_response' => $request->all()]);
-            return $this->redirectResult('failed', 'bkash', $domain);
+            return $this->redirectResult('failed', 'bkash', $domain, $transaction->id);
         }
 
         try {
@@ -46,15 +46,15 @@ class PaymentController extends Controller
 
             if (($executeResult['statusCode'] ?? '') !== '0000') {
                 $transaction->update(['status' => 'failed', 'raw_response' => $executeResult]);
-                return $this->redirectResult('failed', 'bkash', $domain);
+                return $this->redirectResult('failed', 'bkash', $domain, $transaction->id);
             }
 
             $this->completeTransaction($transaction, $executeResult['trxID'] ?? null, $executeResult);
-            return $this->redirectResult('success', 'bkash', $domain);
+            return $this->redirectResult('success', 'bkash', $domain, $transaction->id);
         } catch (\Exception $e) {
             Log::error('bKash callback execution error: ' . $e->getMessage());
             $transaction->update(['status' => 'failed']);
-            return $this->redirectResult('failed', 'bkash', $domain);
+            return $this->redirectResult('failed', 'bkash', $domain, $transaction->id);
         }
     }
 
@@ -77,15 +77,15 @@ class PaymentController extends Controller
 
             if (($result['status'] ?? '') !== 'Success') {
                 $transaction->update(['status' => 'failed', 'raw_response' => $result]);
-                return $this->redirectResult('failed', 'nagad', $domain);
+                return $this->redirectResult('failed', 'nagad', $domain, $transaction->id);
             }
 
             $this->completeTransaction($transaction, $result['merchantOrderId'] ?? $paymentRefId, $result);
-            return $this->redirectResult('success', 'nagad', $domain);
+            return $this->redirectResult('success', 'nagad', $domain, $transaction->id);
         } catch (\Exception $e) {
             Log::error('Nagad callback error: ' . $e->getMessage());
             $transaction->update(['status' => 'failed']);
-            return $this->redirectResult('failed', 'nagad', $domain);
+            return $this->redirectResult('failed', 'nagad', $domain, $transaction->id);
         }
     }
 
@@ -148,7 +148,7 @@ class PaymentController extends Controller
                 $validated = $this->sslCommerz->validatePayment($data['val_id'] ?? $data['tran_id'] ?? '');
                 if (($validated['status'] ?? '') === 'VALID') {
                     $this->completeTransaction($transaction, $data['bank_tran_id'] ?? null, $validated);
-                    return $this->redirectResult('success', 'sslcommerz', $domain);
+                    return $this->redirectResult('success', 'sslcommerz', $domain, $transaction->id);
                 }
             } catch (\Exception $e) {
                 Log::error('SSL Commerce validation error: ' . $e->getMessage());
@@ -156,7 +156,7 @@ class PaymentController extends Controller
         }
 
         $transaction->update(['status' => 'failed', 'raw_response' => $request->all()]);
-        return $this->redirectResult('failed', 'sslcommerz', $domain);
+        return $this->redirectResult('failed', 'sslcommerz', $domain, $transaction->id);
     }
 
     /**
@@ -179,7 +179,7 @@ class PaymentController extends Controller
     /**
      * Redirect to the frontend result page.
      */
-    private function redirectResult(string $status, string $gateway, ?string $domain = null)
+    private function redirectResult(string $status, string $gateway, ?string $domain = null, $txId = null)
     {
         $baseUrl = \App\Models\Setting::get('payment_callback_base_url');
 
@@ -192,6 +192,10 @@ class PaymentController extends Controller
 
         if ($domain) {
             $url .= "&domain=" . urlencode($domain);
+        }
+
+        if ($txId) {
+            $url .= "&tx_id=" . urlencode($txId);
         }
 
         return redirect($url);

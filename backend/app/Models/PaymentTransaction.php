@@ -10,6 +10,7 @@ class PaymentTransaction extends Model
         'user_id',
         'subscription_id',
         'plan_id',
+        'domain',
         'gateway',
         'amount',
         'currency',

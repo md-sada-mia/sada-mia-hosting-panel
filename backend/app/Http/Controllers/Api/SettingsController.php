@@ -231,6 +231,19 @@ server {
         try_files \$uri \$uri/ @laravel_payment;
     }
 
+    # Payment gateway callbacks → Laravel backend (web.php routes, no /api/ prefix)
+    location ^~ /payment/bkash/ {
+        try_files \$uri \$uri/ @laravel_payment;
+    }
+
+    location ^~ /payment/nagad/ {
+        try_files \$uri \$uri/ @laravel_payment;
+    }
+
+    location ^~ /payment/sslcommerz/ {
+        try_files \$uri \$uri/ @laravel_payment;
+    }
+
     location @laravel_payment {
         fastcgi_pass unix:{$phpFpmSock};
         include fastcgi_params;
