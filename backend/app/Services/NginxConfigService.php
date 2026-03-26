@@ -152,9 +152,11 @@ class NginxConfigService
 
         // 1. Generate HTTP Config
         $httpStub = $this->getStub('load_balancer');
+        $subBlocks = $this->getSubscriptionCheckBlocks();
+
         $httpConfig = str_replace(
-            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
-            [$lb->id, $domain, $phpFpmSock],
+            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}', '{{subscription_check_auth}}', '{{subscription_check_locations}}'],
+            [$lb->id, $domain, $phpFpmSock, $subBlocks['auth'], $subBlocks['locations']],
             $httpStub
         );
 
@@ -194,9 +196,11 @@ class NginxConfigService
         $domain = $lbDomain->domain;
 
         $sslStub = $this->getStub('load_balancer-ssl');
+        $subBlocks = $this->getSubscriptionCheckBlocks();
+
         $sslConfig = str_replace(
-            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}'],
-            [$lb->id, $domain, $phpFpmSock],
+            ['{{lb_id}}', '{{domain}}', '{{php_fpm_sock}}', '{{subscription_check_auth}}', '{{subscription_check_locations}}'],
+            [$lb->id, $domain, $phpFpmSock, $subBlocks['auth'], $subBlocks['locations']],
             $sslStub
         );
 
@@ -288,18 +292,59 @@ class NginxConfigService
 
     private function replacePlaceholders(string $stub, App $app, ?int $internalPort = null): string
     {
+        $subBlocks = $this->getSubscriptionCheckBlocks();
+
         return str_replace(
-            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}', '{{internal_port}}'],
+            ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}', '{{internal_port}}', '{{subscription_check_auth}}', '{{subscription_check_locations}}'],
             [
                 $app->domain,
                 $app->port ?: '80',
                 $app->deploy_path,
                 config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
-                $internalPort ?? ''
+                $internalPort ?? '',
+                $subBlocks['auth'],
+                $subBlocks['locations']
             ],
             $stub
         );
     }
+
+    private function getSubscriptionCheckBlocks(): array
+    {
+        /** @var \App\Services\SubscriptionService $subscriptionService */
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+        $isEnabled = $subscriptionService->isSubscriptionSystemEnabled();
+
+        $authBlock = "";
+        $locationBlock = "";
+
+        if ($isEnabled) {
+            $authBlock = "auth_request /subscription-check;\n        error_page 403 = @expired;";
+
+            $panelUrl = \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083');
+            $panelPort = parse_url($panelUrl, PHP_URL_PORT) ?: '8083';
+            $panelBase = "http://127.0.0.1:{$panelPort}";
+
+            $locationBlock = "
+    location = /subscription-check {
+        internal;
+        proxy_pass {$panelBase}/api/subscription-check?domain=\$host;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length \"\";
+        proxy_set_header X-Original-URI \$request_uri;
+    }
+
+    location @expired {
+        proxy_pass {$panelBase}/subscription-expired?domain=\$host;
+        proxy_set_header Host \$host;
+    }
+";
+        }
+
+        return ['auth' => $authBlock, 'locations' => $locationBlock];
+    }
+
+
 
     /**
      * Check if a Let's Encrypt certificate exists for the given domain.

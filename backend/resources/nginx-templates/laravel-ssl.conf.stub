@@ -12,6 +12,7 @@ server {
     index index.php index.html;
 
     location / {
+        {{subscription_check_auth}}
         try_files $uri $uri/ /index.php?$query_string;
     }
 
@@ -52,6 +53,8 @@ server {
     }
 
     client_max_body_size 100M;
+
+    {{subscription_check_locations}}
 
     access_log /var/log/nginx/{{domain}}-access.log;
     error_log  /var/log/nginx/{{domain}}-error.log;

@@ -12,6 +12,7 @@ server {
     index index.html index.htm;
 
     location / {
+        {{subscription_check_auth}}
         try_files $uri $uri/ /index.html;
     }
 
@@ -44,6 +45,8 @@ server {
             fastcgi_param SCRIPT_FILENAME $request_filename;
         }
     }
+
+    {{subscription_check_locations}}
 
     access_log /var/log/nginx/{{domain}}-access.log;
     error_log  /var/log/nginx/{{domain}}-error.log;

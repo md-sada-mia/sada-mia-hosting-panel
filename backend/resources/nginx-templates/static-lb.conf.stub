@@ -5,10 +5,13 @@ server {
     index index.html;
 
     location / {
+        {{subscription_check_auth}}
         try_files $uri $uri/ =404;
     }
 
     location ~ /\.(?!well-known).* {
         deny all;
     }
+
+    {{subscription_check_locations}}
 }

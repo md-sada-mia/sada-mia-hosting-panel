@@ -4,6 +4,7 @@ server {
     server_name {{domain}};
 
     location / {
+        {{subscription_check_auth}}
         proxy_pass http://127.0.0.1:{{port}};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -39,6 +40,8 @@ server {
             fastcgi_param SCRIPT_FILENAME $request_filename;
         }
     }
+
+    {{subscription_check_locations}}
 
     access_log /var/log/nginx/{{domain}}-access.log;
     error_log  /var/log/nginx/{{domain}}-error.log;

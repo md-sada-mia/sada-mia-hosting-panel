@@ -19,12 +19,17 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\AppServiceController;
 use App\Http\Controllers\Api\LoadBalancerSslController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\SubscriptionCheckController;
 use App\Http\Controllers\Api\BillableRouteController;
+
 use App\Http\Controllers\Api\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 // ── Auth (public) ─────────────────────────────────────────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// ── Public: Nginx subscription gate (called internally via auth_request) ──────
+Route::get('/subscription-check', [SubscriptionCheckController::class, 'check']);
 
 // ── Protected routes ─────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
