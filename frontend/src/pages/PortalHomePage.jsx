@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Globe, Clock, Search, ShieldCheck, XCircle, History } from 'lucide-react';
+import { Globe, Clock, Search, ShieldCheck, XCircle, History, ExternalLink } from 'lucide-react';
 
 export default function PortalHomePage() {
   const { domain, setDomain, portalInfo } = useOutletContext();
@@ -89,6 +89,14 @@ export default function PortalHomePage() {
               <XCircle className="h-3.5 w-3.5 mr-1" /> Change Domain
             </Button>
           </div>
+        </div>
+        <div className="hidden sm:block">
+          <Button asChild variant="outline" className="gap-2 border-primary/20 hover:border-primary/50 text-primary hover:text-primary hover:bg-primary/5 transition-all shadow-sm">
+            <a href={`http://${domain}`} target="_blank" rel="noopener noreferrer">
+              Back to Website
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </Button>
         </div>
       </div>
 
