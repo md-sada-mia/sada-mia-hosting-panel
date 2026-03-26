@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Models\Domain;
 use App\Models\CrmApiLog;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 use App\Models\PaymentTransaction;
 use App\Services\DeploymentService;
 use App\Services\DatabaseService;
@@ -210,6 +211,53 @@ class CustomerController extends Controller
             'subscriptions' => $subscriptions,
             'transactions'  => $transactions,
         ]);
+    }
+
+    public function activateSubscription(Request $request, Customer $customer)
+    {
+        $validated = $request->validate([
+            'plan_id'        => 'required|exists:subscription_plans,id',
+            'custom_ends_at' => 'nullable|date',
+        ]);
+
+        // Resolve domain
+        $domain = null;
+        if ($customer->resource_type === 'app') {
+            $domain = AppModel::find($customer->resource_id)?->domain;
+            if (!$domain && $customer->deployment) {
+                $domain = $customer->deployment->domain;
+            }
+        } elseif ($customer->resource_type === 'load_balancer') {
+            $domain = $customer->deployment?->domain;
+            if (!$domain) {
+                $lb = LoadBalancer::with('domains')->find($customer->resource_id);
+                $domain = $lb?->domains?->first()?->domain;
+            }
+        }
+
+        if (!$domain) {
+            return response()->json(['error' => 'Customer has no deployed domain configured.'], 400);
+        }
+
+        $plan = SubscriptionPlan::findOrFail($validated['plan_id']);
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+
+        $subscription = $subscriptionService->activateManual($domain, $plan, $validated['custom_ends_at'] ?? null);
+
+        // Record a manual payment transaction
+        PaymentTransaction::create([
+            'user_id'         => $request->user()?->id,
+            'subscription_id' => $subscription->id,
+            'plan_id'         => $plan->id,
+            'domain'          => $domain,
+            'gateway'         => 'manual',
+            'amount'          => 0, // Admin granted
+            'currency'        => 'USD',
+            'status'          => 'completed',
+            'transaction_id'  => 'MANUAL_' . \Illuminate\Support\Str::random(10),
+        ]);
+
+        return response()->json(['message' => 'Subscription activated successfully.', 'subscription' => $subscription]);
     }
 
 

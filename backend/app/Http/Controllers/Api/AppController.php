@@ -17,6 +17,7 @@ use App\Jobs\DeployApp;
 use App\Jobs\DeleteApp;
 use App\Models\Subscription;
 use App\Models\PaymentTransaction;
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -387,5 +388,39 @@ class AppController extends Controller
             ]);
 
         return response()->json(['domain' => $domain, 'subscriptions' => $subscriptions, 'transactions' => $transactions]);
+    }
+
+    public function activateSubscription(Request $request, AppModel $app)
+    {
+        $validated = $request->validate([
+            'plan_id'        => 'required|exists:subscription_plans,id',
+            'custom_ends_at' => 'nullable|date',
+        ]);
+
+        $domain = $app->domain;
+
+        if (!$domain) {
+            return response()->json(['error' => 'App has no domain configured.'], 400);
+        }
+
+        $plan = SubscriptionPlan::findOrFail($validated['plan_id']);
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+
+        $subscription = $subscriptionService->activateManual($domain, $plan, $validated['custom_ends_at'] ?? null);
+
+        // Record a manual payment transaction to keep history clean
+        PaymentTransaction::create([
+            'user_id'         => $request->user()?->id,
+            'subscription_id' => $subscription->id,
+            'plan_id'         => $plan->id,
+            'domain'          => $domain,
+            'gateway'         => 'manual',
+            'amount'          => 0, // Admin granted
+            'currency'        => 'USD',
+            'status'          => 'completed',
+            'transaction_id'  => 'MANUAL_' . Str::random(10),
+        ]);
+
+        return response()->json(['message' => 'Subscription activated successfully.', 'subscription' => $subscription]);
     }
 }

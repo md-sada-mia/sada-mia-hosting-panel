@@ -8,10 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
   XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText,
-  CreditCard, Star, Calendar, TrendingUp, Coins
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -65,6 +82,10 @@ export default function CrmLoadBalancerDetailPage() {
   // Subscription state
   const [subData, setSubData] = useState(null);
   const [subLoading, setSubLoading] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [isActivateOpen, setIsActivateOpen] = useState(false);
+  const [activatingPlan, setActivatingPlan] = useState(false);
+  const [activateForm, setActivateForm] = useState({ plan_id: '', custom_ends_at: '' });
 
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
@@ -102,6 +123,32 @@ export default function CrmLoadBalancerDetailPage() {
       toast.error('Failed to load subscriptions');
     } finally {
       setSubLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const { data } = await api.get('/subscription/admin-plans');
+      setPlans(data);
+    } catch {
+      toast.error('Failed to load plans');
+    }
+  };
+
+  const handleActivateSubscription = async (e) => {
+    e.preventDefault();
+    if (!activateForm.plan_id) return toast.error('Please select a plan');
+    setActivatingPlan(true);
+    try {
+      await api.post(`/customers/${customerId}/subscriptions/activate`, activateForm);
+      toast.success('Subscription activated successfully!');
+      setIsActivateOpen(false);
+      setActivateForm({ plan_id: '', custom_ends_at: '' });
+      fetchSubscriptions();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to activate subscription');
+    } finally {
+      setActivatingPlan(false);
     }
   };
 
@@ -913,10 +960,63 @@ export default function CrmLoadBalancerDetailPage() {
 
               {/* Subscriptions Table */}
               <Card>
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <CreditCard className="h-4 w-4 text-primary" /> Subscription Plans
                   </CardTitle>
+                  <Dialog open={isActivateOpen} onOpenChange={(open) => {
+                    setIsActivateOpen(open);
+                    if (open && plans.length === 0) fetchPlans();
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
+                        <Plus className="h-3.5 w-3.5" /> Activate Plan
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Activate Subscription</DialogTitle>
+                        <DialogDescription>Manually assign a plan to {subData.domain}</DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleActivateSubscription} className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Select Plan</label>
+                          <Select
+                            value={activateForm.plan_id}
+                            onValueChange={(val) => setActivateForm({ ...activateForm, plan_id: val })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a subscription plan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {plans.map(p => (
+                                <SelectItem key={p.id} value={p.id.toString()}>
+                                  {p.name} — {p.type === 'flat_rate' ? `${p.billing_cycle}` : `${p.credit_amount} credits`} ({p.price > 0 ? `$${p.price}` : 'Free'})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Custom Expiry Date <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                          <Input
+                            type="date"
+                            value={activateForm.custom_ends_at}
+                            onChange={(e) => setActivateForm({ ...activateForm, custom_ends_at: e.target.value })}
+                            placeholder="Leave empty for default"
+                          />
+                          <p className="text-xs text-muted-foreground">Overrides the default billing cycle duration if set.</p>
+                        </div>
+                        <DialogFooter className="mt-6">
+                          <Button type="button" variant="ghost" onClick={() => setIsActivateOpen(false)}>Cancel</Button>
+                          <Button type="submit" disabled={activatingPlan || !activateForm.plan_id}>
+                            {activatingPlan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Activate
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </CardHeader>
                 <CardContent className="p-0">
                   {subData.subscriptions.length === 0 ? (

@@ -45,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/restart', [AppController::class, 'restart']);
     Route::get('/apps/{app}/crm-logs', [AppController::class, 'crmLogs']);
     Route::get('/apps/{app}/subscriptions', [AppController::class, 'subscriptions']);
+    Route::post('/apps/{app}/subscriptions/activate', [AppController::class, 'activateSubscription']);
 
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
@@ -108,6 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/customers/{customer}/deploy', [CustomerController::class, 'deploy']);
     Route::put('/customers/{customer}/domain', [CustomerController::class, 'updateDomain']);
     Route::get('/customers/{customer}/subscriptions', [CustomerController::class, 'subscriptions']);
+    Route::post('/customers/{customer}/subscriptions/activate', [CustomerController::class, 'activateSubscription']);
 
 
     // Load Balancers

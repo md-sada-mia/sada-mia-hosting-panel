@@ -169,6 +169,45 @@ class SubscriptionService
     }
 
     /**
+     * Admin: Manually activate a subscription without payment.
+     */
+    public function activateManual(string $domain, SubscriptionPlan $plan, ?string $customEndsAt = null): Subscription
+    {
+        if ($plan->isFlatRate()) {
+            $starts = Carbon::now();
+            if ($customEndsAt) {
+                $ends = Carbon::parse($customEndsAt);
+            } else {
+                $ends = match ($plan->billing_cycle) {
+                    'monthly'  => $starts->copy()->addMonth(),
+                    'yearly'   => $starts->copy()->addYear(),
+                    'lifetime' => null,
+                    default    => $starts->copy()->addMonth(),
+                };
+            }
+
+            $subscription = Subscription::create([
+                'domain'    => $domain,
+                'plan_id'   => $plan->id,
+                'status'    => 'active',
+                'starts_at' => $starts,
+                'ends_at'   => $ends,
+            ]);
+        } else {
+            $subscription = Subscription::create([
+                'domain'         => $domain,
+                'plan_id'        => $plan->id,
+                'status'         => 'active',
+                'credit_balance' => $plan->credit_amount ?? 0,
+            ]);
+        }
+
+        $this->invalidateCache($domain);
+
+        return $subscription;
+    }
+
+    /**
      * Compatibility for Admin Panel: Get summary for a user (uses panel domain as context).
      */
     public function getStatusSummary(User $user): array
