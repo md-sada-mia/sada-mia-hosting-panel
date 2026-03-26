@@ -30,6 +30,10 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // ── Public: Nginx subscription gate (called internally via auth_request) ──────
 Route::get('/subscription-check', [SubscriptionCheckController::class, 'check']);
+Route::get('/subscription-expired', function (Illuminate\Http\Request $request) {
+    return view('subscription-expired', ['domain' => $request->get('domain', $request->getHost())]);
+});
+
 
 // ── Protected routes ─────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {

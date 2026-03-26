@@ -335,9 +335,10 @@ class NginxConfigService
     }
 
     location @expired {
-        proxy_pass {$panelBase}/subscription-expired?domain=\$host;
+        proxy_pass {$panelBase}/api/subscription-expired?domain=\$host;
         proxy_set_header Host \$host;
     }
+
 ";
         }
 

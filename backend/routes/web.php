@@ -7,10 +7,6 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/subscription-expired', function (Illuminate\Http\Request $request) {
-    return view('subscription-expired', ['domain' => $request->get('domain', $request->getHost())]);
-});
-
 
 // ── Payment Gateway Callbacks (Public, no /api prefix) ──────────────────────
 Route::get('/payment/bkash/callback',      [PaymentController::class, 'bkashCallback']);
