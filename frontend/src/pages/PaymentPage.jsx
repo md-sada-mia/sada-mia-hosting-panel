@@ -2,33 +2,50 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { CreditCard, Loader2, ArrowLeft } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { CreditCard, Loader2, ArrowLeft, AlertCircle, X } from 'lucide-react';
 
 const GATEWAY_META = {
   bkash: {
     label: 'bKash',
-    color: '#E2136E',
     bgClass: 'bg-[#E2136E]/10 border-[#E2136E]/40 hover:border-[#E2136E]',
     textClass: 'text-[#E2136E]',
     emoji: '🔴',
   },
   nagad: {
     label: 'Nagad',
-    color: '#F6821F',
     bgClass: 'bg-[#F6821F]/10 border-[#F6821F]/40 hover:border-[#F6821F]',
     textClass: 'text-[#F6821F]',
     emoji: '🟠',
   },
   sslcommerz: {
     label: 'SSL Commerce',
-    color: '#2196F3',
     bgClass: 'bg-[#2196F3]/10 border-[#2196F3]/40 hover:border-[#2196F3]',
     textClass: 'text-[#2196F3]',
     emoji: '🔵',
   },
 };
+
+/** Extracts the most informative error string from an Axios error response */
+function extractErrorMessage(err) {
+  const data = err.response?.data;
+  if (!data) return err.message || 'Payment initiation failed.';
+
+  // Try common error shapes
+  if (typeof data === 'string') return data;
+  if (data.message) {
+    // Append nested error detail if present
+    const detail = data.error || data.errors
+      ? '\n\nDetails:\n' + (
+          typeof data.error === 'string' ? data.error
+          : typeof data.errors === 'string' ? data.errors
+          : JSON.stringify(data.error ?? data.errors, null, 2)
+        )
+      : '';
+    return data.message + detail;
+  }
+  return JSON.stringify(data, null, 2);
+}
 
 export default function PaymentPage() {
   const { state } = useLocation();
@@ -37,12 +54,14 @@ export default function PaymentPage() {
   const domain = searchParams.get('domain');
   const plan = state?.plan;
 
-  const [selected, setSelected]   = useState(null);
-  const [loading, setLoading]     = useState(false);
+  // Use enabled gateways from state (passed by PortalPackagesPage / SubscriptionPage).
+  // If not provided (e.g. direct navigation), show all.
+  const enabledGateways = state?.enabledGateways ?? Object.keys(GATEWAY_META);
+  const gateways = enabledGateways.filter((gw) => GATEWAY_META[gw]);
 
-  // Gateways that are enabled (passed via location state or discovered via SubscriptionPage)
-  // For resilience, we try all three; the backend will reject disabled ones anyway
-  const gateways = Object.keys(GATEWAY_META);
+  const [selected, setSelected] = useState(gateways[0] ?? null);
+  const [loading, setLoading]   = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null); // full server error
 
   if (!plan) {
     return (
@@ -57,10 +76,10 @@ export default function PaymentPage() {
 
   const handlePay = async () => {
     if (!selected) {
-      toast.error('Please select a payment gateway.');
+      setErrorMsg('Please select a payment gateway.');
       return;
     }
-
+    setErrorMsg(null);
     setLoading(true);
     try {
       const isPaymentDomain = window.location.hostname.startsWith('payment.');
@@ -77,10 +96,10 @@ export default function PaymentPage() {
       if (data.payment_url) {
         window.location.href = data.payment_url;
       } else {
-        toast.error('No payment URL returned. Check gateway configuration.');
+        setErrorMsg('No payment URL returned. Please check gateway configuration.');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Payment initiation failed.');
+      setErrorMsg(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -89,7 +108,7 @@ export default function PaymentPage() {
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/subscription')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -117,52 +136,77 @@ export default function PaymentPage() {
         </CardContent>
       </Card>
 
-      {/* Gateway grid */}
+      {/* Gateway list — only enabled ones */}
       <div>
         <p className="text-sm font-medium mb-3 text-muted-foreground uppercase tracking-wider">
           Select Payment Method
         </p>
-        <div className="grid grid-cols-1 gap-3">
-          {gateways.map((gw) => {
-            const meta = GATEWAY_META[gw];
-            const isSelected = selected === gw;
-            return (
-              <button
-                key={gw}
-                onClick={() => setSelected(gw)}
-                className={`w-full text-left rounded-lg border-2 p-4 transition-all ${
-                  isSelected
-                    ? `${meta.bgClass} border-current ring-1 ring-offset-0`
-                    : `border-border hover:border-muted-foreground/50 bg-card`
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{meta.emoji}</span>
-                  <div>
-                    <p className={`font-semibold ${isSelected ? meta.textClass : ''}`}>
-                      {meta.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Mobile banking / Card payment
-                    </p>
+
+        {gateways.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6 border rounded-lg border-dashed">
+            No payment gateways are currently enabled. Please contact support.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {gateways.map((gw) => {
+              const meta = GATEWAY_META[gw];
+              const isSelected = selected === gw;
+              return (
+                <button
+                  key={gw}
+                  onClick={() => { setSelected(gw); setErrorMsg(null); }}
+                  className={`w-full text-left rounded-lg border-2 p-4 transition-all ${
+                    isSelected
+                      ? `${meta.bgClass} border-current ring-1 ring-offset-0`
+                      : 'border-border hover:border-muted-foreground/50 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{meta.emoji}</span>
+                    <div>
+                      <p className={`font-semibold ${isSelected ? meta.textClass : ''}`}>
+                        {meta.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Mobile banking / Card payment
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <span className={`ml-auto text-xs font-medium ${meta.textClass} bg-current/10 px-2 py-0.5 rounded-full`}>
+                        Selected
+                      </span>
+                    )}
                   </div>
-                  {isSelected && (
-                    <span className={`ml-auto text-xs font-medium ${meta.textClass} bg-current/10 px-2 py-0.5 rounded-full`}>
-                      Selected
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Full error display */}
+      {errorMsg && (
+        <div className="relative rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed flex-1">
+              {errorMsg}
+            </pre>
+          </div>
+          <button
+            className="absolute top-2 right-2 text-destructive/60 hover:text-destructive"
+            onClick={() => setErrorMsg(null)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <Button
         className="w-full"
         size="lg"
         onClick={handlePay}
-        disabled={loading || !selected}
+        disabled={loading || !selected || gateways.length === 0}
       >
         {loading ? (
           <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Redirecting…</>
@@ -177,3 +221,4 @@ export default function PaymentPage() {
     </div>
   );
 }
+

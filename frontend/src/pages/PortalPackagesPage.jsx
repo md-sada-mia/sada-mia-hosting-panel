@@ -35,7 +35,7 @@ export default function PortalPackagesPage() {
     // Reuse the exact same payment page, passing the plan and forcing context of domain
     // Actually, PaymentPage reads domain from URL or State?
     // Wait, the existing PaymentPage expects `plan` in `location.state`.
-    navigate(`/payment?domain=${domain}`, { state: { plan } });
+    navigate(`/payment?domain=${domain}`, { state: { plan, enabledGateways: portalInfo?.enabled_gateways || [] } });
   };
 
   return (
