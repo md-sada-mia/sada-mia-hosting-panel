@@ -454,7 +454,15 @@ class CustomerController extends Controller
             // Auto create DNS
             if ($app->domain) {
                 $this->dnsService->createManagedDomain($app->domain, $app->id);
+
+                // [REQUIRED] Write initial Nginx config immediately to replace placeholders
+                // try {
+                //     $this->nginxService->generate($app);
+                // } catch (\Exception $e) {
+                //     \Illuminate\Support\Facades\Log::warning("Initial Nginx gen failed for {$app->domain}: " . $e->getMessage());
+                // }
             }
+
 
             // Trigger deployment
             if ($app->git_url) {

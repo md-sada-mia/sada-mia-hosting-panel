@@ -113,6 +113,15 @@ class AppController extends Controller
         // Auto-create Domain record with default nameservers and records
         $this->dnsService->createManagedDomain($app->domain, $app->id);
 
+        // [REQUIRED] Write initial Nginx config immediately so placeholders (auth_request, etc.)
+        // are replaced at creation time. This prevents literal placeholders in /etc/nginx.
+        // try {
+        //     $this->nginxService->generate($app);
+        // } catch (\Exception $e) {
+        //     \Illuminate\Support\Facades\Log::warning("Initial Nginx gen failed for {$app->domain}: " . $e->getMessage());
+        // }
+
+
         // If this is the first app, set it as the primary panel domain and update site address
         if (\App\Models\App::count() === 1) {
             $port = env('PANEL_PORT', '8083');
