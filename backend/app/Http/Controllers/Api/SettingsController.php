@@ -226,9 +226,17 @@ server {
     root {$frontendDist};
     index index.html;
 
-    # API → Laravel backend (must come before the SPA catch-all)
-    location ^~ /api/ {
+    # API → Laravel backend  (alias pattern, same as sada-mia-panel)
+    location ^~ /api {
+        alias {$backendPublic};
         try_files \$uri \$uri/ @laravel_payment;
+
+        location ~ \.php$ {
+            fastcgi_pass unix:{$phpFpmSock};
+            fastcgi_index index.php;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME \$request_filename;
+        }
     }
 
     # Payment gateway callbacks → Laravel backend (web.php routes, no /api/ prefix)
