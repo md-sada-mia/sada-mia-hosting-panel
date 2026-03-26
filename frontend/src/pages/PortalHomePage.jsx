@@ -65,7 +65,7 @@ export default function PortalHomePage() {
   }
 
   const current = portalInfo?.current;
-  const flatSub = current?.flat_subscription;
+  const flatSubs = current?.flat_subscriptions || [];
   const creditSub = current?.credit_subscription;
   const systemEnabled = current?.system_enabled !== false;
 
@@ -98,44 +98,64 @@ export default function PortalHomePage() {
 
       {/* Current Status Cards */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Flat-rate */}
-        <Card className={`relative overflow-hidden ${flatSub?.status === 'active' ? 'border-emerald-500/50 shadow-emerald-500/10' : ''}`}>
-          {flatSub?.status === 'active' && <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />}
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <ShieldCheck className={`h-5 w-5 ${flatSub?.status === 'active' ? 'text-emerald-500' : 'text-muted-foreground'}`} />
-                Access Plan
-              </span>
-              {flatSub?.status === 'active' && <Badge variant="success" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-none">Active</Badge>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {flatSub ? (
-              <div className="space-y-3">
-                <p className="text-2xl font-bold tracking-tight">{flatSub.plan?.name}</p>
-                <div className="flex items-center gap-2 text-sm text-foreground/80 bg-muted/40 p-2 rounded-md border border-border/50">
-                  <Clock className="h-4 w-4 text-primary" />
-                  {flatSub.ends_at
-                    ? <span className="font-medium">{daysLeft(flatSub.ends_at)} days remaining</span>
-                    : <span className="font-medium">Lifetime Access</span>}
+        {/* Flat-rate Plans */}
+        <div className="space-y-4">
+          {flatSubs.length > 0 ? (
+            flatSubs.map((sub) => (
+              <Card key={sub.id} className={`relative overflow-hidden ${sub.status === 'active' ? 'border-emerald-500/50 shadow-emerald-500/10' : ''}`}>
+                {sub.status === 'active' && <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />}
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck className={`h-5 w-5 ${sub.status === 'active' ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                      Access Plan
+                    </span>
+                    {sub.status === 'active' && <Badge variant="success" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 border-none">Active</Badge>}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <p className="text-2xl font-bold tracking-tight">{sub.plan?.name}</p>
+                    <div className="flex items-center gap-2 text-sm text-foreground/80 bg-muted/40 p-2 rounded-md border border-border/50">
+                      <Clock className="h-4 w-4 text-primary" />
+                      {sub.ends_at
+                        ? <span className="font-medium">{daysLeft(sub.ends_at)} days remaining</span>
+                        : <span className="font-medium">Lifetime Access</span>}
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    <Button asChild className="w-full shadow-sm" variant="outline">
+                      <Link to={`/packages?domain=${domain}`}>
+                        Renew or Upgrade Plan
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+                  Access Plan
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="py-2">
+                  <p className="text-muted-foreground mb-4">You do not have an active access plan for this domain.</p>
                 </div>
-              </div>
-            ) : (
-              <div className="py-2">
-                <p className="text-muted-foreground mb-4">You do not have an active access plan for this domain.</p>
-              </div>
-            )}
-            
-            <div className="mt-6">
-              <Button asChild className="w-full shadow-sm" variant={flatSub ? 'outline' : 'default'}>
-                <Link to={`/packages?domain=${domain}`}>
-                  {flatSub ? 'Renew or Upgrade Plan' : 'View Packages'}
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="mt-6">
+                  <Button asChild className="w-full shadow-sm" variant="default">
+                    <Link to={`/packages?domain=${domain}`}>
+                      View Packages
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Credits */}
         <Card className={`relative overflow-hidden ${creditSub ? 'border-violet-500/50 shadow-violet-500/10' : ''}`}>

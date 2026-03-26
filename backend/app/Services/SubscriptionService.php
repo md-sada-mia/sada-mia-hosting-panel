@@ -141,11 +141,7 @@ class SubscriptionService
                 default    => $starts->copy()->addMonth(),
             };
 
-            // Expire any existing active flat-rate subscription
-            Subscription::where('domain', $domain)
-                ->where('status', 'active')
-                ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
-                ->update(['status' => 'expired']);
+            // We no longer expire existing flat-rate subscriptions to support multiple concurrent plans.
 
             $subscription = Subscription::create([
                 'domain'     => $domain,
@@ -204,7 +200,12 @@ class SubscriptionService
             'system_enabled'     => $systemEnabled,
             'flat_rate_active'   => $systemEnabled ? $this->isActive($domain) : null,
             'credit_balance'     => $this->getCredits($domain),
-            'flat_subscription'  => $this->getCurrentSubscription($domain)?->load('plan'),
+            'flat_subscriptions' => Subscription::with('plan')
+                ->where('domain', $domain)
+                ->where('status', 'active')
+                ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
+                ->orderBy('ends_at', 'desc')
+                ->get(),
             'credit_subscription' => Subscription::with('plan')
                 ->where('domain', $domain)
                 ->where('status', 'active')
