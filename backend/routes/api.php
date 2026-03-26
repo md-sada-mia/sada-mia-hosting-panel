@@ -31,8 +31,41 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // ── Public: Nginx subscription gate (called internally via auth_request) ──────
 Route::get('/subscription-check', [SubscriptionCheckController::class, 'check']);
 Route::get('/subscription-expired', function (Illuminate\Http\Request $request) {
+    $domainStr = $request->get('domain', $request->getHost());
+    $customer = null;
+
+    // Try App
+    $app = \App\Models\App::where('domain', $domainStr)->first();
+    if ($app) {
+        $customer = \App\Models\Customer::where('resource_type', 'app')
+            ->where('resource_id', $app->id)
+            ->first();
+    }
+
+    // Try Load Balancer if no customer yet
+    if (!$customer) {
+        $lb = \App\Models\LoadBalancer::where('domain', $domainStr)->first();
+        if ($lb) {
+            $customer = \App\Models\Customer::where('resource_type', 'load_balancer')
+                ->where('resource_id', $lb->id)
+                ->first();
+        }
+    }
+
+    // Try Customer Deployment (CRM) if no customer yet
+    if (!$customer) {
+        $deployment = \App\Models\CustomerDeployment::where('domain', $domainStr)
+            ->orWhere('subdomain', $domainStr)
+            ->first();
+        if ($deployment) {
+            $customer = $deployment->customer;
+        }
+    }
+
     return view('subscription-expired', [
-        'domain' => $request->get('domain', $request->getHost()),
+        'domain' => $domainStr,
+        'customer' => $customer,
+
         'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
         'support_email' => \App\Models\Setting::get('support_email', 'support@sadamiahosing.com'),
         'support_whatsapp' => \App\Models\Setting::get('support_whatsapp'),
@@ -40,6 +73,7 @@ Route::get('/subscription-expired', function (Illuminate\Http\Request $request) 
         'support_mobile' => \App\Models\Setting::get('support_mobile'),
     ]);
 });
+
 
 
 
