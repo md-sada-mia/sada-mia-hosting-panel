@@ -323,7 +323,13 @@ class NginxConfigService
 
             $panelUrl = \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083');
             $panelPort = parse_url($panelUrl, PHP_URL_PORT) ?: '8083';
-            $panelBase = "http://127.0.0.1:{$panelPort}";
+
+            // Use HTTPS if panel force HTTPS is enabled
+            $forceHttps = filter_var(\App\Models\Setting::get('panel_force_https', false), FILTER_VALIDATE_BOOLEAN);
+            $protocol = $forceHttps ? 'https' : 'http';
+            $panelBase = "{$protocol}://127.0.0.1:{$panelPort}";
+
+            $sslVerify = $forceHttps ? "\n        proxy_ssl_verify off;" : "";
 
             $locationBlock = "
     location = /subscription-check {
@@ -331,12 +337,13 @@ class NginxConfigService
         proxy_pass {$panelBase}/api/subscription-check?domain=\$host;
         proxy_pass_request_body off;
         proxy_set_header Content-Length \"\";
-        proxy_set_header X-Original-URI \$request_uri;
+        proxy_set_header X-Original-URI \$request_uri;{$sslVerify}
+        proxy_set_header Host \$host;
     }
 
     location @expired {
         proxy_pass {$panelBase}/api/subscription-expired?domain=\$host;
-        proxy_set_header Host \$host;
+        proxy_set_header Host \$host;{$sslVerify}
     }
 
 ";
