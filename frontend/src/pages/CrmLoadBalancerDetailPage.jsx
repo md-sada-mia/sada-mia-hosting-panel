@@ -28,7 +28,7 @@ import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
   XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText,
-  CreditCard, Star, Calendar, TrendingUp, Coins, Plus
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -86,6 +86,7 @@ export default function CrmLoadBalancerDetailPage() {
   const [isActivateOpen, setIsActivateOpen] = useState(false);
   const [activatingPlan, setActivatingPlan] = useState(false);
   const [activateForm, setActivateForm] = useState({ plan_id: '', custom_ends_at: '' });
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
@@ -152,8 +153,21 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
-  const fetchCustomer = async () => {
-    setIsLoading(true);
+  const handleToggleSuspend = async () => {
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/customers/${customerId}/toggle-suspend`);
+      toast.success(data.message);
+      fetchCustomer(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle suspension');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const fetchCustomer = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const { data } = await api.get(`/customers/${customerId}`);
       setCustomer(data);
@@ -303,12 +317,20 @@ export default function CrmLoadBalancerDetailPage() {
                 </p>
               </div>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                lb?.status === 'active'
+                customer?.resource?.deployment_info?.status === 'deactivated'
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  : lb?.status === 'active'
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                   : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
               }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${lb?.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
-                {lb?.status || 'pending'}
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  customer?.resource?.deployment_info?.status === 'deactivated'
+                    ? 'bg-rose-500'
+                    : lb?.status === 'active'
+                    ? 'bg-emerald-500'
+                    : 'bg-amber-500 animate-pulse'
+                }`} />
+                {customer?.resource?.deployment_info?.status === 'deactivated' ? 'deactivated' : (lb?.status || 'pending')}
               </span>
             </div>
           </div>
@@ -920,6 +942,35 @@ export default function CrmLoadBalancerDetailPage() {
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
               </div>
+
+              {/* Service Suspension */}
+              <Card className="border-red-500/20 bg-red-500/5 transition-all">
+                <CardContent className="flex flex-col md:flex-row md:items-center justify-between py-5 gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Service Suspension</h4>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Manually suspend or reactivate this domain. When suspended, visitors will see a "Service Deactivated" page.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={customer?.resource?.deployment_info?.status === 'deactivated' ? "outline" : "destructive"}
+                    onClick={(e) => { e.preventDefault(); handleToggleSuspend(); }}
+                    disabled={actionLoading}
+                    className="min-w-[160px] shrink-0"
+                  >
+                    {actionLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 
+                      (customer?.resource?.deployment_info?.status === 'deactivated' ? <Play className="h-4 w-4 mr-2" /> : <Square className="h-4 w-4 mr-2" />)
+                    }
+                    {customer?.resource?.deployment_info?.status === 'deactivated' ? 'Reactivate Service' : 'Suspend Service'}
+                  </Button>
+                </CardContent>
+              </Card>
 
               {/* Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

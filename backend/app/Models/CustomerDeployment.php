@@ -26,6 +26,7 @@ class CustomerDeployment extends Model
         'db_name',
         'db_user',
         'db_password',
+        'status',
     ];
 
     protected $casts = [

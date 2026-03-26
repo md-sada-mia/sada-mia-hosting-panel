@@ -656,4 +656,20 @@ class CustomerController extends Controller
             }
         });
     }
+    public function toggleSuspend(Customer $customer)
+    {
+        $deployment = $customer->deployment;
+
+        if (!$deployment) {
+            return response()->json(['message' => 'This customer has no deployment to suspend.'], 404);
+        }
+
+        if ($deployment->status === 'deactivated') {
+            $deployment->update(['status' => 'active']);
+            return response()->json(['message' => 'Service reactivated.', 'status' => 'active']);
+        } else {
+            $deployment->update(['status' => 'deactivated']);
+            return response()->json(['message' => 'Service suspended.', 'status' => 'deactivated']);
+        }
+    }
 }
