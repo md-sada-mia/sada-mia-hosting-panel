@@ -210,7 +210,7 @@ class SettingsController extends Controller
         }
 
         // 2. Setup Nginx block using stub template
-        $baseDir = base_path('..');
+        $baseDir = realpath(base_path('..'));
         $frontendDist = "{$baseDir}/frontend/dist";
         $backendPublic = "{$baseDir}/backend/public";
         $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
