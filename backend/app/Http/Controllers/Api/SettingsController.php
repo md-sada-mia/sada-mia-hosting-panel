@@ -218,6 +218,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name {$paymentDomain};
+
+    # Frontend static root
     root {$frontendDist};
     index index.html;
 
@@ -226,22 +228,9 @@ server {
         return 301 /subscription;
     }
 
-    # Frontend routing
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    # API Proxy to Laravel
-    location ^~ /api {
-        alias {$backendPublic};
+    # API → Laravel backend (must come before the SPA catch-all)
+    location ^~ /api/ {
         try_files \$uri \$uri/ @laravel_payment;
-        
-        location ~ \.php$ {
-            fastcgi_pass unix:{$phpFpmSock};
-            fastcgi_index index.php;
-            include fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME \$request_filename;
-        }
     }
 
     location @laravel_payment {
@@ -250,6 +239,11 @@ server {
         fastcgi_param SCRIPT_FILENAME {$backendPublic}/index.php;
         fastcgi_param SCRIPT_NAME /index.php;
         fastcgi_param REQUEST_URI \$request_uri;
+    }
+
+    # Frontend SPA routing
+    location / {
+        try_files \$uri \$uri/ /index.html;
     }
 
     # Handle SSL Let's Encrypt challenges
