@@ -12,7 +12,8 @@ import {
   Play, Square, RotateCcw, Rocket, Trash2, Github, ExternalLink,
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
-  Mail, Info, Terminal, FileText, Cpu, Activity, XCircle, ScrollText
+  Mail, Info, Terminal, FileText, Cpu, Activity, XCircle, ScrollText,
+  CreditCard, Star, TrendingUp, Coins, Calendar
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -128,6 +129,10 @@ export default function AppDetailPage() {
   const [showCrmLogs, setShowCrmLogs] = useState(false);
   const [selectedCrmLog, setSelectedCrmLog] = useState(null);
 
+  // Subscription state
+  const [subData, setSubData] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
 
@@ -211,6 +216,9 @@ export default function AppDetailPage() {
     if (activeTab === 'logs') {
       loadLogs(activeLogTab);
     }
+    if (activeTab === 'subscription' && !subData) {
+      fetchSubscriptions();
+    }
   }, [activeTab, activeLogTab]);
 
   useEffect(() => {
@@ -274,6 +282,18 @@ export default function AppDetailPage() {
       toast.error('Failed to fetch CRM API logs');
     } finally {
       setCrmLogsLoading(false);
+    }
+  };
+
+  const fetchSubscriptions = async () => {
+    setSubLoading(true);
+    try {
+      const { data } = await api.get(`/apps/${id}/subscriptions`);
+      setSubData(data);
+    } catch {
+      toast.error('Failed to load subscriptions');
+    } finally {
+      setSubLoading(false);
     }
   };
 
@@ -590,7 +610,7 @@ export default function AppDetailPage() {
         if (v === 'services') fetchServices();
         if (v === 'env') loadEnv();
       }}>
-        <TabsList className="grid w-full grid-cols-7 md:w-auto md:inline-flex">
+        <TabsList className="grid w-full grid-cols-8 md:w-auto md:inline-flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <TabsTrigger value="env">Environment</TabsTrigger>
@@ -607,6 +627,9 @@ export default function AppDetailPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="subscription" className="flex items-center gap-1.5">
+            <CreditCard className="h-3.5 w-3.5" /> Subscription
+          </TabsTrigger>
         </TabsList>
 
         {/* ── Overview ─────────────────────────────────────────── */}
@@ -1791,7 +1814,177 @@ export default function AppDetailPage() {
             </Tabs>
           </Card>
         </TabsContent>
+
+        {/* ── Subscription ───────────────────────────────────────── */}
+        <TabsContent value="subscription" className="mt-6 space-y-5">
+          {subLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : !subData ? (
+            <div className="p-8 rounded-xl border border-dashed text-center text-sm text-muted-foreground">
+              <CreditCard className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p>No subscription data loaded yet.</p>
+            </div>
+          ) : !subData.domain ? (
+            <Card className="border-dashed border-amber-500/30 bg-amber-500/5">
+              <CardContent className="flex items-start gap-4 py-6">
+                <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-400 text-sm">No Domain Configured</p>
+                  <p className="text-xs text-muted-foreground mt-1">This app has no domain set. Add a domain to track subscriptions.</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Domain strip */}
+              <div className="flex items-center gap-2 px-1">
+                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Subscriptions for:</span>
+                <span className="font-mono text-xs font-semibold bg-muted px-2 py-0.5 rounded">{subData.domain}</span>
+                <button onClick={fetchSubscriptions} className="ml-auto p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { label: 'Active Plans', value: subData.subscriptions.filter(s => s.is_active).length, icon: Star, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                  { label: 'Total Subscriptions', value: subData.subscriptions.length, icon: CreditCard, color: 'text-primary', bg: 'bg-primary/10' },
+                  { label: 'Transactions', value: subData.transactions.length, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+                ].map(stat => (
+                  <div key={stat.label} className="flex items-center gap-3 bg-card border rounded-xl p-4">
+                    <div className={`p-2.5 rounded-xl ${stat.bg}`}>
+                      <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Plans Table */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" /> Subscription Plans
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {subData.subscriptions.length === 0 ? (
+                    <div className="text-center py-10 text-sm text-muted-foreground">No subscriptions found for this domain.</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3 text-left font-medium">Plan</th>
+                            <th className="px-5 py-3 text-left font-medium">Type</th>
+                            <th className="px-5 py-3 text-left font-medium">Status</th>
+                            <th className="px-5 py-3 text-left font-medium">Period / Credits</th>
+                            <th className="px-5 py-3 text-left font-medium">Subscribed On</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {subData.subscriptions.map(sub => (
+                            <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-5 py-3">
+                                <p className="font-semibold">{sub.plan?.name || '—'}</p>
+                                {sub.plan?.price && <p className="text-xs text-muted-foreground">${sub.plan.price}</p>}
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${sub.is_credit_type ? 'bg-violet-500/10 text-violet-400 border-violet-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                                  {sub.is_credit_type ? 'Credit' : 'Flat Rate'}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${sub.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : sub.status === 'cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                  {sub.is_active ? 'Active' : sub.status}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-xs">
+                                {sub.is_credit_type ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <Coins className="h-3.5 w-3.5 text-violet-400" />
+                                    <span className="font-semibold">{sub.credit_balance ?? 0}</span>
+                                    <span className="text-muted-foreground">credits remaining</span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    {sub.starts_at && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(sub.starts_at).toLocaleDateString()}</p>}
+                                    {sub.ends_at && <p className={`flex items-center gap-1 ${new Date(sub.ends_at) < new Date() ? 'text-rose-400' : 'text-muted-foreground'}`}>→ {new Date(sub.ends_at).toLocaleDateString()}</p>}
+                                    {!sub.ends_at && <p className="text-muted-foreground italic">Lifetime</p>}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-5 py-3 text-xs text-muted-foreground">
+                                {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Transactions */}
+              {subData.transactions.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-violet-400" /> Recent Transactions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3 text-left font-medium">Plan</th>
+                            <th className="px-5 py-3 text-left font-medium">Amount</th>
+                            <th className="px-5 py-3 text-left font-medium">Gateway</th>
+                            <th className="px-5 py-3 text-left font-medium">Status</th>
+                            <th className="px-5 py-3 text-left font-medium">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {subData.transactions.map(tx => (
+                            <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-5 py-3">
+                                <p className="font-medium">{tx.plan?.name || '—'}</p>
+                                {tx.gateway_ref && <p className="text-[10px] font-mono text-muted-foreground">{tx.gateway_ref}</p>}
+                              </td>
+                              <td className="px-5 py-3 font-semibold">${tx.amount}</td>
+                              <td className="px-5 py-3">
+                                <span className="capitalize text-xs bg-muted px-2 py-0.5 rounded font-medium">{tx.gateway}</span>
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${tx.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : tx.status === 'failed' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
+                                  {tx.status}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-xs text-muted-foreground">
+                                {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
       </Tabs>
+
       <ConfirmationDialog
         open={!!pendingAction}
         onOpenChange={(open) => !open && setPendingAction(null)}

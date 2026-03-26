@@ -15,6 +15,8 @@ use App\Services\SslService;
 use App\Models\Setting;
 use App\Jobs\DeployApp;
 use App\Jobs\DeleteApp;
+use App\Models\Subscription;
+use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -343,5 +345,47 @@ class AppController extends Controller
 
         $logs = $customer->crmApiLogs()->orderByDesc('created_at')->get();
         return response()->json($logs);
+    }
+
+    public function subscriptions(AppModel $app)
+    {
+        $domain = $app->domain;
+
+        if (!$domain) {
+            return response()->json(['domain' => null, 'subscriptions' => [], 'transactions' => []]);
+        }
+
+        $subscriptions = Subscription::with('plan')
+            ->where('domain', $domain)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($sub) => [
+                'id'             => $sub->id,
+                'plan'           => $sub->plan,
+                'status'         => $sub->status,
+                'starts_at'      => $sub->starts_at,
+                'ends_at'        => $sub->ends_at,
+                'credit_balance' => $sub->credit_balance,
+                'is_active'      => $sub->isActive(),
+                'is_credit_type' => $sub->isCreditType(),
+                'created_at'     => $sub->created_at,
+            ]);
+
+        $transactions = PaymentTransaction::with('plan')
+            ->where('domain', $domain)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn($tx) => [
+                'id'             => $tx->id,
+                'plan'           => $tx->plan,
+                'amount'         => $tx->amount,
+                'status'         => $tx->status,
+                'gateway'        => $tx->gateway,
+                'gateway_ref'    => $tx->gateway_ref,
+                'created_at'     => $tx->created_at,
+            ]);
+
+        return response()->json(['domain' => $domain, 'subscriptions' => $subscriptions, 'transactions' => $transactions]);
     }
 }

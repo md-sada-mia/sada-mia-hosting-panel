@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/apps/{app}/stop', [AppController::class, 'stop']);
     Route::post('/apps/{app}/restart', [AppController::class, 'restart']);
     Route::get('/apps/{app}/crm-logs', [AppController::class, 'crmLogs']);
+    Route::get('/apps/{app}/subscriptions', [AppController::class, 'subscriptions']);
+
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
     Route::post('/apps/{app}/toggle-auto-deploy', [AppController::class, 'toggleAutoDeploy']);
@@ -105,6 +107,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('customers', CustomerController::class);
     Route::post('/customers/{customer}/deploy', [CustomerController::class, 'deploy']);
     Route::put('/customers/{customer}/domain', [CustomerController::class, 'updateDomain']);
+    Route::get('/customers/{customer}/subscriptions', [CustomerController::class, 'subscriptions']);
+
 
     // Load Balancers
     Route::apiResource('load-balancers', \App\Http\Controllers\Api\LoadBalancerController::class);

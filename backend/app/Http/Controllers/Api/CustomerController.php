@@ -10,6 +10,8 @@ use App\Models\LoadBalancer;
 use App\Models\Setting;
 use App\Models\Domain;
 use App\Models\CrmApiLog;
+use App\Models\Subscription;
+use App\Models\PaymentTransaction;
 use App\Services\DeploymentService;
 use App\Services\DatabaseService;
 use App\Services\DnsService;
@@ -132,6 +134,85 @@ class CustomerController extends Controller
         $customer->delete();
         return response()->json(['message' => 'Customer deleted']);
     }
+
+    /**
+     * Get all subscriptions for a customer (by their deployed domain).
+     */
+    public function subscriptions(Customer $customer)
+    {
+        // Resolve the customer's domain from their deployed resource
+        $domain = null;
+
+        if ($customer->resource_type === 'app') {
+            $app = AppModel::find($customer->resource_id);
+            $domain = $app?->domain;
+            // Also try deployment_info domain
+            if (!$domain && $customer->deployment) {
+                $domain = $customer->deployment->domain;
+            }
+        } elseif ($customer->resource_type === 'load_balancer') {
+            if ($customer->deployment) {
+                $domain = $customer->deployment->domain;
+            }
+            if (!$domain) {
+                $lb = LoadBalancer::with('domains')->find($customer->resource_id);
+                $domain = $lb?->domains?->first()?->domain;
+            }
+        }
+
+        if (!$domain) {
+            return response()->json([
+                'domain'        => null,
+                'subscriptions' => [],
+                'transactions'  => [],
+            ]);
+        }
+
+        $subscriptions = Subscription::with('plan')
+            ->where('domain', $domain)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($sub) {
+                return [
+                    'id'             => $sub->id,
+                    'plan'           => $sub->plan,
+                    'status'         => $sub->status,
+                    'starts_at'      => $sub->starts_at,
+                    'ends_at'        => $sub->ends_at,
+                    'trial_ends_at'  => $sub->trial_ends_at,
+                    'credit_balance' => $sub->credit_balance,
+                    'is_active'      => $sub->isActive(),
+                    'is_credit_type' => $sub->isCreditType(),
+                    'created_at'     => $sub->created_at,
+                ];
+            });
+
+        $transactions = PaymentTransaction::with('plan')
+            ->where('domain', $domain)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(function ($tx) {
+                return [
+                    'id'             => $tx->id,
+                    'plan'           => $tx->plan,
+                    'amount'         => $tx->amount,
+                    'status'         => $tx->status,
+                    'gateway'        => $tx->gateway,
+                    'transaction_id' => $tx->transaction_id,
+                    'gateway_ref'    => $tx->gateway_ref,
+                    'created_at'     => $tx->created_at,
+                ];
+            });
+
+        return response()->json([
+            'domain'        => $domain,
+            'subscriptions' => $subscriptions,
+            'transactions'  => $transactions,
+        ]);
+    }
+
+
 
     /**
      * Deploy a hosting resource (App or Load Balancer) for this customer.
