@@ -456,7 +456,26 @@
 
             <!-- Footer -->
             <div class="footer">
-                <div class="footer-info">
+                <div class="footer-actions" style="display: flex; gap: 12px; width: 100%;">
+                    <a href="{{ $payment_url }}/packages?domain={{ $domain }}" class="contact-link" style="background: var(--red); color: white; border: none; flex: 1; justify-content: center; font-weight: 700; padding: 12px;">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            <path d="M12 2v10"></path>
+                            <path d="M18.4 4.6a10 10 0 1 1-12.8 0"></path>
+                        </svg>
+                        Renew Subscription
+                    </a>
+                    <a href="mailto:{{ $support_email }}?subject=Subscription%20Issue%20for%20{{ $domain }}" class="contact-link" style="flex: 1; justify-content: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l2.27-2.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        Contact Support
+                    </a>
+                </div>
+
+                <div class="footer-info" style="margin-top: 1.5rem; width: 100%; justify-content: center; opacity: 0.7;">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -465,13 +484,6 @@
                     </svg>
                     Your data is safe &amp; preserved during suspension
                 </div>
-                <a href="javascript:history.back()" class="contact-link">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                    Go Back
-                </a>
             </div>
         </div>
     </div>

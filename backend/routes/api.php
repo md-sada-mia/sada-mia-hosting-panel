@@ -31,8 +31,13 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 // ── Public: Nginx subscription gate (called internally via auth_request) ──────
 Route::get('/subscription-check', [SubscriptionCheckController::class, 'check']);
 Route::get('/subscription-expired', function (Illuminate\Http\Request $request) {
-    return view('subscription-expired', ['domain' => $request->get('domain', $request->getHost())]);
+    return view('subscription-expired', [
+        'domain' => $request->get('domain', $request->getHost()),
+        'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
+        'support_email' => \App\Models\Setting::get('support_email', 'support@sadamiahosing.com'),
+    ]);
 });
+
 
 
 // ── Protected routes ─────────────────────────────────────────────────────────
