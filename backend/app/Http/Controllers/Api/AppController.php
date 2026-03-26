@@ -432,4 +432,15 @@ class AppController extends Controller
 
         return response()->json(['message' => 'Subscription activated successfully.', 'subscription' => $subscription]);
     }
+
+    public function toggleSuspend(AppModel $app)
+    {
+        if ($app->status === 'deactivated') {
+            $app->update(['status' => 'stopped']);
+            return response()->json(['message' => 'Service reactivated.', 'status' => 'stopped']);
+        } else {
+            $app->update(['status' => 'deactivated']);
+            return response()->json(['message' => 'Service suspended.', 'status' => 'deactivated']);
+        }
+    }
 }

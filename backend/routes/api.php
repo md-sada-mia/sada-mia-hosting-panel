@@ -62,9 +62,17 @@ Route::get('/subscription-expired', function (Illuminate\Http\Request $request) 
         }
     }
 
+    $isDeactivated = false;
+    if (isset($app) && $app->status === 'deactivated') {
+        $isDeactivated = true;
+    } elseif (isset($deployment) && $deployment->status === 'deactivated') {
+        $isDeactivated = true;
+    }
+
     return view('subscription-expired', [
         'domain' => $domainStr,
         'customer' => $customer,
+        'is_deactivated' => $isDeactivated,
 
         'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
         'support_email' => \App\Models\Setting::get('support_email', 'support@sadamiahosing.com'),
@@ -101,6 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/apps/{app}/logs', [AppController::class, 'logs']);
     Route::get('/apps/{app}/deployments', [AppController::class, 'deployments']);
     Route::post('/apps/{app}/toggle-auto-deploy', [AppController::class, 'toggleAutoDeploy']);
+    Route::post('/apps/{app}/toggle-suspend', [AppController::class, 'toggleSuspend']);
     Route::post('/apps/{app}/hide-guidelines', [AppController::class, 'hideGuidelines']);
     Route::post('/apps/{app}/ssl/setup', [AppController::class, 'setupSsl']);
     Route::post('/apps/{app}/ssl/remove', [AppController::class, 'removeSsl']);

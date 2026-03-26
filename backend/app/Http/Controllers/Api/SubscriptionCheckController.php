@@ -24,6 +24,18 @@ class SubscriptionCheckController extends Controller
         // Strip port if present (e.g. "example.com:443" → "example.com")
         $domain = strtolower(trim(explode(':', $domain)[0]));
 
+        $app = \App\Models\App::where('domain', $domain)->first();
+        if ($app && $app->status === 'deactivated') {
+            return response()->noContent(403);
+        }
+
+        $deployment = \App\Models\CustomerDeployment::where('domain', $domain)
+            ->orWhere('subdomain', $domain)
+            ->first();
+        if ($deployment && $deployment->status === 'deactivated') {
+            return response()->noContent(403);
+        }
+
         if ($this->subscriptionService->isActive($domain)) {
             return response()->noContent(200);
         }

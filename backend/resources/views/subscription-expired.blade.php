@@ -398,7 +398,13 @@
             <!-- Status indicator -->
             <div class="status-strip">
                 <span class="status-dot"></span>
-                <span class="status-text">Service Suspended</span>
+                <span class="status-text">
+                    @if(isset($is_deactivated) && $is_deactivated)
+                    Service Deactivated
+                    @else
+                    Service Suspended
+                    @endif
+                </span>
             </div>
 
             <!-- Icon -->
@@ -411,9 +417,19 @@
             </div>
 
             <!-- Heading -->
-            <h1>Subscription Expired</h1>
+            <h1>
+                @if(isset($is_deactivated) && $is_deactivated)
+                Service Deactivated
+                @else
+                Subscription Expired
+                @endif
+            </h1>
             <p class="subtitle">
+                @if(isset($is_deactivated) && $is_deactivated)
+                Access to this application has been deactivated by the administrator. Please contact support if you believe this is an error or to restore service.
+                @else
                 Access to this application has been suspended because the subscription for this domain has expired or is no longer active. Please renew your plan to restore service.
+                @endif
             </p>
 
             <!-- Domain and Customer Info -->
@@ -448,7 +464,8 @@
 
             <!-- Main Actions -->
             <div class="main-actions" style="display: flex; flex-wrap: wrap; gap: 16px; width: 100%; align-items: flex-start; margin-bottom: 2rem;">
-                <!-- Left Side: Renew -->
+                <!-- Left Side: Renew (Hide if manually deactivated) -->
+                @if(!isset($is_deactivated) || !$is_deactivated)
                 <div style="flex: 1; min-width: 240px;">
                     <a href="{{ $payment_url }}/packages?domain={{ $domain }}" class="contact-link" style="background: var(--red); color: white; border: none; width: 100%; justify-content: center; font-weight: 700; padding: 12px 16px; font-size: 14px;">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -459,6 +476,7 @@
                         Renew Subscription
                     </a>
                 </div>
+                @endif
 
                 <!-- Right Side: Support Channels -->
                 <div style="flex: 2; min-width: 300px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
@@ -507,6 +525,32 @@
 
 
             <!-- Steps -->
+            @if(isset($is_deactivated) && $is_deactivated)
+            <p class="steps-title">How to restore access</p>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <strong>Contact the administrator</strong>
+                        <span>Reach out to your hosting provider's support team to inquire about the deactivation.</span>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <strong>Resolve outstanding issues</strong>
+                        <span>Address any outstanding compliance, billing, or usage issues with the support team.</span>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
+                        <strong>Automatic restoration</strong>
+                        <span>Once the issues are resolved and the administrator reactivates your account, this domain will become accessible again.</span>
+                    </div>
+                </div>
+            </div>
+            @else
             <p class="steps-title">How to reactivate</p>
             <div class="steps">
                 <div class="step">
@@ -531,6 +575,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <div class="footer-info" style="margin-top: 2rem; width: 100%; justify-content: center; opacity: 0.7;">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"

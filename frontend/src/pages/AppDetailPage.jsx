@@ -576,6 +576,19 @@ export default function AppDetailPage() {
     finally { setInstallingRecommended(false); }
   };
 
+  const handleToggleSuspend = async () => {
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/toggle-suspend`);
+      toast.success(data.message);
+      fetchApp();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle suspension');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -1886,6 +1899,34 @@ export default function AppDetailPage() {
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
               </div>
+
+              {/* Service Suspension */}
+              <Card className="border-red-500/20 bg-red-500/5 transition-all">
+                <CardContent className="flex flex-col md:flex-row md:items-center justify-between py-5 gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Service Suspension</h4>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Manually suspend or reactivate this application. When suspended, visitors will see a "Service Deactivated" page.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={app?.status === 'deactivated' ? "outline" : "destructive"}
+                    onClick={handleToggleSuspend}
+                    disabled={actionLoading}
+                    className="min-w-[160px] shrink-0"
+                  >
+                    {actionLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 
+                      (app?.status === 'deactivated' ? <Play className="h-4 w-4 mr-2" /> : <Square className="h-4 w-4 mr-2" />)
+                    }
+                    {app?.status === 'deactivated' ? 'Reactivate Service' : 'Suspend Service'}
+                  </Button>
+                </CardContent>
+              </Card>
 
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
