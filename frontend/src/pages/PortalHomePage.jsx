@@ -168,7 +168,7 @@ export default function PortalHomePage() {
           )}
 
           {/* Credits */}
-          {creditSubs.length > 0 ? (
+          {creditSubs.length > 0 &&
             creditSubs.map((sub) => (
               <Card key={sub.id} className="relative overflow-hidden border-violet-500/50 shadow-violet-500/10">
                 <div className="absolute top-0 left-0 w-1 h-full bg-violet-500" />
@@ -200,28 +200,7 @@ export default function PortalHomePage() {
                 </CardContent>
               </Card>
             ))
-          ) : (
-            <Card className="relative overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-muted-foreground" />
-                  Request Credits
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="py-2">
-                  <p className="text-muted-foreground mb-4">No credits purchased. Required only if your CRM uses metered billing routes.</p>
-                </div>
-                <div className="mt-6">
-                  <Button asChild className="w-full shadow-sm" variant="outline">
-                    <Link to={`/packages?domain=${domain}&type=credits`}>
-                      Buy More Credits
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          }
         </div>
 
         {/* Recent Transactions */}
