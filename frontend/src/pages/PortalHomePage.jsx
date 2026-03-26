@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Globe, Clock, Search, ShieldCheck, XCircle, History, ExternalLink } from 'lucide-react';
+import { Globe, Clock, Search, ShieldCheck, XCircle, History, ExternalLink, Coins } from 'lucide-react';
 
 export default function PortalHomePage() {
   const { domain, setDomain, portalInfo } = useOutletContext();
@@ -66,6 +66,7 @@ export default function PortalHomePage() {
 
   const current = portalInfo?.current;
   const flatSubs = current?.flat_subscriptions || [];
+  const creditSub = current?.credit_subscription;
   const recentTransactions = portalInfo?.recent_transactions || [];
   const systemEnabled = current?.system_enabled !== false;
 
@@ -165,6 +166,41 @@ export default function PortalHomePage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Credits */}
+          <Card className={`relative overflow-hidden ${creditSub ? 'border-violet-500/50 shadow-violet-500/10' : ''}`}>
+            {creditSub && <div className="absolute top-0 left-0 w-1 h-full bg-violet-500" />}
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Coins className={`h-5 w-5 ${creditSub ? 'text-violet-500' : 'text-muted-foreground'}`} />
+                Request Credits
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {creditSub ? (
+                <div className="space-y-3">
+                  <p className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
+                    {(current?.credit_balance ?? 0).toLocaleString()}
+                  </p>
+                  <p className="text-sm font-medium text-muted-foreground bg-muted/40 p-2 rounded-md border border-border/50">
+                    Available for metered API usage
+                  </p>
+                </div>
+              ) : (
+                <div className="py-2">
+                  <p className="text-muted-foreground mb-4">No credits purchased. Required only if your CRM uses metered billing routes.</p>
+                </div>
+              )}
+              
+              <div className="mt-6">
+                <Button asChild className="w-full shadow-sm" variant="outline">
+                  <Link to={`/packages?domain=${domain}&type=credits`}>
+                    Buy More Credits
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Transactions */}
