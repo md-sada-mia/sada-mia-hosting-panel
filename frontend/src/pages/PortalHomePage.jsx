@@ -66,7 +66,7 @@ export default function PortalHomePage() {
 
   const current = portalInfo?.current;
   const flatSubs = current?.flat_subscriptions || [];
-  const creditSub = current?.credit_subscription;
+  const creditSubs = current?.credit_subscriptions || [];
   const recentTransactions = portalInfo?.recent_transactions || [];
   const systemEnabled = current?.system_enabled !== false;
 
@@ -168,39 +168,60 @@ export default function PortalHomePage() {
           )}
 
           {/* Credits */}
-          <Card className={`relative overflow-hidden ${creditSub ? 'border-violet-500/50 shadow-violet-500/10' : ''}`}>
-            {creditSub && <div className="absolute top-0 left-0 w-1 h-full bg-violet-500" />}
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Coins className={`h-5 w-5 ${creditSub ? 'text-violet-500' : 'text-muted-foreground'}`} />
-                Request Credits
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {creditSub ? (
-                <div className="space-y-3">
-                  <p className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
-                    {(current?.credit_balance ?? 0).toLocaleString()}
-                  </p>
-                  <p className="text-sm font-medium text-muted-foreground bg-muted/40 p-2 rounded-md border border-border/50">
-                    Available for metered API usage
-                  </p>
-                </div>
-              ) : (
+          {creditSubs.length > 0 ? (
+            creditSubs.map((sub) => (
+              <Card key={sub.id} className="relative overflow-hidden border-violet-500/50 shadow-violet-500/10">
+                <div className="absolute top-0 left-0 w-1 h-full bg-violet-500" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Coins className="h-5 w-5 text-violet-500" />
+                      Request Credits
+                    </span>
+                    <Badge variant="outline" className="text-violet-500 border-violet-500/30">Active</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <p className="text-3xl font-bold tracking-tight text-violet-600 dark:text-violet-400">
+                      {(sub.credit_balance ?? 0).toLocaleString()} <span className="text-sm font-medium text-muted-foreground tracking-normal">remaining</span>
+                    </p>
+                    <p className="text-sm font-medium text-foreground bg-muted/40 p-2 rounded-md border border-border/50">
+                      Allocated from: {sub.plan?.name || 'Custom Credits'}
+                    </p>
+                  </div>
+                  <div className="mt-6">
+                    <Button asChild className="w-full shadow-sm" variant="outline">
+                      <Link to={`/packages?domain=${domain}&type=credits`}>
+                        Buy More Credits
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-muted-foreground" />
+                  Request Credits
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="py-2">
                   <p className="text-muted-foreground mb-4">No credits purchased. Required only if your CRM uses metered billing routes.</p>
                 </div>
-              )}
-              
-              <div className="mt-6">
-                <Button asChild className="w-full shadow-sm" variant="outline">
-                  <Link to={`/packages?domain=${domain}&type=credits`}>
-                    Buy More Credits
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-6">
+                  <Button asChild className="w-full shadow-sm" variant="outline">
+                    <Link to={`/packages?domain=${domain}&type=credits`}>
+                      Buy More Credits
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Recent Transactions */}

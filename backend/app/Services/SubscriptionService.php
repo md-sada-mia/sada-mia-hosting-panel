@@ -151,23 +151,13 @@ class SubscriptionService
                 'ends_at'    => $ends,
             ]);
         } else {
-            // Request credit: top up the latest active credit subscription or create new
-            $existing = Subscription::where('domain', $domain)
-                ->where('status', 'active')
-                ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
-                ->first();
-
-            if ($existing) {
-                $existing->increment('credit_balance', $plan->credit_amount ?? 0);
-                $subscription = $existing;
-            } else {
-                $subscription = Subscription::create([
-                    'domain'         => $domain,
-                    'plan_id'        => $plan->id,
-                    'status'         => 'active',
-                    'credit_balance' => $plan->credit_amount ?? 0,
-                ]);
-            }
+            // Request credit: always create a new subscription record
+            $subscription = Subscription::create([
+                'domain'         => $domain,
+                'plan_id'        => $plan->id,
+                'status'         => 'active',
+                'credit_balance' => $plan->credit_amount ?? 0,
+            ]);
         }
 
         // Link transaction → subscription
@@ -206,11 +196,12 @@ class SubscriptionService
                 ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
                 ->orderBy('ends_at', 'desc')
                 ->get(),
-            'credit_subscription' => Subscription::with('plan')
+            'credit_subscriptions' => Subscription::with('plan')
                 ->where('domain', $domain)
                 ->where('status', 'active')
                 ->whereHas('plan', fn($q) => $q->where('type', 'request_credit'))
-                ->first(),
+                ->orderBy('created_at', 'desc')
+                ->get(),
         ];
     }
 }
