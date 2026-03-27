@@ -43,7 +43,9 @@ class GitHubWebhookController extends Controller
         Log::info("GitHub Auto-Deploy Triggered", ['app' => $app->name, 'repo' => $repoFullName]);
 
         // Trigger deployment
-        $deploymentService->deploy($app);
+        $app->update(['status' => 'deploying']);
+        $deployment = $deploymentService->createDeploymentRecord($app);
+        \App\Jobs\DeployApp::dispatch($app, $deployment);
 
         return response()->json(['message' => 'Deployment triggered'], 202);
     }

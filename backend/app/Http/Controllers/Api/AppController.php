@@ -133,6 +133,13 @@ class AppController extends Controller
 
     public function toggleAutoDeploy(AppModel $app)
     {
+        // Fallback: try to extract github_full_name from git_url if missing
+        if (!$app->github_full_name && str_contains($app->git_url, 'github.com')) {
+            if (preg_match('/github\.com\/([^\/]+\/[^\/\.]+)/', $app->git_url, $matches)) {
+                $app->update(['github_full_name' => $matches[1]]);
+            }
+        }
+
         if (!$app->github_full_name) {
             return response()->json(['error' => 'Automatic deployment requires a GitHub repository.'], 422);
         }
@@ -167,6 +174,7 @@ class AppController extends Controller
             'dns_default_ns2' => \App\Models\Setting::get('dns_default_ns2'),
             'dns_default_ns3' => \App\Models\Setting::get('dns_default_ns3'),
             'dns_default_ns4' => \App\Models\Setting::get('dns_default_ns4'),
+            'github_connected' => (bool) \App\Models\Setting::get('github_access_token'),
         ];
 
         return response()->json(array_merge($app->toArray(), ['settings' => $settings]));

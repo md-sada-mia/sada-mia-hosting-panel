@@ -288,6 +288,30 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleConnectGitHub = async () => {
+    setActionLoading(true);
+    try {
+      // Disconnect first to ensure a clean state
+      await api.post('/github/disconnect');
+
+      sessionStorage.setItem('gh_auth_return', JSON.stringify({
+        path: window.location.pathname + window.location.search,
+        time: Date.now()
+      }));
+
+      const { data } = await api.get('/github/redirect');
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Failed to get GitHub connection URL');
+      }
+    } catch (err) {
+      toast.error('Failed to initiate GitHub connection');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const loadDeployments = async () => {
     const { data } = await api.get(`/apps/${id}/deployments`);
     setDeployments(data);
@@ -844,29 +868,46 @@ export default function AppDetailPage() {
                   <span className="text-muted-foreground block mb-1">Branch</span>
                   <div className="font-mono bg-muted/50 p-2 rounded">{app.branch}</div>
                 </div>
-                {app.github_full_name && (
-                  <div className="col-span-2 p-4 border rounded-md bg-muted/30 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-background rounded-full border">
-                        <Github className="h-5 w-5" />
+                {app.git_url?.includes('github.com') && (
+                  <div className="col-span-2 p-4 border rounded-xl bg-primary/5 border-primary/10 flex items-center justify-between transition-all hover:bg-primary/10">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 bg-background rounded-xl border shadow-sm">
+                        <Github className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">GitHub Repository</p>
-                        <p className="text-xs text-muted-foreground">{app.github_full_name}</p>
+                        <p className="text-sm font-bold flex items-center gap-2">
+                          GitHub Auto-Deploy
+                          {app.auto_deploy && <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {app.github_full_name ? app.github_full_name : 'Repo details not connected via OAuth'}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground mr-2">
-                        {app.auto_deploy ? 'Auto-deploy active' : 'Auto-deploy disabled'}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant={app.auto_deploy ? "outline" : "default"}
-                        onClick={handleToggleAutoDeploy}
-                        disabled={actionLoading}
-                      >
-                        {app.auto_deploy ? 'Disable' : 'Enable'}
-                      </Button>
+                    
+                    <div className="flex items-center gap-3">
+                      {!app.github_full_name && !app.settings?.github_connected ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 text-[11px] border-amber-500/20 text-amber-500 hover:bg-amber-500/10"
+                          onClick={handleConnectGitHub}
+                          disabled={actionLoading}
+                        >
+                          Connect Account
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className={`text-[11px] font-medium ${app.auto_deploy ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                            {app.auto_deploy ? 'Enabled' : 'Disabled'}
+                          </span>
+                          <Switch 
+                            checked={app.auto_deploy}
+                            onCheckedChange={handleToggleAutoDeploy}
+                            disabled={actionLoading}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
