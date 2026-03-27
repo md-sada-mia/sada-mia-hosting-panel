@@ -36,6 +36,11 @@ class SubscriptionCheckController extends Controller
             return response()->noContent(403);
         }
 
+        $lbDomain = \App\Models\LoadBalancerDomain::where('domain', $domain)->first();
+        if ($lbDomain && $lbDomain->status === 'deactivated') {
+            return response()->noContent(403);
+        }
+
         if ($this->subscriptionService->isActive($domain)) {
             return response()->noContent(200);
         }

@@ -62,10 +62,22 @@ Route::get('/subscription-expired', function (Illuminate\Http\Request $request) 
         }
     }
 
+    // Try LoadBalancerDomain directly if still no customer
+    if (!$customer) {
+        $lbDomain = \App\Models\LoadBalancerDomain::where('domain', $domainStr)->first();
+        if ($lbDomain) {
+            // Find customer via LB if possible? 
+            // Load Balancers aren't currently linked to customers in a direct way in the model
+            // But we can check status
+        }
+    }
+
     $isDeactivated = false;
     if (isset($app) && $app->status === 'deactivated') {
         $isDeactivated = true;
     } elseif (isset($deployment) && $deployment->status === 'deactivated') {
+        $isDeactivated = true;
+    } elseif (isset($lbDomain) && $lbDomain->status === 'deactivated') {
         $isDeactivated = true;
     }
 
