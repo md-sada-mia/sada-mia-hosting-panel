@@ -2,18 +2,57 @@
 
 A lightweight, self-hosted server management panel designed for Ubuntu Linux. This panel allows you to easily deploy and manage Next.js, Laravel, and Static HTML applications on a single server without using Docker. It provisions apps natively using PM2 for Node.js and PHP-FPM for Laravel.
 
-## 🚀 Features
+## 🚀 Key Features
+
+### 📦 Application Management
 
 - **Native Deployment:** Apps run directly on the host OS for maximum performance and lowest RAM overhead.
-- **Three App Types Supported:**
-  - **Next.js:** Automatic PM2 process management and dynamic port assignment.
-  - **Laravel:** PHP 8.4 + PHP-FPM configuration.
-  - **Static Sites:** Plain HTML/SPA fallback serving.
-- **Automated Builds:** The panel automatically pulls from your Git repository, installs dependencies (`npm` or `composer`), generates a `.env` file, builds the project, and restarts the app.
-- **Automatic Nginx Routing:** Generates and activates Nginx server block configurations for each domain automatically.
-- **Live Logs:** View real-time trailing logs for PM2 processes and Laravel `storage/logs`.
-- **Database Management:** Easily create new PostgreSQL databases and roles with a single click.
-- **Server Monitoring:** Live widget showing RAM, CPU, disk usage, and PM2 process counts.
+- **Framework Support:** Optimized for **Next.js** (PM2), **Laravel** (PHP 8.4 + FPM), and **Static Sites**.
+- **Automated Pipeline:** Automatic Git integration, dependency installation (`npm`/`composer`), build execution, and Nginx reload.
+- **Lifecycle Control:** Simplified **Running** and **Stopped** status indicators with full start/stop/restart/deploy controls.
+- **Background Workers:** Manage application-specific background services (e.g., Laravel Queue Workers) via systemd.
+- **Environment Management:** Web-based `.env` file editor for seamless configuration.
+- **Real-time Logs:** Dedicated streaming log viewers for application, Nginx error, and access logs.
+
+### 🌐 Infrastructure & Networking
+
+- **Load Balancing:** Built-in Nginx load balancers with support for **Round Robin**, **Least Connections**, and **IP Hash** algorithms.
+- **DNS Management:** Full-featured **BIND9 integration** for managing domains, subdomains, and records (A, AAAA, CNAME, MX, TXT, NS, SRV, CAA).
+- **SSL / TLS:** Automated **Certbot (Let's Encrypt)** integration for all apps and load balancers. Supports Force HTTPS and securing the panel itself.
+- **Database Management:** One-click **PostgreSQL** database and user provisioning with granular permission and global privilege management.
+- **Email Service:** Complete **Postfix/Dovecot** suite for managing email domains, accounts, and aliases directly from the panel.
+
+### 💼 CRM & Monetization
+
+- **Customer CRM:** Comprehensive client tracking for leads and active subscribers with linked resource management.
+- **Subscription Engine:** Advanced subscription management with support for **Flat Rate** and **Credit-based** plans.
+- **Integrated Payments:** Ready-to-use payment gateway integrations for **bKash**, **Nagad**, and **SSLCommerz**.
+- **Metered Billing:** Track and bill usage for specific API routes (**Billable Routes**) with detailed access logs.
+- **Client Portal:** A dedicated public portal for customers to manage their own subscriptions and payments.
+- **Automatic Gating:** Instant Nginx-level blocking for expired accounts with a professional "Expired Notice" landing page.
+
+### 🛠️ Developer Tools & Security
+
+- **Web Terminal:** Integrated browser-based shell access for quick server commands.
+- **File Manager:** Full-featured web interface for file operations (upload, download, rename, chmod, compress/extract).
+- **Queue Monitor:** Visual tracking for Laravel queue health, including ready, delayed, and failed job counts.
+- **Cron Management:** Easy-to-use UI for managing system-level cron jobs and viewing execution logs.
+- **Server Health:** Live dashboard for monitoring CPU, RAM, Disk usage, and active system processes.
+- **GitHub Integration:** Seamless OAuth connection with support for **Auto-Deploy on Push** via webhooks.
+
+---
+
+## ⌨️ Artisan CLI Reference
+
+The panel includes several custom Artisan commands for system orchestration and maintenance:
+
+| Command                              | Description                                                                            |
+| :----------------------------------- | :------------------------------------------------------------------------------------- |
+| `php artisan app:nginx-sync`         | Regenerates Nginx configuration files for all applications using current stubs.        |
+| `php artisan app:nginx-ssl-sync`     | Regenerates Nginx SSL configurations for all apps and load balancers.                  |
+| `php artisan app:ssl-renew`          | Renews all Let's Encrypt certificates and syncs status (Runs **Daily** via Scheduler). |
+| `php artisan app:panel-ssl {domain}` | Secures the hosting panel (port 8083) using an existing domain's certificate.          |
+| `php artisan cron:run {id}`          | Force-runs a specific UI-managed cron job and captures its output.                     |
 
 ---
 
@@ -21,25 +60,25 @@ A lightweight, self-hosted server management panel designed for Ubuntu Linux. Th
 
 **Frontend (Admin UI):**
 
-- React 18 (SPA)
-- Vite
-- Tailwind CSS
-- shadcn/ui components
-- React Router
+- React 18 (SPA) + Vite
+- Tailwind CSS + shadcn/ui
+- Lucide React Icons
 
 **Backend (API & Orchestrator):**
 
 - Laravel 11 (PHP 8.4)
-- SQLite (for panel metadata)
+- SQLite (Application Metadata)
 - Laravel Sanctum (Token Auth)
-- Direct shell execution (`proc_open`) for system operations.
+- Direct shell execution (`proc_open`) for systems orchestration.
 
-**Server Infrastructure Governed:**
+**Server Infrastructure:**
 
-- Nginx (Reverse Proxy & Static Server)
-- PM2 (Node.js Process Manager)
-- PostgreSQL (Database backend for deployed apps)
-- Git (Version Control pulling)
+- **Web:** Nginx (Proxy/Static)
+- **Processes:** PM2 & Systemd
+- **Database:** PostgreSQL
+- **DNS:** BIND9
+- **Email:** Postfix & Dovecot
+- **Certificates:** Certbot (Let's Encrypt)
 
 ---
 
@@ -75,15 +114,12 @@ PANEL_IP=             # Explicit IP to bind to
 ### 3. Run the Installer
 
 Run the installation script. By default, it will auto-detect your server's public IP and run on port `8083`.
-
-_(If you set `APP_ENV=local` in the `.env` file, it will automatically use your local network IP (e.g. `192.168.x.x`) instead of fetching your public IP)._
-
-You can also explicitly pass an IP address and a Port via the command line (which overrides the `.env`):
+_ (If you set `APP_ENV=local` in the `.env` file, it will automatically use your local network IP instead of fetching your public IP)._
 
 ```bash
 chmod +x install.sh
 
-# Option A: Read from .env, or auto-detect public IP and use default port (8083)
+# Option A: Auto-detect public IP and use default port (8083)
 sudo ./install.sh
 
 # Option B: Specify IP, use default port (8083)
@@ -99,23 +135,11 @@ sudo ./install.sh --cleanup
 ### 💡 Data Cleanup Mode
 
 Using the `--cleanup` flag allows you to reset the panel without reinstalling foundational software (PHP, Nginx, etc.).
-
 **What gets cleaned up:**
 
 - All deployed apps in `/var/www/hosting-apps/`
-- Nginx site configurations (except for the panel itself)
-- BIND9 DNS zone files and configurations
-- Postfix/Dovecot email accounts and mail data
-- System cron jobs for the `www-data` user
-- The panel database (reset to original seeded state)
-
-The script will automatically:
-
-1. Install PHP 8.4, Nginx, SQLite, and PostgreSQL.
-2. Install Node.js 20 and PM2 globally.
-3. Configure `sudoers` rules to allow the panel to safely reload Nginx and manage PM2 without a password.
-4. Scaffold the Laravel API and React frontend.
-5. Setup the Nginx configuration to serve the panel on your server's default IP address at the port you specified.
+- Nginx site configurations, BIND9 zone files, and Postfix data.
+- The panel database (reset to original seeded state).
 
 ### 3. Log In
 
@@ -123,63 +147,33 @@ Once finished, go to `http://<YOUR_SERVER_IP>:<YOUR_PORT>` in your browser.
 
 - **Default Email:** `admin@panel.local`
 - **Default Password:** `admin`
-
-_(You can change these in the Settings tab immediately after logging in)._
+  _(Change these in the Settings tab immediately after logging in)._
 
 ---
 
 ## 🐙 GitHub Integration
 
-Sada Mia Panel supports seamless GitHub integration, allowing you to pick repositories from your account and enable **Auto-Deploy on Push** (via Webhooks).
-
-### 1. Create a GitHub OAuth App
-
-To enable this, you need to create a GitHub OAuth application:
-
-1.  Go to your GitHub **Settings** > **Developer Settings** > **OAuth Apps**.
-2.  Click **New OAuth App**.
-3.  **Application Name:** `Sada Mia Hosting Panel` (or anything you like).
-4.  **Homepage URL:** `http://<YOUR_SERVER_IP>:<PORT>`
-5.  **Authorization callback URL:** `http://<YOUR_SERVER_IP>:<PORT>/github/callback` (Required)
-6.  Click **Register application**.
-7.  Generate a **Client Secret** and copy both the **Client ID** and **Client Secret**.
-
-### 2. Configure in Panel
-
-1.  Log into your Sada Mia Panel.
-2.  Go to the **Settings** tab.
-3.  Enter your **GitHub Client ID** and **GitHub Client Secret**.
-4.  Enter a **Global Webhook Secret** (a random string of your choice). This is used by GitHub to sign push events so the panel knows they are legitimate.
-5.  Click **Save Settings**.
-6.  Click **Connect GitHub** to authorize the panel.
-
-Once connected, you will see a repository picker when creating new apps, and you can toggle "Auto Deploy on Push" for any GitHub-linked application!
+1. **OAuth App:** Register a new OAuth app in GitHub Settings with the callback: `http://<IP>:<PORT>/github/callback`.
+2. **Setup:** Enter your Client ID, Secret, and a Webhook Secret in the panel's **Settings** tab.
+3. **Connect:** Click "Connect GitHub" and you're ready to pick repositories and enable **Auto-Deploy on Push**!
 
 ---
 
 ## 💻 Local Development
-
-If you are modifying the panel itself on your local machine, you can use the provided development script.
 
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
 
-This will concurrently boot:
-
-- The Laravel API at `http://localhost:8000`
-- The Vite React server at `http://localhost:5173`
-
-_(Note: Features like Nginx reloading, PM2 launching, or Postgres provisioning will likely fail on a local Mac/Windows machine unless you replicate the exact Ubuntu file structure and sudo permissions)._
+Concurrently boots the **Laravel API** (8000) and **Vite React** (5173) server.
+_(Note: System operations like Nginx/PM2 require a native Ubuntu environment)._
 
 ---
 
 ## 📂 Project Structure
 
-- `/backend/` - The Laravel API. Contains all orchestration logic under `app/Services/`.
-  - `app/Services/DeploymentService.php` - The core deployment pipeline.
-  - `resources/nginx-templates/` - Nginx configuration stubs.
-- `/frontend/` - The React application.
-- `install.sh` - The Ubuntu setup script.
-- `start.sh` - Local dev server boot script.
+- `/backend/` - Laravel API and Core Orchestration.
+- `/frontend/` - React Admin Interface.
+- `install.sh` - System Provisioning script.
+- `start.sh` - Development boot script.
