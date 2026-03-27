@@ -14,6 +14,7 @@ class LoadBalancerDomain extends Model
         'ssl_last_check_at',
         'ssl_log',
         'force_https',
+        'status',
     ];
 
     public function loadBalancer()

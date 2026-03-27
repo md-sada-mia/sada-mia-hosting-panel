@@ -189,6 +189,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Load Balancer Domain Logs
     Route::get('/load-balancers/domains/{domain}', [\App\Http\Controllers\Api\LoadBalancerController::class, 'showDomain']);
     Route::get('/load-balancers/domains/{domain}/logs', [\App\Http\Controllers\Api\LoadBalancerController::class, 'domainLogs']);
+    Route::get('/load-balancers/domains/{domain}/subscriptions', [\App\Http\Controllers\Api\LoadBalancerController::class, 'subscriptions']);
+    Route::post('/load-balancers/domains/{domain}/subscriptions/activate', [\App\Http\Controllers\Api\LoadBalancerController::class, 'activateSubscription']);
+    Route::post('/load-balancers/domains/{domain}/toggle-suspend', [\App\Http\Controllers\Api\LoadBalancerController::class, 'toggleSuspend']);
 
     // Cron Jobs
     Route::get('/cron-jobs', [CronJobController::class, 'index']);

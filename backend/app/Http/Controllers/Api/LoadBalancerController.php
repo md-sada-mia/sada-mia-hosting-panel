@@ -7,10 +7,14 @@ use App\Models\LoadBalancer;
 use App\Models\LoadBalancerDomain;
 use App\Models\Domain;
 use App\Models\DnsRecord;
+use App\Models\Subscription;
+use App\Models\PaymentTransaction;
+use App\Models\SubscriptionPlan;
 use App\Services\NginxConfigService;
 use App\Services\DnsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class LoadBalancerController extends Controller
 {
@@ -229,5 +233,87 @@ class LoadBalancerController extends Controller
             ? shell_exec("tail -n 200 " . escapeshellarg($logFile) . " 2>&1")
             : 'No server error logs found.';
         return response()->json(['logs' => $output ?: 'Log file is empty or unreadable.']);
+    }
+
+    public function subscriptions(LoadBalancerDomain $domain): JsonResponse
+    {
+        $domainName = $domain->domain;
+
+        $subscriptions = Subscription::with('plan')
+            ->where('domain', $domainName)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($sub) => [
+                'id'             => $sub->id,
+                'plan'           => $sub->plan,
+                'status'         => $sub->status,
+                'starts_at'      => $sub->starts_at,
+                'ends_at'        => $sub->ends_at,
+                'credit_balance' => $sub->credit_balance,
+                'is_active'      => $sub->isActive(),
+                'is_credit_type' => $sub->isCreditType(),
+                'created_at'     => $sub->created_at,
+            ]);
+
+        $transactions = PaymentTransaction::with('plan')
+            ->where('domain', $domainName)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn($tx) => [
+                'id'             => $tx->id,
+                'plan'           => $tx->plan,
+                'amount'         => $tx->amount,
+                'status'         => $tx->status,
+                'gateway'        => $tx->gateway,
+                'gateway_ref'    => $tx->gateway_ref,
+                'created_at'     => $tx->created_at,
+            ]);
+
+        return response()->json([
+            'domain' => $domainName,
+            'subscriptions' => $subscriptions,
+            'transactions' => $transactions,
+            'status' => $domain->status
+        ]);
+    }
+
+    public function activateSubscription(Request $request, LoadBalancerDomain $domain): JsonResponse
+    {
+        $validated = $request->validate([
+            'plan_id'        => 'required|exists:subscription_plans,id',
+            'custom_ends_at' => 'nullable|date',
+        ]);
+
+        $domainName = $domain->domain;
+        $plan = SubscriptionPlan::findOrFail($validated['plan_id']);
+        $subscriptionService = app(\App\Services\SubscriptionService::class);
+
+        $subscription = $subscriptionService->activateManual($domainName, $plan, $validated['custom_ends_at'] ?? null);
+
+        PaymentTransaction::create([
+            'user_id'         => $request->user()?->id,
+            'subscription_id' => $subscription->id,
+            'plan_id'         => $plan->id,
+            'domain'          => $domainName,
+            'gateway'         => 'manual',
+            'amount'          => 0,
+            'currency'        => 'USD',
+            'status'          => 'completed',
+            'transaction_id'  => 'MANUAL_' . Str::random(10),
+        ]);
+
+        return response()->json(['message' => 'Subscription activated successfully.', 'subscription' => $subscription]);
+    }
+
+    public function toggleSuspend(LoadBalancerDomain $domain): JsonResponse
+    {
+        if ($domain->status === 'deactivated') {
+            $domain->update(['status' => 'active']);
+            return response()->json(['message' => 'Service reactivated.', 'status' => 'active']);
+        } else {
+            $domain->update(['status' => 'deactivated']);
+            return response()->json(['message' => 'Service suspended.', 'status' => 'deactivated']);
+        }
     }
 }

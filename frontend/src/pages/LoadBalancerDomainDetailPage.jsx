@@ -8,8 +8,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
-  Shield, AlertTriangle, Clock, Copy, ChevronRight, RotateCcw, Trash2, ScrollText, Check, Info
+  Shield, AlertTriangle, Clock, Copy, ChevronRight, RotateCcw, Trash2, ScrollText, Check, Info,
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package, Settings
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -54,9 +70,94 @@ export default function LoadBalancerDomainDetailPage() {
   const [logsLoading, setLogsLoading] = useState({ 'server-error': false, 'server-access': false });
   const [activeLogTab, setActiveLogTab] = useState('server-error');
 
+  // Subscription state
+  const [subData, setSubData] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [isActivateOpen, setIsActivateOpen] = useState(false);
+  const [activatingPlan, setActivatingPlan] = useState(false);
+  const [activateForm, setActivateForm] = useState({ plan_id: '', custom_ends_at: '' });
+  const [actionLoading, setActionLoading] = useState(false);
+  const [visiblePlanIds, setVisiblePlanIds] = useState([]);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
+  const [isVisibilityDialogOpen, setIsVisibilityDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchDomain();
   }, [domainId]);
+
+  useEffect(() => {
+    if (activeTab === 'subscription' && !subData) {
+      fetchSubscriptions();
+      fetchPlans();
+    }
+    if (activeTab === 'subscription' && domain?.domain) {
+      fetchVisibility(domain.domain);
+    }
+  }, [activeTab, domain?.domain]);
+
+  const fetchSubscriptions = async () => {
+    setSubLoading(true);
+    try {
+      const { data } = await api.get(`/load-balancers/domains/${domainId}/subscriptions`);
+      setSubData(data);
+    } catch {
+      toast.error('Failed to load subscriptions');
+    } finally {
+      setSubLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const { data } = await api.get('/subscription/admin-plans');
+      setPlans(data);
+    } catch {
+      toast.error('Failed to load plans');
+    }
+  };
+
+  const fetchVisibility = async (domainName) => {
+    setVisibilityLoading(true);
+    try {
+      const { data } = await api.get(`/subscription/domain-plans/${domainName}`);
+      setVisiblePlanIds(data || []);
+    } catch {
+      setVisibilityLoading(false);
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
+
+  const handleActivateSubscription = async (e) => {
+    e.preventDefault();
+    if (!activateForm.plan_id) return toast.error('Please select a plan');
+    setActivatingPlan(true);
+    try {
+      await api.post(`/load-balancers/domains/${domainId}/subscriptions/activate`, activateForm);
+      toast.success('Subscription activated successfully!');
+      setIsActivateOpen(false);
+      setActivateForm({ plan_id: '', custom_ends_at: '' });
+      fetchSubscriptions();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to activate subscription');
+    } finally {
+      setActivatingPlan(false);
+    }
+  };
+
+  const handleToggleSuspend = async () => {
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/load-balancers/domains/${domainId}/toggle-suspend`);
+      toast.success(data.message);
+      fetchDomain();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to toggle suspension');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'ssl' && domain?.id) {
@@ -231,6 +332,9 @@ export default function LoadBalancerDomainDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-1.5">
             <ScrollText className="h-3.5 w-3.5" /> Logs
+          </TabsTrigger>
+          <TabsTrigger value="subscription" className="flex items-center gap-1.5">
+            <CreditCard className="h-3.5 w-3.5" /> Subscription
           </TabsTrigger>
         </TabsList>
 
@@ -519,6 +623,366 @@ export default function LoadBalancerDomainDetailPage() {
                </pre>
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* ────────────── SUBSCRIPTION TAB ────────────────────────────────────────── */}
+        <TabsContent value="subscription" className="mt-6">
+          {subLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : !subData ? (
+             <div className="text-center py-10">
+               <CreditCard className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+               <p className="text-muted-foreground">No subscription data found.</p>
+             </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Side: Active Subscriptions & History */}
+              <div className="lg:col-span-8 space-y-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <div className="space-y-1">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Star className="h-4 w-4 text-amber-400" /> Active Subscriptions
+                      </CardTitle>
+                      <CardDescription className="text-xs">Current plans active for {subData.domain}</CardDescription>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="h-8 bg-blue-600 hover:bg-blue-700 text-xs gap-1.5"
+                      onClick={() => setIsActivateOpen(true)}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Activate Plan
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {subData.subscriptions.length === 0 ? (
+                      <div className="p-10 text-center border-t border-dashed">
+                        <p className="text-sm text-muted-foreground italic">No active subscriptions found.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                            <tr>
+                              <th className="px-5 py-3 text-left font-medium">Plan</th>
+                              <th className="px-5 py-3 text-left font-medium">Type</th>
+                              <th className="px-5 py-3 text-left font-medium">Status</th>
+                              <th className="px-5 py-3 text-left font-medium">Usage/Expiry</th>
+                              <th className="px-5 py-3 text-left font-medium">Created</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {subData.subscriptions.map(sub => (
+                              <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="px-5 py-3">
+                                  <p className="font-semibold text-white">{sub.plan?.name || '—'}</p>
+                                  {sub.plan?.price && (
+                                    <p className="text-xs text-muted-foreground">${sub.plan.price}</p>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                    sub.is_credit_type
+                                      ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                  }`}>
+                                    {sub.is_credit_type ? 'Credit' : 'Flat Rate'}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                    sub.is_active
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : sub.status === 'cancelled'
+                                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  }`}>
+                                    {sub.is_active ? 'Active' : sub.status}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-xs">
+                                  {sub.is_credit_type ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Coins className="h-3.5 w-3.5 text-violet-400" />
+                                      <span className="font-semibold">{sub.credit_balance ?? 0}</span>
+                                      <span className="text-muted-foreground">credits</span>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-0.5">
+                                      {sub.starts_at && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(sub.starts_at).toLocaleDateString()}</p>}
+                                      {sub.ends_at && (
+                                        <p className={`flex items-center gap-1 ${new Date(sub.ends_at) < new Date() ? 'text-rose-400' : 'text-muted-foreground'}`}>
+                                          → {new Date(sub.ends_at).toLocaleDateString()}
+                                        </p>
+                                      )}
+                                      {!sub.ends_at && <p className="text-muted-foreground italic">Lifetime</p>}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                  {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Transactions Table */}
+                {subData.transactions.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-violet-400" /> Recent Transactions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                            <tr>
+                              <th className="px-5 py-3 text-left font-medium">Plan</th>
+                              <th className="px-5 py-3 text-left font-medium">Amount</th>
+                              <th className="px-5 py-3 text-left font-medium">Gateway</th>
+                              <th className="px-5 py-3 text-left font-medium">Status</th>
+                              <th className="px-5 py-3 text-left font-medium">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {subData.transactions.map(tx => (
+                              <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="px-5 py-3">
+                                  <p className="font-medium text-white">{tx.plan?.name || '—'}</p>
+                                  {tx.gateway_ref && (
+                                    <p className="text-[10px] font-mono text-muted-foreground">{tx.gateway_ref}</p>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3 font-semibold text-white">${tx.amount}</td>
+                                <td className="px-5 py-3">
+                                  <span className="capitalize text-xs bg-muted px-2 py-0.5 rounded font-medium">{tx.gateway}</span>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                    tx.status === 'completed'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : tx.status === 'failed'
+                                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  }`}>
+                                    {tx.status}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-xs text-muted-foreground">
+                                  {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '—'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Right Side: Suspension & Visibility */}
+              <div className="lg:col-span-4 space-y-6">
+                <Card className="border-red-500/20 bg-red-500/5">
+                  <CardContent className="p-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                        <Shield className="h-4 w-4" />
+                      </div>
+                      <h4 className="font-semibold text-sm">Service Suspension</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed italic">
+                      Manually suspend or reactivate this domain. When suspended, visitors will see a "Service Deactivated" page.
+                    </p>
+                    <Button
+                      type="button"
+                      variant={domain?.status === 'deactivated' ? "outline" : "destructive"}
+                      onClick={(e) => { e.preventDefault(); handleToggleSuspend(); }}
+                      disabled={actionLoading}
+                      className="w-full text-xs h-9"
+                    >
+                      {actionLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : 
+                        (domain?.status === 'deactivated' ? <Play className="h-3.5 w-3.5 mr-2" /> : <Square className="h-3.5 w-3.5 mr-2" />)
+                      }
+                      {domain?.status === 'deactivated' ? 'Reactivate Service' : 'Suspend Service'}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-blue-500/10 bg-blue-500/[0.02]">
+                  <CardHeader className="p-5 pb-3 flex flex-row items-center justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-xs flex items-center gap-2">
+                        <Package className="h-3.5 w-3.5 text-blue-400" /> Package Visibility
+                      </CardTitle>
+                      <CardDescription className="text-[10px]">Private packages visible for this domain.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        onClick={() => fetchVisibility(subData.domain)}
+                      >
+                        <RefreshCw className={`h-3 w-3 ${visibilityLoading ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-7 text-[11px] gap-1.5 border-white/10 hover:bg-white/5 hover:text-white px-2" 
+                        onClick={() => setIsVisibilityDialogOpen(true)}
+                      >
+                        <Settings className="h-3.5 w-3.5" /> Manage
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-5 pb-5 pt-0 space-y-4">
+                    {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).length === 0 ? (
+                      <div className="text-center py-6 space-y-3 bg-white/[0.01] border border-dashed border-white/5 rounded-xl">
+                        <p className="text-[10px] text-muted-foreground italic">No custom packages selected.</p>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-[11px] gap-1.5 border-dashed border-blue-500/30 text-blue-400 hover:bg-blue-500/10" 
+                          onClick={() => setIsVisibilityDialogOpen(true)}
+                        >
+                          <Plus className="h-3 w-3" /> Select Packages
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).map(plan => (
+                          <div key={plan.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg border border-blue-500/20 bg-blue-500/10 shadow-sm shadow-blue-500/5">
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <span className="text-[11px] font-semibold truncate text-blue-300">{plan.name}</span>
+                              <span className="text-[9px] text-muted-foreground truncate">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
+                            </div>
+                            <Badge variant="success" className="h-3.5 text-[8px] px-1.5 shrink-0 bg-blue-500/20 text-blue-400 border-blue-500/30">Visible</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Visibility Selection Dialog */}
+              <Dialog open={isVisibilityDialogOpen} onOpenChange={setIsVisibilityDialogOpen}>
+                <DialogContent className="max-w-md bg-zinc-950 border-white/10">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-blue-400" /> Manage Package Visibility
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Select the private plans you want to offer to this specific domain.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 space-y-3">
+                    {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
+                      <div className="text-center py-8 border border-dashed rounded-xl bg-white/[0.02]">
+                        <Package className="h-8 w-8 mx-auto text-muted-foreground/20 mb-3" />
+                        <p className="text-sm text-muted-foreground">No private plans found.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {plans.filter(p => !p.is_public && p.is_active).map(plan => {
+                          const isVisible = visiblePlanIds.includes(plan.id);
+                          return (
+                            <div 
+                              key={plan.id} 
+                              className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                isVisible ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20' : 'bg-white/[0.03] border-white/5 opacity-70 hover:opacity-100 hover:border-white/10'
+                              }`}
+                            >
+                              <div className="min-w-0 font-sans">
+                                <p className={`text-sm font-semibold ${isVisible ? 'text-blue-300' : 'text-foreground'}`}>{plan.name}</p>
+                                <p className="text-xs text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</p>
+                              </div>
+                              <Switch 
+                                checked={isVisible}
+                                onCheckedChange={async (checked) => {
+                                  const newIds = checked 
+                                    ? [...visiblePlanIds, plan.id]
+                                    : visiblePlanIds.filter(id => id !== plan.id);
+                                  
+                                  try {
+                                    await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
+                                    setVisiblePlanIds(newIds);
+                                    toast.success(`${plan.name} visibility ${checked ? 'enabled' : 'disabled'}`);
+                                  } catch {
+                                    toast.error('Failed to update visibility');
+                                  }
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="border-t border-white/5 pt-4">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setIsVisibilityDialogOpen(false)}>Done</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {/* Activate Dialog */}
+              <Dialog open={isActivateOpen} onOpenChange={setIsActivateOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-white/10">
+                  <DialogHeader>
+                    <DialogTitle>Activate Manual Plan</DialogTitle>
+                    <DialogDescription>
+                      Assign a specific subscription plan to {subData.domain} manually.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleActivateSubscription} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Select Plan</label>
+                      <Select
+                        value={activateForm.plan_id}
+                        onValueChange={(v) => setActivateForm({ ...activateForm, plan_id: v })}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Choose a plan..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-white/10">
+                          {plans.map(plan => (
+                            <SelectItem key={plan.id} value={plan.id.toString()}>
+                              {plan.name} (${plan.price} / {plan.billing_cycle})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Custom End Date (Optional)</label>
+                      <input
+                        type="date"
+                        className="w-full flex h-10 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={activateForm.custom_ends_at}
+                        onChange={(e) => setActivateForm({ ...activateForm, custom_ends_at: e.target.value })}
+                      />
+                    </div>
+                    <DialogFooter className="pt-4 border-t border-white/5 gap-2">
+                      <Button type="button" variant="ghost" onClick={() => setIsActivateOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={activatingPlan} className="bg-blue-600 hover:bg-blue-700">
+                        {activatingPlan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                        Activate Plan
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
