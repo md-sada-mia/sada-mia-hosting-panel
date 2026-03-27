@@ -436,11 +436,12 @@ class AppController extends Controller
     public function toggleSuspend(AppModel $app)
     {
         if ($app->status === 'deactivated') {
-            $app->update(['status' => 'stopped']);
-            return response()->json(['message' => 'Service reactivated.', 'status' => 'stopped']);
+            $newStatus = ($app->type === 'nextjs') ? 'stopped' : 'running';
+            $app->update(['status' => $newStatus]);
+            return response()->json(['message' => 'Service reactivated.', 'status' => $newStatus]);
         } else {
             $app->update(['status' => 'deactivated']);
-            return response()->json(['message' => 'Service suspended.', 'status' => 'deactivated']);
+            return response()->json(['message' => 'Service suspended.', 'status' => 'stopped']);
         }
     }
 }

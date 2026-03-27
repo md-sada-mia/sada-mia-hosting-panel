@@ -30,11 +30,13 @@ export default function AppsPage() {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'running': return <Badge variant="success">Running</Badge>;
+      case 'running': 
+      case 'idle': return <Badge variant="success">Running</Badge>;
       case 'deploying': return <Badge variant="warning" className="animate-pulse">Deploying</Badge>;
       case 'error': return <Badge variant="destructive">Error</Badge>;
+      case 'deactivated':
       case 'stopped': return <Badge variant="secondary">Stopped</Badge>;
-      default: return <Badge variant="outline">Idle</Badge>;
+      default: return <Badge variant="outline">{status || 'Idle'}</Badge>;
     }
   };
 

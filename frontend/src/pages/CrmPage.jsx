@@ -227,7 +227,7 @@ export default function CrmPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide ${STATUS_CONFIG[customer.status]?.color || STATUS_CONFIG.lead.color}`}>
-                        {STATUS_CONFIG[customer.status]?.label || 'Lead'}
+                        {customer.status === 'inactive' ? 'Stopped' : (STATUS_CONFIG[customer.status]?.label || 'Lead')}
                       </span>
                     </td>
                     <td className="px-6 py-4">

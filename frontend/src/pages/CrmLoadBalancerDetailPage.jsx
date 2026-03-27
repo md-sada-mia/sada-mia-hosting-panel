@@ -336,20 +336,22 @@ export default function CrmLoadBalancerDetailPage() {
                 </p>
               </div>
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                customer?.resource?.deployment_info?.status === 'deactivated'
+                (customer?.resource?.deployment_info?.status === 'deactivated' || lb?.status === 'deactivated')
                   ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                  : lb?.status === 'active'
+                  : (lb?.status === 'active' || lb?.status === 'running' || lb?.status === 'idle')
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                   : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
               }`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${
-                  customer?.resource?.deployment_info?.status === 'deactivated'
+                  (customer?.resource?.deployment_info?.status === 'deactivated' || lb?.status === 'deactivated')
                     ? 'bg-rose-500'
-                    : lb?.status === 'active'
+                    : (lb?.status === 'active' || lb?.status === 'running' || lb?.status === 'idle')
                     ? 'bg-emerald-500'
                     : 'bg-amber-500 animate-pulse'
                 }`} />
-                {customer?.resource?.deployment_info?.status === 'deactivated' ? 'deactivated' : (lb?.status || 'pending')}
+                {(customer?.resource?.deployment_info?.status === 'deactivated' || lb?.status === 'deactivated') 
+                  ? 'stopped' 
+                  : ((lb?.status === 'active' || lb?.status === 'running' || lb?.status === 'idle') ? 'running' : (lb?.status || 'pending'))}
               </span>
             </div>
           </div>
@@ -456,8 +458,8 @@ export default function CrmLoadBalancerDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatCell label="Domain Mode" value={domainMode || '—'} />
                 <StatCell label="Load Balancer" value={lb?.name} />
-                <StatCell label="LB Status" value={lb?.status}
-                  className={lb?.status === 'active' ? 'text-emerald-400' : 'text-amber-400'} />
+                <StatCell label="LB Status" value={(lb?.status === 'active' || lb?.status === 'running' || lb?.status === 'idle') ? 'running' : lb?.status}
+                  className={(lb?.status === 'active' || lb?.status === 'running' || lb?.status === 'idle') ? 'text-emerald-400' : 'text-amber-400'} />
                 <StatCell label="Customer Status" value={customer.status}
                   className={customer.status === 'active' ? 'text-emerald-400' : customer.status === 'lead' ? 'text-amber-400' : 'text-rose-400'} />
               </div>
