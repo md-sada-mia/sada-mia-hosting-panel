@@ -509,6 +509,7 @@
                     </a>
                     @endif
 
+                    @if($support_email)
                     <a href="mailto:{{ $support_email }}?subject=Subscription%20Issue%20for%20{{ $domain }}" class="contact-link" style="padding: 10px 14px; font-size: 13px; justify-content: center; flex: 1; min-width: 120px;">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
                             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -516,6 +517,7 @@
                         </svg>
                         Email
                     </a>
+                    @endif
                 </div>
             </div>
 

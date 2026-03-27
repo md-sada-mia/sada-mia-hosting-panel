@@ -75,7 +75,7 @@ Route::get('/subscription-expired', function (Illuminate\Http\Request $request) 
         'is_deactivated' => $isDeactivated,
 
         'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
-        'support_email' => \App\Models\Setting::get('support_email', 'support@sadamiahosing.com'),
+        'support_email' => \App\Models\Setting::get('support_email'),
         'support_whatsapp' => \App\Models\Setting::get('support_whatsapp'),
         'support_facebook' => \App\Models\Setting::get('support_facebook'),
         'support_mobile' => \App\Models\Setting::get('support_mobile'),
