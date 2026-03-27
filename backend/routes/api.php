@@ -309,6 +309,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('subscription/admin-plans', [SubscriptionController::class, 'storePlan']);
     Route::put('subscription/admin-plans/{plan}', [SubscriptionController::class, 'updatePlan']);
     Route::delete('subscription/admin-plans/{plan}', [SubscriptionController::class, 'destroyPlan']);
+    Route::get('subscription/domain-plans/{domain}', [SubscriptionController::class, 'getDomainVisiblePlans']);
+    Route::post('subscription/domain-plans/{domain}', [SubscriptionController::class, 'updateDomainVisiblePlans']);
 
     // ── Billable Routes (admin-managed metered paths) ──────────────────────────
     Route::get('/subscription/billable-routes',          [BillableRouteController::class, 'index']);

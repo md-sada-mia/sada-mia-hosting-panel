@@ -28,7 +28,7 @@ import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
   XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText,
-  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -87,6 +87,8 @@ export default function CrmLoadBalancerDetailPage() {
   const [activatingPlan, setActivatingPlan] = useState(false);
   const [activateForm, setActivateForm] = useState({ plan_id: '', custom_ends_at: '' });
   const [actionLoading, setActionLoading] = useState(false);
+  const [visiblePlanIds, setVisiblePlanIds] = useState([]);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
 
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
@@ -357,7 +359,10 @@ export default function CrmLoadBalancerDetailPage() {
       <Tabs value={activeTab} onValueChange={(v) => {
         setActiveTab(v);
         if (v === 'logs' && lbDomain?.id) loadLogs(activeLogTab);
-        if (v === 'subscription' && !subData) fetchSubscriptions();
+        if (v === 'subscription' && !subData) {
+          fetchSubscriptions();
+          fetchPlans();
+        }
       }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -1008,6 +1013,72 @@ export default function CrmLoadBalancerDetailPage() {
                   </div>
                 ))}
               </div>
+              
+              {/* Custom Plan Visibility */}
+              <Card className="border-blue-500/20 bg-blue-500/5">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Package className="h-4 w-4 text-blue-400" /> Custom Plan Visibility
+                      </CardTitle>
+                      <CardDescription className="text-[11px]">Select which private packages should be visible for this domain on the portal.</CardDescription>
+                    </div>
+                    {!visiblePlanIds.length && subData?.domain && (
+                      <Button size="xs" variant="ghost" className="h-7 text-[10px] uppercase font-bold text-muted-foreground" onClick={async () => {
+                        try {
+                          const { data } = await api.get(`/subscription/domain-plans/${subData.domain}`);
+                          setVisiblePlanIds(data);
+                        } catch {
+                          toast.error('Failed to load visibility');
+                        }
+                      }}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Load Settings
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
+                    <div className="text-center py-4 space-y-2">
+                      <p className="text-xs text-muted-foreground italic">No private active plans available to assign.</p>
+                      <Button size="xs" variant="outline" className="h-7 text-[10px]" onClick={() => navigate('/subscription/plans-manage')}>
+                        <Plus className="h-3 w-3 mr-1" /> Create Private Plan
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {plans.filter(p => !p.is_public && p.is_active).map(plan => {
+                        const isVisible = visiblePlanIds.includes(plan.id);
+                        return (
+                          <div key={plan.id} className={`flex items-center justify-between p-2 rounded-lg border transition-all ${isVisible ? 'bg-blue-500/10 border-blue-500/30' : 'bg-muted/30 border-transparent hover:border-muted-foreground/20'}`}>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-semibold truncate">{plan.name}</span>
+                              <span className="text-[10px] text-muted-foreground">৳{plan.price} · {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
+                            </div>
+                            <Switch 
+                              checked={isVisible} 
+                              onCheckedChange={async (checked) => {
+                                const newIds = checked 
+                                  ? [...visiblePlanIds, plan.id]
+                                  : visiblePlanIds.filter(id => id !== plan.id);
+                                
+                                try {
+                                  await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
+                                  setVisiblePlanIds(newIds);
+                                  toast.success(`${plan.name} visibility updated`);
+                                } catch {
+                                  toast.error('Failed to update visibility');
+                                }
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Subscriptions Table */}
               <Card>

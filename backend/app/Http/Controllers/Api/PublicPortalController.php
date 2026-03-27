@@ -23,6 +23,14 @@ class PublicPortalController extends Controller
         $domain = $request->query('domain');
 
         $query = SubscriptionPlan::where('is_active', true)
+            ->where(function ($q) use ($domain) {
+                $q->where('is_public', true);
+                if ($domain) {
+                    $q->orWhereHas('visibleDomains', function ($sq) use ($domain) {
+                        $sq->where('domain', $domain);
+                    });
+                }
+            })
             ->orderBy('sort_order')
             ->orderBy('price');
 

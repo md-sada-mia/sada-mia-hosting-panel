@@ -32,6 +32,7 @@ export default function ManagePlansPage() {
       credit_amount: '',
       features: '',
       is_active: true,
+      is_public: true,
       sort_order: 0
     };
   }
@@ -143,19 +144,20 @@ export default function ManagePlansPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Visibility</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Loading plans...
                   </TableCell>
                 </TableRow>
               ) : plans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No plans created yet.
                   </TableCell>
                 </TableRow>
@@ -187,6 +189,13 @@ export default function ManagePlansPage() {
                         <Badge variant="success" className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20">Active</Badge>
                       ) : (
                         <Badge variant="secondary">Inactive</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {plan.is_public ? (
+                        <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">Public</Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">Private</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -286,16 +295,21 @@ export default function ManagePlansPage() {
                     onCheckedChange={(c) => setFormData(p => ({ ...p, is_active: c }))} 
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Public (Everyone)</label>
+                  <Switch 
+                    checked={formData.is_public} 
+                    onCheckedChange={(c) => setFormData(p => ({ ...p, is_public: c }))} 
+                  />
+                </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex justify-between items-center">
-                    <span>Sort Order</span>
-                  </label>
+                  <label className="text-sm font-medium">Sort Order</label>
                   <Input name="sort_order" type="number" value={formData.sort_order} onChange={handleChange} placeholder="0" />
                 </div>
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Plan'}</Button>
             </DialogFooter>

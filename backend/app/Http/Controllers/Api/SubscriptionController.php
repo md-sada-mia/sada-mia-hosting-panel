@@ -132,6 +132,7 @@ class SubscriptionController extends Controller
             'credit_amount' => 'nullable|integer|min:0',
             'features' => 'nullable|array',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
             'sort_order' => 'integer',
         ]);
 
@@ -156,6 +157,7 @@ class SubscriptionController extends Controller
             'credit_amount' => 'nullable|integer|min:0',
             'features' => 'nullable|array',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
             'sort_order' => 'integer',
         ]);
 
@@ -268,5 +270,38 @@ class SubscriptionController extends Controller
         $this->subscriptionService->invalidateCache($user);
 
         return response()->json(['message' => 'Subscription cancelled.']);
+    }
+
+    /**
+     * Admin: Get visible plans for a domain
+     */
+    public function getDomainVisiblePlans($domain)
+    {
+        $planIds = \App\Models\PlanDomainVisibility::where('domain', $domain)->pluck('plan_id');
+        return response()->json($planIds);
+    }
+
+    /**
+     * Admin: Update visible plans for a domain
+     */
+    public function updateDomainVisiblePlans(Request $request, $domain)
+    {
+        $request->validate([
+            'plan_ids' => 'array',
+            'plan_ids.*' => 'exists:subscription_plans,id',
+        ]);
+
+        \App\Models\PlanDomainVisibility::where('domain', $domain)->delete();
+
+        if ($request->has('plan_ids')) {
+            foreach ($request->plan_ids as $planId) {
+                \App\Models\PlanDomainVisibility::create([
+                    'plan_id' => $planId,
+                    'domain' => $domain,
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'Visibility updated']);
     }
 }
