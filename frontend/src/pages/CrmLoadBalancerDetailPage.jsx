@@ -938,395 +938,413 @@ export default function CrmLoadBalancerDetailPage() {
               </CardContent>
             </Card>
           ) : (
-            <>
-              {/* Domain Context Badge */}
-              <div className="flex items-center gap-2 px-1">
-                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Subscriptions for domain:</span>
-                <span className="font-mono text-xs font-semibold text-foreground bg-muted px-2 py-0.5 rounded">{subData.domain}</span>
-                <button onClick={fetchSubscriptions} className="ml-auto p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+            <div className="space-y-6">
+              {/* Domain Context Badge - Full Width Top */}
+              <div className="flex items-center gap-3 px-4 py-3 bg-card border rounded-xl">
+                <div className="p-1.5 rounded-lg bg-muted">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-sm font-medium text-muted-foreground italic">Domain:</span>
+                  <span className="font-mono text-sm font-extrabold text-foreground bg-muted/50 px-3 py-1 rounded-lg border border-white/5 truncate shadow-sm">
+                    {subData.domain}
+                  </span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={fetchSubscriptions} 
+                  className="h-9 gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                >
                   <RefreshCw className="h-3.5 w-3.5" />
-                </button>
+                  <span className="text-xs font-semibold">Sync Info</span>
+                </Button>
               </div>
 
-              {/* Service Suspension */}
-              <Card className="border-red-500/20 bg-red-500/5 transition-all">
-                <CardContent className="flex flex-col md:flex-row md:items-center justify-between py-5 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
-                      <Shield className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Service Suspension</h4>
-                      <p className="text-sm text-muted-foreground mt-0.5">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Left Side: Summary, Plans, Transactions */}
+                <div className="lg:col-span-8 space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      {
+                        label: 'Active Plans',
+                        value: subData.subscriptions.filter(s => s.is_active).length,
+                        icon: Star,
+                        color: 'text-emerald-400',
+                        bg: 'bg-emerald-500/10',
+                      },
+                      {
+                        label: 'Total Subscriptions',
+                        value: subData.subscriptions.length,
+                        icon: CreditCard,
+                        color: 'text-primary',
+                        bg: 'bg-primary/10',
+                      },
+                      {
+                        label: 'Transactions',
+                        value: subData.transactions.length,
+                        icon: TrendingUp,
+                        color: 'text-violet-400',
+                        bg: 'bg-violet-500/10',
+                      },
+                    ].map(stat => (
+                      <div key={stat.label} className="flex items-center gap-3 bg-card border rounded-xl p-4">
+                        <div className={`p-2.5 rounded-xl ${stat.bg}`}>
+                          <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">{stat.label}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Subscriptions Table */}
+                  <Card>
+                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-primary" /> Subscription Plans
+                      </CardTitle>
+                      <Dialog open={isActivateOpen} onOpenChange={(open) => {
+                        setIsActivateOpen(open);
+                        if (open && plans.length === 0) fetchPlans();
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-8 gap-1.5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
+                            <Plus className="h-3.5 w-3.5" /> Activate Plan
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Activate Subscription</DialogTitle>
+                            <DialogDescription>Manually assign a plan to {subData.domain}</DialogDescription>
+                          </DialogHeader>
+                          <form onSubmit={handleActivateSubscription} className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Select Plan</label>
+                              <Select
+                                value={activateForm.plan_id}
+                                onValueChange={(val) => setActivateForm({ ...activateForm, plan_id: val })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Choose a subscription plan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {plans.map(p => (
+                                    <SelectItem key={p.id} value={p.id.toString()}>
+                                      {p.name} — {p.type === 'flat_rate' ? `${p.billing_cycle}` : `${p.credit_amount} credits`} ({p.price > 0 ? `$${p.price}` : 'Free'})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Custom Expiry Date <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                              <Input
+                                type="date"
+                                value={activateForm.custom_ends_at}
+                                onChange={(e) => setActivateForm({ ...activateForm, custom_ends_at: e.target.value })}
+                                placeholder="Leave empty for default"
+                              />
+                              <p className="text-xs text-muted-foreground">Overrides the default billing cycle duration if set.</p>
+                            </div>
+                            <DialogFooter className="mt-6">
+                              <Button type="button" variant="ghost" onClick={() => setIsActivateOpen(false)}>Cancel</Button>
+                              <Button type="submit" disabled={activatingPlan || !activateForm.plan_id}>
+                                {activatingPlan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Activate
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {subData.subscriptions.length === 0 ? (
+                        <div className="text-center py-10 text-sm text-muted-foreground">No subscriptions found for this domain.</div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                              <tr>
+                                <th className="px-5 py-3 text-left font-medium">Plan</th>
+                                <th className="px-5 py-3 text-left font-medium">Type</th>
+                                <th className="px-5 py-3 text-left font-medium">Status</th>
+                                <th className="px-5 py-3 text-left font-medium">Period / Credits</th>
+                                <th className="px-5 py-3 text-left font-medium">Subscribed On</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {subData.subscriptions.map(sub => (
+                                <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
+                                  <td className="px-5 py-3">
+                                    <p className="font-semibold text-foreground">{sub.plan?.name || '—'}</p>
+                                    {sub.plan?.price && (
+                                      <p className="text-xs text-muted-foreground">${sub.plan.price}</p>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                      sub.is_credit_type
+                                        ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+                                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                    }`}>
+                                      {sub.is_credit_type ? 'Credit' : 'Flat Rate'}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                      sub.is_active
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : sub.status === 'cancelled'
+                                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                      {sub.is_active ? 'Active' : sub.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3 text-xs">
+                                    {sub.is_credit_type ? (
+                                      <div className="flex items-center gap-1.5">
+                                        <Coins className="h-3.5 w-3.5 text-violet-400" />
+                                        <span className="font-semibold">{sub.credit_balance ?? 0}</span>
+                                        <span className="text-muted-foreground">credits remaining</span>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-0.5">
+                                        {sub.starts_at && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(sub.starts_at).toLocaleDateString()}</p>}
+                                        {sub.ends_at && (
+                                          <p className={`flex items-center gap-1 ${new Date(sub.ends_at) < new Date() ? 'text-rose-400' : 'text-muted-foreground'}`}>
+                                            → {new Date(sub.ends_at).toLocaleDateString()}
+                                          </p>
+                                        )}
+                                        {!sub.ends_at && <p className="text-muted-foreground italic">Lifetime</p>}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-3 text-xs text-muted-foreground">
+                                    {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Transactions Table */}
+                  {subData.transactions.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-violet-400" /> Recent Transactions
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
+                              <tr>
+                                <th className="px-5 py-3 text-left font-medium">Plan</th>
+                                <th className="px-5 py-3 text-left font-medium">Amount</th>
+                                <th className="px-5 py-3 text-left font-medium">Gateway</th>
+                                <th className="px-5 py-3 text-left font-medium">Status</th>
+                                <th className="px-5 py-3 text-left font-medium">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {subData.transactions.map(tx => (
+                                <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                                  <td className="px-5 py-3">
+                                    <p className="font-medium">{tx.plan?.name || '—'}</p>
+                                    {tx.gateway_ref && (
+                                      <p className="text-[10px] font-mono text-muted-foreground">{tx.gateway_ref}</p>
+                                    )}
+                                  </td>
+                                  <td className="px-5 py-3 font-semibold">${tx.amount}</td>
+                                  <td className="px-5 py-3">
+                                    <span className="capitalize text-xs bg-muted px-2 py-0.5 rounded font-medium">{tx.gateway}</span>
+                                  </td>
+                                  <td className="px-5 py-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                      tx.status === 'completed'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : tx.status === 'failed'
+                                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                      {tx.status}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-3 text-xs text-muted-foreground">
+                                    {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '—'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Right Side: DNS, Suspension, Visibility */}
+                <div className="lg:col-span-4 space-y-6">
+                  {/* Service Suspension */}
+                  <Card className="border-red-500/20 bg-red-500/5 transition-all">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                          <Shield className="h-4 w-4" />
+                        </div>
+                        <h4 className="font-semibold text-sm text-foreground">Service Suspension</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed italic">
                         Manually suspend or reactivate this domain. When suspended, visitors will see a "Service Deactivated" page.
                       </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant={customer?.resource?.deployment_info?.status === 'deactivated' ? "outline" : "destructive"}
-                    onClick={(e) => { e.preventDefault(); handleToggleSuspend(); }}
-                    disabled={actionLoading}
-                    className="min-w-[160px] shrink-0"
-                  >
-                    {actionLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 
-                      (customer?.resource?.deployment_info?.status === 'deactivated' ? <Play className="h-4 w-4 mr-2" /> : <Square className="h-4 w-4 mr-2" />)
-                    }
-                    {customer?.resource?.deployment_info?.status === 'deactivated' ? 'Reactivate Service' : 'Suspend Service'}
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  {
-                    label: 'Active Plans',
-                    value: subData.subscriptions.filter(s => s.is_active).length,
-                    icon: Star,
-                    color: 'text-emerald-400',
-                    bg: 'bg-emerald-500/10',
-                  },
-                  {
-                    label: 'Total Subscriptions',
-                    value: subData.subscriptions.length,
-                    icon: CreditCard,
-                    color: 'text-primary',
-                    bg: 'bg-primary/10',
-                  },
-                  {
-                    label: 'Transactions',
-                    value: subData.transactions.length,
-                    icon: TrendingUp,
-                    color: 'text-violet-400',
-                    bg: 'bg-violet-500/10',
-                  },
-                ].map(stat => (
-                  <div key={stat.label} className="flex items-center gap-3 bg-card border rounded-xl p-4">
-                    <div className={`p-2.5 rounded-xl ${stat.bg}`}>
-                      <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground">{stat.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Custom Plan Visibility */}
-              <Card className="border-blue-500/10 bg-blue-500/[0.02]">
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Package className="h-4 w-4 text-blue-400" /> Custom Plan Visibility
-                    </CardTitle>
-                    <CardDescription className="text-[11px]">Select which private packages should be visible for this domain.</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5"
-                      onClick={() => fetchVisibility(subData.domain)}
-                    >
-                      <RefreshCw className={`h-4 w-4 ${visibilityLoading ? 'animate-spin' : ''}`} />
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="h-8 gap-2 border-white/10 hover:bg-white/5 hover:text-white" 
-                      onClick={() => setIsVisibilityDialogOpen(true)}
-                    >
-                      <Settings className="h-4 w-4" /> Manage
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).length === 0 ? (
-                    <div className="text-center py-6 space-y-3 bg-white/[0.01] border border-dashed border-white/5 rounded-xl">
-                      <p className="text-xs text-muted-foreground italic">No custom packages selected for this domain.</p>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 gap-2 border-dashed border-blue-500/30 text-blue-400 hover:bg-blue-500/10" 
-                        onClick={() => setIsVisibilityDialogOpen(true)}
+                      <Button
+                        type="button"
+                        variant={customer?.resource?.deployment_info?.status === 'deactivated' ? "outline" : "destructive"}
+                        onClick={(e) => { e.preventDefault(); handleToggleSuspend(); }}
+                        disabled={actionLoading}
+                        className="w-full text-xs h-9"
                       >
-                        <Plus className="h-4 w-4" /> Select Packages
+                        {actionLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : 
+                          (customer?.resource?.deployment_info?.status === 'deactivated' ? <Play className="h-3.5 w-3.5 mr-2" /> : <Square className="h-3.5 w-3.5 mr-2" />)
+                        }
+                        {customer?.resource?.deployment_info?.status === 'deactivated' ? 'Reactivate Service' : 'Suspend Service'}
                       </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).map(plan => (
-                        <div key={plan.id} className="flex items-center justify-between p-2 rounded-lg border border-blue-500/20 bg-blue-500/10 shadow-sm shadow-blue-500/5">
-                          <div className="flex flex-col min-w-0 pr-2">
-                            <span className="text-xs font-semibold truncate text-blue-300">{plan.name}</span>
-                            <span className="text-[10px] text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
-                          </div>
-                          <Badge variant="success" className="h-4 text-[9px] px-1.5 shrink-0 bg-blue-500/20 text-blue-400 border-blue-500/30">Visible</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
 
-              {/* Visibility Selection Dialog */}
-              <Dialog open={isVisibilityDialogOpen} onOpenChange={setIsVisibilityDialogOpen}>
-                <DialogContent className="max-w-md bg-zinc-950 border-white/10">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-blue-400" /> Manage Package Visibility
-                    </DialogTitle>
-                    <DialogDescription className="text-muted-foreground">
-                      Select the private (non-public) plans you want to offer to this specific domain/customer.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4 space-y-3">
-                    {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
-                      <div className="text-center py-8 border border-dashed rounded-xl bg-white/[0.02]">
-                        <Package className="h-8 w-8 mx-auto text-muted-foreground/20 mb-3" />
-                        <p className="text-sm text-muted-foreground">No private plans found.</p>
-                        <Button size="sm" variant="link" className="text-blue-400" onClick={() => { setIsVisibilityDialogOpen(false); navigate('/subscription/plans-manage'); }}>
-                          Create Private Plan <ChevronRight className="h-3 w-3 ml-1" />
+                  {/* Custom Plan Visibility */}
+                  <Card className="border-blue-500/10 bg-blue-500/[0.02]">
+                    <CardHeader className="p-5 pb-3 flex flex-row items-center justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xs flex items-center gap-2">
+                          <Package className="h-3.5 w-3.5 text-blue-400" /> Package Visibility
+                        </CardTitle>
+                        <CardDescription className="text-[10px]">Private packages visible for this domain.</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                          onClick={() => fetchVisibility(subData.domain)}
+                        >
+                          <RefreshCw className={`h-3 w-3 ${visibilityLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-[11px] gap-1.5 border-white/10 hover:bg-white/5 hover:text-white px-2" 
+                          onClick={() => setIsVisibilityDialogOpen(true)}
+                        >
+                          <Settings className="h-3.5 w-3.5" /> Manage
                         </Button>
                       </div>
-                    ) : (
-                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        {plans.filter(p => !p.is_public && p.is_active).map(plan => {
-                          const isVisible = visiblePlanIds.includes(plan.id);
-                          return (
-                            <div 
-                              key={plan.id} 
-                              className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                                isVisible ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20' : 'bg-white/[0.03] border-white/5 opacity-70 hover:opacity-100 hover:border-white/10'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <p className={`text-sm font-semibold ${isVisible ? 'text-blue-300' : 'text-foreground'}`}>{plan.name}</p>
-                                <p className="text-xs text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</p>
-                              </div>
-                              <Switch 
-                                checked={isVisible}
-                                onCheckedChange={async (checked) => {
-                                  const newIds = checked 
-                                    ? [...visiblePlanIds, plan.id]
-                                    : visiblePlanIds.filter(id => id !== plan.id);
-                                  
-                                  // Call API immediately as per existing pattern
-                                  try {
-                                    await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
-                                    setVisiblePlanIds(newIds);
-                                    toast.success(`${plan.name} visibility ${checked ? 'enabled' : 'disabled'}`);
-                                  } catch {
-                                    toast.error('Failed to update visibility');
-                                  }
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <DialogFooter className="border-t border-white/5 pt-4">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setIsVisibilityDialogOpen(false)}>Done</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              {/* Subscriptions Table */}
-              <Card>
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" /> Subscription Plans
-                  </CardTitle>
-                  <Dialog open={isActivateOpen} onOpenChange={(open) => {
-                    setIsActivateOpen(open);
-                    if (open && plans.length === 0) fetchPlans();
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
-                        <Plus className="h-3.5 w-3.5" /> Activate Plan
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Activate Subscription</DialogTitle>
-                        <DialogDescription>Manually assign a plan to {subData.domain}</DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={handleActivateSubscription} className="space-y-4 pt-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Select Plan</label>
-                          <Select
-                            value={activateForm.plan_id}
-                            onValueChange={(val) => setActivateForm({ ...activateForm, plan_id: val })}
+                    </CardHeader>
+                    <CardContent className="px-5 pb-5 pt-0 space-y-4">
+                      {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).length === 0 ? (
+                        <div className="text-center py-6 space-y-3 bg-white/[0.01] border border-dashed border-white/5 rounded-xl">
+                          <p className="text-[10px] text-muted-foreground italic">No custom packages selected.</p>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-[11px] gap-1.5 border-dashed border-blue-500/30 text-blue-400 hover:bg-blue-500/10" 
+                            onClick={() => setIsVisibilityDialogOpen(true)}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a subscription plan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {plans.map(p => (
-                                <SelectItem key={p.id} value={p.id.toString()}>
-                                  {p.name} — {p.type === 'flat_rate' ? `${p.billing_cycle}` : `${p.credit_amount} credits`} ({p.price > 0 ? `$${p.price}` : 'Free'})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Custom Expiry Date <span className="text-muted-foreground font-normal">(Optional)</span></label>
-                          <Input
-                            type="date"
-                            value={activateForm.custom_ends_at}
-                            onChange={(e) => setActivateForm({ ...activateForm, custom_ends_at: e.target.value })}
-                            placeholder="Leave empty for default"
-                          />
-                          <p className="text-xs text-muted-foreground">Overrides the default billing cycle duration if set.</p>
-                        </div>
-                        <DialogFooter className="mt-6">
-                          <Button type="button" variant="ghost" onClick={() => setIsActivateOpen(false)}>Cancel</Button>
-                          <Button type="submit" disabled={activatingPlan || !activateForm.plan_id}>
-                            {activatingPlan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Activate
+                            <Plus className="h-3 w-3" /> Select Packages
                           </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {subData.subscriptions.length === 0 ? (
-                    <div className="text-center py-10 text-sm text-muted-foreground">No subscriptions found for this domain.</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
-                          <tr>
-                            <th className="px-5 py-3 text-left font-medium">Plan</th>
-                            <th className="px-5 py-3 text-left font-medium">Type</th>
-                            <th className="px-5 py-3 text-left font-medium">Status</th>
-                            <th className="px-5 py-3 text-left font-medium">Period / Credits</th>
-                            <th className="px-5 py-3 text-left font-medium">Subscribed On</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {subData.subscriptions.map(sub => (
-                            <tr key={sub.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-5 py-3">
-                                <p className="font-semibold text-foreground">{sub.plan?.name || '—'}</p>
-                                {sub.plan?.price && (
-                                  <p className="text-xs text-muted-foreground">${sub.plan.price}</p>
-                                )}
-                              </td>
-                              <td className="px-5 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                  sub.is_credit_type
-                                    ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
-                                    : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                }`}>
-                                  {sub.is_credit_type ? 'Credit' : 'Flat Rate'}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                  sub.is_active
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                    : sub.status === 'cancelled'
-                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {sub.is_active ? 'Active' : sub.status}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3 text-xs">
-                                {sub.is_credit_type ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <Coins className="h-3.5 w-3.5 text-violet-400" />
-                                    <span className="font-semibold">{sub.credit_balance ?? 0}</span>
-                                    <span className="text-muted-foreground">credits remaining</span>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-0.5">
-                                    {sub.starts_at && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(sub.starts_at).toLocaleDateString()}</p>}
-                                    {sub.ends_at && (
-                                      <p className={`flex items-center gap-1 ${new Date(sub.ends_at) < new Date() ? 'text-rose-400' : 'text-muted-foreground'}`}>
-                                        → {new Date(sub.ends_at).toLocaleDateString()}
-                                      </p>
-                                    )}
-                                    {!sub.ends_at && <p className="text-muted-foreground italic">Lifetime</p>}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-5 py-3 text-xs text-muted-foreground">
-                                {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : '—'}
-                              </td>
-                            </tr>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).map(plan => (
+                            <div key={plan.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg border border-blue-500/20 bg-blue-500/10 shadow-sm shadow-blue-500/5">
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-[11px] font-semibold truncate text-blue-300">{plan.name}</span>
+                                <span className="text-[9px] text-muted-foreground truncate">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
+                              </div>
+                              <Badge variant="success" className="h-3.5 text-[8px] px-1.5 shrink-0 bg-blue-500/20 text-blue-400 border-blue-500/30">Visible</Badge>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
 
-              {/* Transactions */}
-              {subData.transactions.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-violet-400" /> Recent Transactions
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="border-b bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
-                          <tr>
-                            <th className="px-5 py-3 text-left font-medium">Plan</th>
-                            <th className="px-5 py-3 text-left font-medium">Amount</th>
-                            <th className="px-5 py-3 text-left font-medium">Gateway</th>
-                            <th className="px-5 py-3 text-left font-medium">Status</th>
-                            <th className="px-5 py-3 text-left font-medium">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {subData.transactions.map(tx => (
-                            <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="px-5 py-3">
-                                <p className="font-medium">{tx.plan?.name || '—'}</p>
-                                {tx.gateway_ref && (
-                                  <p className="text-[10px] font-mono text-muted-foreground">{tx.gateway_ref}</p>
-                                )}
-                              </td>
-                              <td className="px-5 py-3 font-semibold">${tx.amount}</td>
-                              <td className="px-5 py-3">
-                                <span className="capitalize text-xs bg-muted px-2 py-0.5 rounded font-medium">{tx.gateway}</span>
-                              </td>
-                              <td className="px-5 py-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                  tx.status === 'completed'
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                    : tx.status === 'failed'
-                                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {tx.status}
-                                </span>
-                              </td>
-                              <td className="px-5 py-3 text-xs text-muted-foreground">
-                                {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {/* Visibility Selection Dialog */}
+                <Dialog open={isVisibilityDialogOpen} onOpenChange={setIsVisibilityDialogOpen}>
+                  <DialogContent className="max-w-md bg-zinc-950 border-white/10">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5 text-blue-400" /> Manage Package Visibility
+                      </DialogTitle>
+                      <DialogDescription className="text-muted-foreground">
+                        Select the private (non-public) plans you want to offer to this specific domain/customer.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-3">
+                      {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
+                        <div className="text-center py-8 border border-dashed rounded-xl bg-white/[0.02]">
+                          <Package className="h-8 w-8 mx-auto text-muted-foreground/20 mb-3" />
+                          <p className="text-sm text-muted-foreground">No private plans found.</p>
+                          <Button size="sm" variant="link" className="text-blue-400" onClick={() => { setIsVisibilityDialogOpen(false); navigate('/subscription/plans-manage'); }}>
+                            Create Private Plan <ChevronRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          {plans.filter(p => !p.is_public && p.is_active).map(plan => {
+                            const isVisible = visiblePlanIds.includes(plan.id);
+                            return (
+                              <div 
+                                key={plan.id} 
+                                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                  isVisible ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20' : 'bg-white/[0.03] border-white/5 opacity-70 hover:opacity-100 hover:border-white/10'
+                                }`}
+                              >
+                                <div className="min-w-0 font-sans">
+                                  <p className={`text-sm font-semibold ${isVisible ? 'text-blue-300' : 'text-foreground'}`}>{plan.name}</p>
+                                  <p className="text-xs text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</p>
+                                </div>
+                                <Switch 
+                                  checked={isVisible}
+                                  onCheckedChange={async (checked) => {
+                                    const newIds = checked 
+                                      ? [...visiblePlanIds, plan.id]
+                                      : visiblePlanIds.filter(id => id !== plan.id);
+                                    
+                                    // Call API immediately as per existing pattern
+                                    try {
+                                      await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
+                                      setVisiblePlanIds(newIds);
+                                      toast.success(`${plan.name} visibility ${checked ? 'enabled' : 'disabled'}`);
+                                    } catch {
+                                      toast.error('Failed to update visibility');
+                                    }
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+                    <DialogFooter className="border-t border-white/5 pt-4">
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setIsVisibilityDialogOpen(false)}>Done</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
           )}
         </TabsContent>
       </Tabs>
