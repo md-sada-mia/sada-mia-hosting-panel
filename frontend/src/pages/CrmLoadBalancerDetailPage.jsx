@@ -28,7 +28,7 @@ import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
   XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText,
-  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package, Settings
 } from 'lucide-react';
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
@@ -86,6 +86,7 @@ export default function CrmLoadBalancerDetailPage() {
   const [isActivateOpen, setIsActivateOpen] = useState(false);
   const [activatingPlan, setActivatingPlan] = useState(false);
   const [activateForm, setActivateForm] = useState({ plan_id: '', custom_ends_at: '' });
+  const [isVisibilityDialogOpen, setIsVisibilityDialogOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [visiblePlanIds, setVisiblePlanIds] = useState([]);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
@@ -1015,70 +1016,125 @@ export default function CrmLoadBalancerDetailPage() {
               </div>
               
               {/* Custom Plan Visibility */}
-              <Card className="border-blue-500/20 bg-blue-500/5">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Package className="h-4 w-4 text-blue-400" /> Custom Plan Visibility
-                      </CardTitle>
-                      <CardDescription className="text-[11px]">Select which private packages should be visible for this domain on the portal.</CardDescription>
-                    </div>
-                    {!visiblePlanIds.length && subData?.domain && (
-                      <Button size="xs" variant="ghost" className="h-7 text-[10px] uppercase font-bold text-muted-foreground" onClick={async () => {
-                        try {
-                          const { data } = await api.get(`/subscription/domain-plans/${subData.domain}`);
-                          setVisiblePlanIds(data);
-                        } catch {
-                          toast.error('Failed to load visibility');
-                        }
-                      }}>
-                        <RefreshCw className="h-3 w-3 mr-1" /> Load Settings
-                      </Button>
-                    )}
+              <Card className="border-blue-500/10 bg-blue-500/[0.02]">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Package className="h-4 w-4 text-blue-400" /> Custom Plan Visibility
+                    </CardTitle>
+                    <CardDescription className="text-[11px]">Select which private packages should be visible for this domain.</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5"
+                      onClick={() => fetchVisibility(subData.domain)}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${visibilityLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-8 gap-2 border-white/10 hover:bg-white/5 hover:text-white" 
+                      onClick={() => setIsVisibilityDialogOpen(true)}
+                    >
+                      <Settings className="h-4 w-4" /> Manage
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
-                    <div className="text-center py-4 space-y-2">
-                      <p className="text-xs text-muted-foreground italic">No private active plans available to assign.</p>
-                      <Button size="xs" variant="outline" className="h-7 text-[10px]" onClick={() => navigate('/subscription/plans-manage')}>
-                        <Plus className="h-3 w-3 mr-1" /> Create Private Plan
+                  {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).length === 0 ? (
+                    <div className="text-center py-6 space-y-3 bg-white/[0.01] border border-dashed border-white/5 rounded-xl">
+                      <p className="text-xs text-muted-foreground italic">No custom packages selected for this domain.</p>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 gap-2 border-dashed border-blue-500/30 text-blue-400 hover:bg-blue-500/10" 
+                        onClick={() => setIsVisibilityDialogOpen(true)}
+                      >
+                        <Plus className="h-4 w-4" /> Select Packages
                       </Button>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {plans.filter(p => !p.is_public && p.is_active).map(plan => {
-                        const isVisible = visiblePlanIds.includes(plan.id);
-                        return (
-                          <div key={plan.id} className={`flex items-center justify-between p-2 rounded-lg border transition-all ${isVisible ? 'bg-blue-500/10 border-blue-500/30' : 'bg-muted/30 border-transparent hover:border-muted-foreground/20'}`}>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-xs font-semibold truncate">{plan.name}</span>
-                              <span className="text-[10px] text-muted-foreground">৳{plan.price} · {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
-                            </div>
-                            <Switch 
-                              checked={isVisible} 
-                              onCheckedChange={async (checked) => {
-                                const newIds = checked 
-                                  ? [...visiblePlanIds, plan.id]
-                                  : visiblePlanIds.filter(id => id !== plan.id);
-                                
-                                try {
-                                  await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
-                                  setVisiblePlanIds(newIds);
-                                  toast.success(`${plan.name} visibility updated`);
-                                } catch {
-                                  toast.error('Failed to update visibility');
-                                }
-                              }}
-                            />
+                      {plans.filter(p => !p.is_public && p.is_active && visiblePlanIds.includes(p.id)).map(plan => (
+                        <div key={plan.id} className="flex items-center justify-between p-2 rounded-lg border border-blue-500/20 bg-blue-500/10 shadow-sm shadow-blue-500/5">
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="text-xs font-semibold truncate text-blue-300">{plan.name}</span>
+                            <span className="text-[10px] text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</span>
                           </div>
-                        );
-                      })}
+                          <Badge variant="success" className="h-4 text-[9px] px-1.5 shrink-0 bg-blue-500/20 text-blue-400 border-blue-500/30">Visible</Badge>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Visibility Selection Dialog */}
+              <Dialog open={isVisibilityDialogOpen} onOpenChange={setIsVisibilityDialogOpen}>
+                <DialogContent className="max-w-md bg-zinc-950 border-white/10">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-blue-400" /> Manage Package Visibility
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground">
+                      Select the private (non-public) plans you want to offer to this specific domain/customer.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 space-y-3">
+                    {plans.filter(p => !p.is_public && p.is_active).length === 0 ? (
+                      <div className="text-center py-8 border border-dashed rounded-xl bg-white/[0.02]">
+                        <Package className="h-8 w-8 mx-auto text-muted-foreground/20 mb-3" />
+                        <p className="text-sm text-muted-foreground">No private plans found.</p>
+                        <Button size="sm" variant="link" className="text-blue-400" onClick={() => { setIsVisibilityDialogOpen(false); navigate('/subscription/plans-manage'); }}>
+                          Create Private Plan <ChevronRight className="h-3 w-3 ml-1" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {plans.filter(p => !p.is_public && p.is_active).map(plan => {
+                          const isVisible = visiblePlanIds.includes(plan.id);
+                          return (
+                            <div 
+                              key={plan.id} 
+                              className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                isVisible ? 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20' : 'bg-white/[0.03] border-white/5 opacity-70 hover:opacity-100 hover:border-white/10'
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <p className={`text-sm font-semibold ${isVisible ? 'text-blue-300' : 'text-foreground'}`}>{plan.name}</p>
+                                <p className="text-xs text-muted-foreground">৳{parseFloat(plan.price).toLocaleString()} • {plan.type === 'flat_rate' ? plan.billing_cycle : `${plan.credit_amount}c`}</p>
+                              </div>
+                              <Switch 
+                                checked={isVisible}
+                                onCheckedChange={async (checked) => {
+                                  const newIds = checked 
+                                    ? [...visiblePlanIds, plan.id]
+                                    : visiblePlanIds.filter(id => id !== plan.id);
+                                  
+                                  // Call API immediately as per existing pattern
+                                  try {
+                                    await api.post(`/subscription/domain-plans/${subData.domain}`, { plan_ids: newIds });
+                                    setVisiblePlanIds(newIds);
+                                    toast.success(`${plan.name} visibility ${checked ? 'enabled' : 'disabled'}`);
+                                  } catch {
+                                    toast.error('Failed to update visibility');
+                                  }
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="border-t border-white/5 pt-4">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setIsVisibilityDialogOpen(false)}>Done</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Subscriptions Table */}
               <Card>
