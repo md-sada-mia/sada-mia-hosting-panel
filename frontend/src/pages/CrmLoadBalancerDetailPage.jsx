@@ -118,6 +118,22 @@ export default function CrmLoadBalancerDetailPage() {
     fetchCustomer();
   }, [customerId]);
 
+  useEffect(() => {
+    if (subData?.domain) fetchVisibility(subData.domain);
+  }, [subData?.domain]);
+
+  const fetchVisibility = async (domain) => {
+    setVisibilityLoading(true);
+    try {
+      const { data } = await api.get(`/subscription/domain-plans/${domain}`);
+      setVisiblePlanIds(data || []);
+    } catch {
+      toast.error('Failed to load visibility settings');
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
+
   const fetchSubscriptions = async () => {
     setSubLoading(true);
     try {
