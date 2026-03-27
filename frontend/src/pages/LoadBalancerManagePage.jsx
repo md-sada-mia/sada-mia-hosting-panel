@@ -254,7 +254,10 @@ export default function LoadBalancerManagePage() {
                         <div className="bg-primary/10 p-2 rounded-lg text-primary">
                           <Globe className="h-4 w-4" />
                         </div>
-                        <span className="text-sm font-medium truncate">
+                        <span 
+                          className="text-sm font-medium truncate hover:text-primary cursor-pointer transition-colors"
+                          onClick={() => navigate(`/load-balancers/${id}/domains/${typeof domain === 'object' ? domain.id : domain}`)}
+                        >
                           {typeof domain === 'object' ? domain.domain : domain}
                         </span>
                       </div>

@@ -22,6 +22,7 @@ import EmailPage from './pages/EmailPage';
 import FileManagerPage from './pages/FileManagerPage';
 import LoadBalancersPage from './pages/LoadBalancersPage';
 import LoadBalancerManagePage from './pages/LoadBalancerManagePage';
+import LoadBalancerDomainDetailPage from './pages/LoadBalancerDomainDetailPage';
 import CrmPage from './pages/CrmPage';
 import CrmNewCustomerPage from './pages/CrmNewCustomerPage';
 import CrmLoadBalancerDetailPage from './pages/CrmLoadBalancerDetailPage';
@@ -75,6 +76,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/apps/:id/guidelines" element={<GuidelinePage />} />
               <Route path="/load-balancers" element={<LoadBalancersPage />} />
               <Route path="/load-balancers/:id/manage" element={<LoadBalancerManagePage />} />
+              <Route path="/load-balancers/:lbId/domains/:domainId" element={<LoadBalancerDomainDetailPage />} />
               <Route path="/databases" element={<DatabasesPage />} />
               <Route path="/databases/users" element={<DatabaseUsersPage />} />
               <Route path="/domains" element={<DomainsPage />} />

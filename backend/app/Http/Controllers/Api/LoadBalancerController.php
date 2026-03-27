@@ -187,14 +187,8 @@ class LoadBalancerController extends Controller
 
         $loadBalancer->apps()->attach($appId);
 
-        $loadBalancer->load(['apps']);
-        $this->nginxService->generateLoadBalancerUpstream($loadBalancer);
-
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
-
-        return response()->json($resp);
+        $loadBalancer->load(['apps:id,name', 'domains']);
+        return response()->json($loadBalancer);
     }
 
     public function detachApp(Request $request, LoadBalancer $loadBalancer, \App\Models\App $app): JsonResponse
@@ -208,11 +202,13 @@ class LoadBalancerController extends Controller
         $loadBalancer->load(['apps']);
         $this->nginxService->generateLoadBalancerUpstream($loadBalancer);
 
-        $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains:id,load_balancer_id,domain']);
-        $resp = $loaded->toArray();
-        $resp['domains'] = $loaded->domains->pluck('domain')->toArray();
+        $loadBalancer->load(['apps:id,name', 'domains']);
+        return response()->json($loadBalancer);
+    }
 
-        return response()->json($resp);
+    public function showDomain(LoadBalancerDomain $domain): JsonResponse
+    {
+        return response()->json($domain->load('loadBalancer'));
     }
 
     public function domainLogs(LoadBalancerDomain $domain, Request $request): JsonResponse
