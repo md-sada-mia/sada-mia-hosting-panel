@@ -2,6 +2,14 @@
 
 A lightweight, self-hosted server management panel designed for Ubuntu Linux. This panel allows you to easily deploy and manage Next.js, Laravel, and Static HTML applications on a single server without using Docker. It provisions apps natively using PM2 for Node.js and PHP-FPM for Laravel.
 
+---
+
+## ✨ What's New (March 28, 2026)
+
+- **Fixed Deployment Lifecycle:** Resolved a critical 500 error when triggering manual deployments by updating the `deployments` schema and ensuring the `deploying` status is correctly handled.
+- **Improved Logging:** Fixed a bug in the deployment process where logs were being sent to an incorrect database column.
+- **Enhanced Status Accuracy:** Application and deployment statuses are now consistently synchronized between the frontend and backend.
+
 ## 🚀 Key Features
 
 ### 📦 Application Management
@@ -168,6 +176,30 @@ chmod +x start.sh
 
 Concurrently boots the **Laravel API** (8000) and **Vite React** (5173) server.
 _(Note: System operations like Nginx/PM2 require a native Ubuntu environment)._
+
+### 🔄 Restarting & Stopping Services
+
+If you are using `./start.sh`, simply press `Ctrl+C` in your terminal to stop all background processes (API, Queue, and Frontend).
+
+If any processes get stuck or you need to manually kill then, use the following commands:
+
+```bash
+# Kill the Laravel API server
+pkill -f "php artisan serve"
+
+# Kill the Queue worker
+pkill -f "php artisan queue:work"
+
+# Kill the Vite development server
+pkill -f "vite"
+```
+
+To restart everything cleanly:
+
+```bash
+# One-liner to kill and restart
+pkill -f "php artisan" && pkill -f "vite" && ./start.sh
+```
 
 ---
 
