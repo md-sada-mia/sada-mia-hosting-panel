@@ -113,6 +113,16 @@ perform_cleanup() {
     echo "==> !!! PERFORMING DATA CLEANUP !!!"
     echo "    This will remove all apps, domains, emails, and crons."
     
+    # 0. Cleanup Systemd and PM2
+    echo "==> Cleaning up Systemd App Services"
+    systemctl stop svc-* 2>/dev/null || true
+    rm -f /etc/systemd/system/svc-*
+    systemctl daemon-reload 2>/dev/null || true
+
+    echo "==> Cleaning up PM2 Processes"
+    sudo -u www-data pm2 delete all 2>/dev/null || true
+    sudo -u www-data pm2 save --force 2>/dev/null || true
+    
     # 1. Cleanup Apps
     APPS_DIR="/var/www/hosting-apps"
     if [ -d "$APPS_DIR" ]; then
@@ -154,6 +164,25 @@ perform_cleanup() {
     rm -rf /var/www/webmail/*
     sudo -u postgres psql -c "DROP DATABASE IF EXISTS roundcube;" 2>/dev/null || true
     sudo -u postgres psql -c "DROP USER IF EXISTS roundcube;" 2>/dev/null || true
+
+    # 4c. Cleanup PostgreSQL Application Databases and Roles
+    echo "==> Cleaning up Application PostgreSQL Databases and Roles"
+    
+    # Get all databases (ignoring system/template databases to prevent postgres from breaking)
+    sudo -u postgres psql -t -A -c "SELECT datname FROM pg_database WHERE datname NOT IN ('postgres', 'template0', 'template1');" 2>/dev/null | while read db; do
+        if [ ! -z "$db" ]; then
+            sudo -u postgres psql -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '$db' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+            sudo -u postgres psql -c "DROP DATABASE IF EXISTS \"$db\";" 2>/dev/null || true
+        fi
+    done
+
+    # Get all roles (ignoring the root postgres user)
+    sudo -u postgres psql -t -A -c "SELECT rolname FROM pg_roles WHERE rolname NOT IN ('postgres');" 2>/dev/null | while read role; do
+        if [ ! -z "$role" ]; then
+            sudo -u postgres psql -c "DROP OWNED BY \"$role\";" 2>/dev/null || true
+            sudo -u postgres psql -c "DROP ROLE IF EXISTS \"$role\";" 2>/dev/null || true
+        fi
+    done
 
     # 5. Cleanup Crons
     echo "==> Cleaning up crontab for www-data"
