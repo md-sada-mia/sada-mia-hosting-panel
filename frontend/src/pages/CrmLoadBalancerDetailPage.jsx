@@ -290,6 +290,19 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
+  const fetchSslDetails = async () => {
+    if (!lbDomain || (!lbDomain.ssl_enabled && lbDomain.ssl_status !== 'failed')) return;
+    setLoadingDetails(true);
+    try {
+      const { data } = await api.get(`/load-balancers/domains/${lbDomain.id}/ssl/details`);
+      setSslDetails(data);
+    } catch {
+      setSslDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   const fetchDeployments = async (silent = false) => {
     if (!silent) setDeploymentsLoading(true);
     try {
