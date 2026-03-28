@@ -304,4 +304,15 @@ class SubscriptionController extends Controller
 
         return response()->json(['message' => 'Visibility updated']);
     }
+
+    /**
+     * Regenerate Subscription Validation (Nginx configs sync)
+     */
+    public function regenerateValidation()
+    {
+        \Illuminate\Support\Facades\Artisan::call('app:nginx-sync');
+        \Illuminate\Support\Facades\Artisan::call('app:nginx-ssl-sync');
+
+        return response()->json(['message' => 'Subscription validation regenerated. Nginx configs synced successfully.']);
+    }
 }

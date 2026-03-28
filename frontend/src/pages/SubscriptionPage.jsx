@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { format, startOfMonth } from 'date-fns';
 import {
-  Zap, CheckCircle2, Star, RefreshCw,
+  Zap, CheckCircle2, Star, RefreshCw, Loader2,
   TrendingUp, Coins, Settings, Package,
   DollarSign, Activity, History, ArrowRight
 } from 'lucide-react';
@@ -17,6 +17,7 @@ export default function SubscriptionPage() {
   const [loading, setLoading]   = useState(true);
   const [stats, setStats]       = useState(null);
   const [systemEnabled, setSystemEnabled] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   
   // Premium Date Picker State
   const [date, setDate] = useState({
@@ -41,6 +42,18 @@ export default function SubscriptionPage() {
       toast.error('Failed to load merchant statistics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/subscription/regenerate-validation');
+      toast.success('Subscription validation regenerated formatting configs.');
+    } catch {
+      toast.error('Failed to regenerate validation.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -99,6 +112,15 @@ export default function SubscriptionPage() {
             <Zap className="h-5 w-5 mr-2 text-primary" />
             Billable Routes
           </Link>
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={handleRegenerate}
+          disabled={actionLoading}
+          className="h-12 px-6 border-primary/20 hover:border-primary/50 transition-all bg-background/50 backdrop-blur-sm"
+        >
+          {actionLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2 text-primary" />}
+          Regenerate Subscription Validation
         </Button>
 
         <div className="flex items-center gap-2 ml-auto">
