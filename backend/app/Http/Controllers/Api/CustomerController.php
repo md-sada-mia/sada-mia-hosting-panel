@@ -213,6 +213,16 @@ class CustomerController extends Controller
         ]);
     }
 
+    public function deployments(Customer $customer)
+    {
+        return response()->json($customer->deployment()->orderByDesc('created_at')->get());
+    }
+
+    public function crmLogs(Customer $customer)
+    {
+        return response()->json(CrmApiLog::where('customer_id', $customer->id)->orderByDesc('created_at')->get());
+    }
+
     public function activateSubscription(Request $request, Customer $customer)
     {
         $validated = $request->validate([
@@ -267,7 +277,7 @@ class CustomerController extends Controller
      */
     public function deploy(Request $request, Customer $customer)
     {
-        $crmType = Setting::get('crm_creation_type', 'load_balancer');
+        $crmType = $customer->resource_type ?: Setting::get('crm_creation_type', 'load_balancer');
 
         if ($crmType === 'load_balancer') {
             return $this->deployLoadBalancer($request, $customer);

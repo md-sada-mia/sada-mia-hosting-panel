@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 import {
   Select,
   SelectContent,
@@ -28,8 +29,13 @@ import {
   ArrowLeft, Network, Globe, Server, RefreshCw, Loader2, ExternalLink,
   Shield, AlertCircle, Info, Check, AlertTriangle, Zap, CheckCircle2,
   XCircle, Box, Clock, Copy, ChevronRight, Edit2, RotateCcw, Trash2, FileText, ScrollText,
-  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package, Settings
+  CreditCard, Star, Calendar, TrendingUp, Coins, Plus, Square, Play, Package, Settings, Rocket
 } from 'lucide-react';
+
+const stripAnsi = (str) => {
+  if (!str) return '';
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+};
 
 // ── Copy Button ──────────────────────────────────────────────────────────────
 function CopyBtn({ value }) {
@@ -91,6 +97,14 @@ export default function CrmLoadBalancerDetailPage() {
   const [visiblePlanIds, setVisiblePlanIds] = useState([]);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
 
+  // Deployments state
+  const [deployments, setDeployments] = useState([]);
+  const [deploymentsLoading, setDeploymentsLoading] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [showCrmLogs, setShowCrmLogs] = useState(false);
+  const [crmLogs, setCrmLogs] = useState([]);
+  const [crmLogsLoading, setCrmLogsLoading] = useState(false);
+
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
   const deploymentDomain = resource?.deployment_info?.domain;
@@ -112,7 +126,21 @@ export default function CrmLoadBalancerDetailPage() {
     if (activeTab === 'logs' && lbDomain?.id) {
       loadLogs(activeLogTab);
     }
+    if (activeTab === 'deployments') {
+      loadDeployments();
+    }
   }, [activeTab, activeLogTab, lbDomain?.id]);
+
+  useEffect(() => {
+    let interval;
+    if (isDeploying || (customer?.resource?.deployment_info?.status === 'deploying')) {
+      interval = setInterval(() => {
+        fetchCustomer(true);
+        if (activeTab === 'deployments') loadDeployments(true);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isDeploying, customer?.resource?.deployment_info?.status, activeTab]);
 
   useEffect(() => {
     fetchCustomer();
@@ -252,16 +280,49 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
-  const fetchSslDetails = async () => {
-    if (!lbDomain || (!lbDomain.ssl_enabled && lbDomain.ssl_status !== 'failed')) return;
-    setLoadingDetails(true);
+  const fetchDeployments = async (silent = false) => {
+    if (!silent) setDeploymentsLoading(true);
     try {
-      const { data } = await api.get(`/load-balancers/domains/${lbDomain.id}/ssl/details`);
-      setSslDetails(data);
+      const { data } = await api.get(`/customers/${customerId}/deployments`);
+      setDeployments(data);
     } catch {
-      setSslDetails(null);
+      toast.error('Failed to load deployment history');
     } finally {
-      setLoadingDetails(false);
+      setDeploymentsLoading(false);
+    }
+  };
+
+  const loadDeployments = (silent = false) => fetchDeployments(silent);
+
+  const fetchCrmLogs = async () => {
+    setCrmLogsLoading(true);
+    try {
+      const { data } = await api.get(`/customers/${customerId}/crm-logs`);
+      setCrmLogs(data);
+    } catch {
+      toast.error('Failed to load CRM API logs');
+    } finally {
+      setCrmLogsLoading(false);
+    }
+  };
+
+  const handleRedeploy = async () => {
+    if (isDeploying) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/customers/${customerId}/deploy`, {
+        load_balancer_id: lb?.id,
+        domain: deploymentDomain,
+        domain_mode: domainMode
+      });
+      setIsDeploying(true);
+      setActiveTab('deployments');
+      toast.success('Redeployment initiated!');
+      fetchCustomer(true);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to initiate redeploy');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -368,6 +429,21 @@ export default function CrmLoadBalancerDetailPage() {
               </Button>
             </a>
           )}
+          <Button
+            size="sm"
+            variant={(customer?.resource?.deployment_info?.status === 'failed' || customer?.resource?.deployment_info?.status === 'error') ? 'destructive' : 'default'}
+            onClick={handleRedeploy}
+            disabled={actionLoading || isDeploying || customer?.resource?.deployment_info?.status === 'deploying'}
+          >
+            {isDeploying || customer?.resource?.deployment_info?.status === 'deploying'
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <Rocket className="mr-2 h-4 w-4" />
+            }
+            {(isDeploying || customer?.resource?.deployment_info?.status === 'deploying') 
+               ? 'Deploying...' 
+               : (customer?.resource?.deployment_info?.status === 'failed' ? 'Retry Deploy' : 'Redeploy')
+            }
+          </Button>
           <Button size="sm" variant="outline" onClick={() => navigate(`/crm/edit/${customerId}`)}>
             <Edit2 className="h-4 w-4 mr-2" /> Edit Customer
           </Button>
@@ -385,6 +461,9 @@ export default function CrmLoadBalancerDetailPage() {
       }}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="deployments" className="flex items-center gap-1.5">
+            <Rocket className="h-3.5 w-3.5" /> Deployments
+          </TabsTrigger>
           <TabsTrigger value="dns" className="flex items-center gap-1.5">
             <Globe className="h-3.5 w-3.5" /> DNS
           </TabsTrigger>
@@ -514,6 +593,74 @@ export default function CrmLoadBalancerDetailPage() {
               No CRM API calls recorded yet.
             </div>
           )}
+        </TabsContent>
+
+        {/* ────────────── DEPLOYMENTS TAB ────────────────────────────────── */}
+        <TabsContent value="deployments" className="mt-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Deployment History</CardTitle>
+                <CardDescription>View historical synchronization and setup logs</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2 border-primary/20 hover:bg-primary/10"
+                  onClick={() => {
+                    setShowCrmLogs(true);
+                    fetchCrmLogs();
+                  }}
+                >
+                  <ScrollText className="h-4 w-4 text-primary" /> View API Logs
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => loadDeployments()} disabled={deploymentsLoading}>
+                  <RefreshCw className={`h-4 w-4 ${deploymentsLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {deploymentsLoading && deployments.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : deployments.length === 0 ? (
+                <div className="text-center text-muted-foreground py-12 border border-dashed rounded-xl">
+                  No deployments found.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {deployments.map((dep, idx) => (
+                    <div key={dep.id} className="group relative border border-white/5 bg-white/[0.02] rounded-xl overflow-hidden transition-all hover:bg-white/[0.04]">
+                      <div className="p-4 bg-muted/20 border-b border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Badge variant={
+                            dep.status === 'success' ? 'success' : 
+                            dep.status === 'failed' || dep.status === 'error' ? 'destructive' : 
+                            'warning'
+                          } className="px-2 py-0.5 font-mono text-[10px] uppercase">
+                            {dep.status}
+                          </Badge>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground" title={new Date(dep.created_at).toLocaleString()}>
+                            <Clock className="h-3.5 w-3.5" />
+                            {new Date(dep.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 bg-background/50 px-2 py-1 rounded-lg border border-white/5">
+                           <Globe className="h-3 w-3 text-blue-400" />
+                           <span className="text-[10px] font-mono text-muted-foreground">{dep.domain}</span>
+                        </div>
+                      </div>
+                      <div className="p-4 bg-black/40 font-mono text-xs text-emerald-400/90 whitespace-pre-wrap max-h-80 overflow-y-auto custom-scrollbar">
+                        {stripAnsi(dep.log_output) || 'No logs recorded for this deployment.'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ────────────── DNS TAB ────────────────────────────────────────── */}
@@ -1366,6 +1513,53 @@ export default function CrmLoadBalancerDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* CRM API Logs Modal */}
+      <ConfirmationDialog
+        open={showCrmLogs}
+        onOpenChange={setShowCrmLogs}
+        title="CRM API Integration Logs"
+        description="History of external CRM API calls for this synchronization process."
+        onConfirm={() => setShowCrmLogs(false)}
+        confirmText="Close"
+        showCancel={false}
+        maxWidth="sm:max-w-3xl lg:max-w-4xl"
+      >
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {crmLogsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : crmLogs.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed rounded-xl border-white/5 bg-white/[0.02]">
+              <p className="text-sm text-muted-foreground font-medium">No CRM API calls found.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {crmLogs.map((log) => (
+                <div key={log.id} className="border border-white/5 bg-white/[0.02] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={log.status_code >= 200 && log.status_code < 300 ? 'success' : 'destructive'}>
+                        {log.status_code}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] uppercase">{log.method}</Badge>
+                        <span className="text-xs font-mono text-muted-foreground truncate max-w-sm">{log.url}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                     <div className="bg-black/40 p-2 rounded border border-white/5 text-[10px] whitespace-pre-wrap overflow-x-auto max-h-32 mb-1">{log.payload}</div>
+                     <div className={`bg-black/40 p-2 rounded border border-white/5 text-[10px] whitespace-pre-wrap overflow-x-auto max-h-32 mb-1 ${log.status_code >= 400 ? 'text-red-400' : 'text-emerald-400'}`}>{log.response}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </ConfirmationDialog>
     </div>
   );
 }

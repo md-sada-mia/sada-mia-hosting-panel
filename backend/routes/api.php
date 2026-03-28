@@ -182,6 +182,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/customers/{customer}/domain', [CustomerController::class, 'updateDomain']);
     Route::get('/customers/{customer}/subscriptions', [CustomerController::class, 'subscriptions']);
     Route::post('/customers/{customer}/subscriptions/activate', [CustomerController::class, 'activateSubscription']);
+    Route::get('/customers/{customer}/deployments', [CustomerController::class, 'deployments']);
+    Route::get('/customers/{customer}/crm-logs', [CustomerController::class, 'crmLogs']);
     Route::post('/customers/{customer}/toggle-suspend', [CustomerController::class, 'toggleSuspend']);
 
 
