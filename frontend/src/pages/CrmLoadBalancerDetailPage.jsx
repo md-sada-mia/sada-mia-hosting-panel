@@ -133,15 +133,17 @@ export default function CrmLoadBalancerDetailPage() {
 
   useEffect(() => {
     let interval;
-    const isActuallyDeploying = isDeploying || (customer?.resource?.deployment_info?.status === 'deploying');
+    const pollingRequired = isDeploying || (customer?.resource?.deployment_info?.status === 'deploying');
     
-    if (isActuallyDeploying) {
+    if (pollingRequired) {
       interval = setInterval(() => {
         fetchCustomer(true);
         if (activeTab === 'deployments') loadDeployments(true);
       }, 3000);
-    } else if (isDeploying) {
-      // Deployment seems to have finished (status is no longer 'deploying')
+    }
+    
+    // Logic to reset the local "isDeploying" state once the backend status is no longer 'deploying'
+    if (isDeploying && customer?.resource?.deployment_info?.status && customer?.resource?.deployment_info?.status !== 'deploying') {
       setIsDeploying(false);
     }
     
@@ -658,7 +660,7 @@ export default function CrmLoadBalancerDetailPage() {
                            <span className="text-[10px] font-mono text-muted-foreground">{dep.domain}</span>
                         </div>
                       </div>
-                      <div className="p-4 bg-black/40 font-mono text-xs text-emerald-400/90 whitespace-pre-wrap max-h-80 overflow-y-auto custom-scrollbar">
+                      <div className="p-4 bg-black/40 font-mono text-[11px] text-emerald-400/90 whitespace-pre-wrap max-h-[500px] overflow-y-auto custom-scrollbar">
                         {stripAnsi(dep.log_output) || 'No logs recorded for this deployment.'}
                       </div>
                     </div>
