@@ -196,17 +196,34 @@ class AppController extends Controller
 
     public function deploy(AppModel $app)
     {
-        if ($app->status === 'deploying') {
-            return response()->json(['error' => 'A deployment is already running'], 422);
-        }
-
         $app->update(['status' => 'deploying']);
-
-        $deployment = $this->deploymentService->createDeploymentRecord($app);
+        $deployment = Deployment::create([
+            'app_id' => $app->id,
+            'status' => 'deploying',
+            'log'    => 'Starting manual deployment...'
+        ]);
 
         DeployApp::dispatch($app, $deployment);
 
-        return response()->json($deployment);
+        return response()->json([
+            'message'    => 'Deployment triggered',
+            'deployment' => $deployment
+        ]);
+    }
+
+    public function forceStopDeployment(AppModel $app)
+    {
+        $deployment = $app->deployments()->where('status', 'deploying')->latest()->first();
+        if ($deployment) {
+            $deployment->update([
+                'status' => 'failed',
+                'log' => $deployment->log . "\n\n[FORCE STOP] Deployment terminated by user manually."
+            ]);
+        }
+
+        $app->update(['status' => 'idle']);
+
+        return response()->json(['message' => 'Deployment force stopped']);
     }
 
     public function start(AppModel $app)

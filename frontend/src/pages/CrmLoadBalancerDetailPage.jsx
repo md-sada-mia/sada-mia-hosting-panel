@@ -336,6 +336,18 @@ export default function CrmLoadBalancerDetailPage() {
     }
   };
 
+  const handleForceStop = async () => {
+    try {
+      await api.post(`/customers/${customerId}/force-stop-deployment`);
+      toast.success('Deployment force stopped');
+      setIsDeploying(false);
+      fetchCustomer(true);
+      loadDeployments(true);
+    } catch (err) {
+      toast.error('Failed to stop deployment');
+    }
+  };
+
 
   const loadLogs = async (type = 'server-error', force = false) => {
     if (!lbDomain?.id) return;
@@ -445,15 +457,34 @@ export default function CrmLoadBalancerDetailPage() {
             onClick={handleRedeploy}
             disabled={actionLoading || isDeploying || customer?.resource?.deployment_info?.status === 'deploying'}
           >
-            {isDeploying || customer?.resource?.deployment_info?.status === 'deploying'
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Rocket className="mr-2 h-4 w-4" />
-            }
             {(isDeploying || customer?.resource?.deployment_info?.status === 'deploying') 
-               ? 'Deploying...' 
-               : (customer?.resource?.deployment_info?.status === 'failed' ? 'Retry Deploy' : 'Redeploy')
+               ? (
+                 <span className="flex items-center">
+                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                   Deploying...
+                 </span>
+               )
+               : (
+                 <div className="flex items-center gap-2">
+                   <RotateCcw className="h-4 w-4" />
+                   Redeploy
+                 </div>
+               )
             }
           </Button>
+
+          {(isDeploying || customer?.resource?.deployment_info?.status === 'deploying') && (
+            <Button 
+              size="sm" 
+              variant="destructive" 
+              className="h-9 px-3 gap-2 bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all shadow-lg shadow-rose-500/10"
+              onClick={handleForceStop}
+              title="Force Stop Deployment"
+            >
+              <XCircle className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">Stop</span>
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => navigate(`/crm/edit/${customerId}`)}>
             <Edit2 className="h-4 w-4 mr-2" /> Edit Customer
           </Button>

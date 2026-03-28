@@ -111,6 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/apps/{app}', [AppController::class, 'show']);
     Route::delete('/apps/{app}', [AppController::class, 'destroy']);
     Route::post('/apps/{app}/deploy', [AppController::class, 'deploy']);
+    Route::post('/apps/{app}/force-stop-deployment', [AppController::class, 'forceStopDeployment']);
     Route::post('/apps/{app}/start', [AppController::class, 'start']);
     Route::post('/apps/{app}/stop', [AppController::class, 'stop']);
     Route::post('/apps/{app}/restart', [AppController::class, 'restart']);
@@ -179,6 +180,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // CRM Customers
     Route::apiResource('customers', CustomerController::class);
     Route::post('/customers/{customer}/deploy', [CustomerController::class, 'deploy']);
+    Route::post('/customers/{customer}/force-stop-deployment', [CustomerController::class, 'forceStopDeployment']);
     Route::put('/customers/{customer}/domain', [CustomerController::class, 'updateDomain']);
     Route::get('/customers/{customer}/subscriptions', [CustomerController::class, 'subscriptions']);
     Route::post('/customers/{customer}/subscriptions/activate', [CustomerController::class, 'activateSubscription']);

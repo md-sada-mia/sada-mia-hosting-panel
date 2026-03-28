@@ -286,6 +286,19 @@ class CustomerController extends Controller
         return $this->deployApp($request, $customer);
     }
 
+    public function forceStopDeployment(Customer $customer)
+    {
+        $deployment = $customer->deployments()->where('status', 'deploying')->latest()->first();
+        if ($deployment) {
+            $deployment->update([
+                'status' => 'failed',
+                'log_output' => ($deployment->log_output ?? '') . "\n\n[FORCE STOP] Deployment terminated by user manually."
+            ]);
+        }
+
+        return response()->json(['message' => 'Deployment force stopped']);
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     private function deployLoadBalancer(Request $request, Customer $customer)

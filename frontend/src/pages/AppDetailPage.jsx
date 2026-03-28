@@ -272,6 +272,17 @@ export default function AppDetailPage() {
     }
   };
 
+  const handleForceStop = async () => {
+    try {
+      await api.post(`/apps/${id}/force-stop-deployment`);
+      toast.success('Deployment force stopped');
+      fetchApp(true);
+      if (activeTab === 'deployments') loadDeployments();
+    } catch (err) {
+      toast.error('Failed to stop deployment');
+    }
+  };
+
   const handleAction = (action) => {
     setPendingAction(action);
   };
@@ -699,18 +710,31 @@ export default function AppDetailPage() {
             <Button size="sm" variant="outline" onClick={() => navigate(`/files?path=/${app.domain}`)}>
               <FolderOpen className="mr-2 h-4 w-4" /> File Manager
             </Button>
-            <Button
-            size="sm"
-            variant={app.status === 'error' ? 'destructive' : 'default'}
-            onClick={() => handleAction('deploy')}
-            disabled={actionLoading || app.status === 'deploying'}
-          >
-            {app.status === 'deploying'
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Rocket className="mr-2 h-4 w-4" />
-            }
-            {app.status === 'deploying' ? 'Deploying...' : app.status === 'error' ? 'Retry Deploy' : 'Deploy'}
-          </Button>
+           <Button
+             size="sm"
+             variant={app.status === 'error' ? 'destructive' : 'default'}
+             onClick={() => handleAction('deploy')}
+             disabled={actionLoading || app.status === 'deploying'}
+           >
+             {app.status === 'deploying'
+               ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+               : <Rocket className="mr-2 h-4 w-4" />
+             }
+             {app.status === 'deploying' ? 'Deploying...' : (app.status === 'error' ? 'Retry Deploy' : 'Deploy')}
+           </Button>
+
+           {app.status === 'deploying' && (
+             <Button 
+               size="sm" 
+               variant="destructive" 
+               className="h-9 px-3 gap-2 bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all shadow-lg shadow-rose-500/10"
+               onClick={handleForceStop}
+               title="Force Stop Deployment"
+             >
+               <XCircle className="h-4 w-4" />
+               <span className="text-xs font-bold uppercase tracking-wider">Stop</span>
+             </Button>
+           )}
           <Button size="sm" variant="destructive" onClick={() => handleAction('delete')} disabled={actionLoading}>
             <Trash2 className="h-4 w-4" />
           </Button>
