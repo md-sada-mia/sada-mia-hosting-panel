@@ -133,12 +133,18 @@ export default function CrmLoadBalancerDetailPage() {
 
   useEffect(() => {
     let interval;
-    if (isDeploying || (customer?.resource?.deployment_info?.status === 'deploying')) {
+    const isActuallyDeploying = isDeploying || (customer?.resource?.deployment_info?.status === 'deploying');
+    
+    if (isActuallyDeploying) {
       interval = setInterval(() => {
         fetchCustomer(true);
         if (activeTab === 'deployments') loadDeployments(true);
       }, 3000);
+    } else if (isDeploying) {
+      // Deployment seems to have finished (status is no longer 'deploying')
+      setIsDeploying(false);
     }
+    
     return () => clearInterval(interval);
   }, [isDeploying, customer?.resource?.deployment_info?.status, activeTab]);
 

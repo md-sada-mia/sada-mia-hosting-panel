@@ -21,6 +21,8 @@ class CrmApiService
             return;
         }
 
+        $log("CRM API is enabled. Preparing request...");
+
         $url = Setting::get('crm_api_url');
         $method = strtoupper(Setting::get('crm_api_method', 'POST'));
         $payloadTemplate = Setting::get('crm_api_payload_template', '');
@@ -29,6 +31,8 @@ class CrmApiService
             $log("[ERROR] CRM API URL is not configured.");
             return;
         }
+
+        $log("CRM Target URL: {$url}");
 
         $payload = null;
 
@@ -85,6 +89,7 @@ class CrmApiService
             }
 
             // 2. Prepare Main Payload
+            $log("Preparing main CRM payload...");
             $payload = $this->replaceVariables($payloadTemplate, $customer);
             $payloadArr = json_decode($payload, true) ?: [];
 
