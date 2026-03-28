@@ -108,7 +108,9 @@ export default function CrmLoadBalancerDetailPage() {
   // Derived state (Moved up to follow Rules of Hooks)
   const resource = customer?.resource;
   const deploymentDomain = resource?.deployment_info?.domain;
-  const apiStatus = resource?.api_status;
+  const apiLogs = customer?.resource?.api_logs || {};
+  const authStatus = apiLogs.auth;
+  const syncStatus = apiLogs.sync;
   const lb = resource; // resource is the LB object for load_balancer type
   const domainMode = resource?.deployment_info?.domain_mode;
   
@@ -554,44 +556,77 @@ export default function CrmLoadBalancerDetailPage() {
           </Card>
 
           {/* CRM API Status */}
-          {apiStatus ? (
-            <Card>
-              <CardHeader className="pb-3">
+          {(authStatus || syncStatus) ? (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 border-b border-white/5 bg-white/[0.02]">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" /> CRM API Status
+                  <Zap className="h-4 w-4 text-primary" /> CRM Integration Status
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1.5">Result</p>
-                    <div className="flex items-center gap-2">
-                      {apiStatus.status_code >= 200 && apiStatus.status_code < 300 ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive" />
+              <CardContent className="p-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/5">
+                  {/* Authentication Section */}
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground flex items-center gap-2">
+                         <Shield className="h-3 w-3" /> Authentication
+                      </h4>
+                      {authStatus && (
+                        <Badge variant={authStatus.status_code >= 200 && authStatus.status_code < 300 ? 'success' : 'destructive'} className="text-[9px] h-4">
+                          {authStatus.status_code}
+                        </Badge>
                       )}
-                      <span className={`text-lg font-black ${apiStatus.status_code >= 200 && apiStatus.status_code < 300 ? 'text-emerald-500' : 'text-destructive'}`}>
-                        {apiStatus.status_code}
-                      </span>
                     </div>
+                    {authStatus ? (
+                      <div className="space-y-3">
+                        <div className="bg-black/20 rounded-lg p-3 border border-white/5">
+                           <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-tighter">Response Body</p>
+                           <div className="font-mono text-[10px] text-primary/70 break-all max-h-40 overflow-y-auto custom-scrollbar whitespace-pre-wrap">
+                             {authStatus.response}
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {new Date(authStatus.updated_at).toLocaleString()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-[10px] text-muted-foreground italic border border-dashed rounded-lg border-white/5">
+                        No authentication logged.
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1.5">Method</p>
-                    <span className="font-mono bg-muted px-2 py-1 rounded text-xs uppercase">{apiStatus.method}</span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1.5">Last Triggered</p>
-                    <span className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {new Date(apiStatus.updated_at).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-2">Response Data</p>
-                  <div className="bg-black/30 rounded-xl p-3 font-mono text-xs text-primary/80 border border-white/5 max-h-80 overflow-y-auto whitespace-pre-wrap">
-                    {typeof apiStatus.response === 'string' ? apiStatus.response : JSON.stringify(apiStatus.response, null, 2)}
+
+                  {/* Synchronization Section */}
+                  <div className="p-6 space-y-4 bg-white/[0.01]">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground flex items-center gap-2">
+                         <RefreshCw className="h-3 w-3" /> Synchronization
+                      </h4>
+                      {syncStatus && (
+                        <Badge variant={syncStatus.status_code >= 200 && syncStatus.status_code < 300 ? 'success' : 'destructive'} className="text-[9px] h-4">
+                          {syncStatus.status_code}
+                        </Badge>
+                      )}
+                    </div>
+                    {syncStatus ? (
+                      <div className="space-y-3">
+                        <div className="bg-black/20 rounded-lg p-3 border border-white/5">
+                           <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-tighter">Main API Response</p>
+                           <div className="font-mono text-[10px] text-primary/70 break-all max-h-40 overflow-y-auto custom-scrollbar whitespace-pre-wrap">
+                             {syncStatus.response}
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {new Date(syncStatus.updated_at).toLocaleString()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-[10px] text-muted-foreground italic border border-dashed rounded-lg border-white/5">
+                        No sync attempt logged.
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

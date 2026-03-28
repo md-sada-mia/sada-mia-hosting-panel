@@ -59,6 +59,7 @@ class CrmApiService
                         // Log the successful auth attempt
                         CrmApiLog::create([
                             'customer_id' => $customer->id,
+                            'type'        => 'auth',
                             'url'         => $authUrl,
                             'method'      => 'POST',
                             'payload'     => $payload,
@@ -79,6 +80,7 @@ class CrmApiService
                         // Log the failed auth attempt
                         CrmApiLog::create([
                             'customer_id' => $customer->id,
+                            'type'        => 'auth',
                             'url'         => $authUrl,
                             'method'      => 'POST',
                             'payload'     => $payload,
@@ -110,6 +112,7 @@ class CrmApiService
             // 4. Log the result
             CrmApiLog::create([
                 'customer_id' => $customer->id,
+                'type'        => 'sync',
                 'url'         => $url,
                 'method'      => $method,
                 'payload'     => $payload,
@@ -122,6 +125,7 @@ class CrmApiService
 
             CrmApiLog::create([
                 'customer_id' => $customer->id,
+                'type'        => 'sync',
                 'url'         => $url,
                 'method'      => $method,
                 'payload'     => $payload ?? null,

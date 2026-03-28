@@ -215,7 +215,7 @@ class CustomerController extends Controller
 
     public function deployments(Customer $customer)
     {
-        return response()->json($customer->deployment()->orderByDesc('created_at')->get());
+        return response()->json($customer->deployments()->orderByDesc('created_at')->get());
     }
 
     public function crmLogs(Customer $customer)
@@ -516,14 +516,13 @@ class CustomerController extends Controller
             $app = AppModel::find($customer->resource_id);
             if (!$app) return null;
 
-            $lastApiLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
-            $apiStatus = $lastApiLog ? [
-                'status_code' => $lastApiLog->status_code,
-                'response'    => $lastApiLog->response,
-                'method'      => $lastApiLog->method,
-                'url'         => $lastApiLog->url,
-                'updated_at'  => $lastApiLog->updated_at,
-            ] : null;
+            $authLog = CrmApiLog::where('customer_id', $customer->id)->where('type', 'auth')->latest()->first();
+            $syncLog = CrmApiLog::where('customer_id', $customer->id)->where('type', 'sync')->latest()->first();
+
+            // Fallback for older logs or if types aren't set yet
+            if (!$authLog && !$syncLog) {
+                $syncLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
+            }
 
             return [
                 'type' => 'app',
@@ -532,7 +531,10 @@ class CustomerController extends Controller
                 'domain' => $app->domain,
                 'status' => $app->status,
                 'deployment_info' => $customer->deployment()->orderByDesc('created_at')->first(),
-                'api_status' => $apiStatus
+                'api_logs' => [
+                    'auth' => $authLog,
+                    'sync' => $syncLog
+                ]
             ];
         }
 
@@ -540,14 +542,13 @@ class CustomerController extends Controller
             $lb = LoadBalancer::with('domains')->find($customer->resource_id);
             if (!$lb) return null;
 
-            $lastApiLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
-            $apiStatus = $lastApiLog ? [
-                'status_code' => $lastApiLog->status_code,
-                'response'    => $lastApiLog->response,
-                'method'      => $lastApiLog->method,
-                'url'         => $lastApiLog->url,
-                'updated_at'  => $lastApiLog->updated_at,
-            ] : null;
+            $authLog = CrmApiLog::where('customer_id', $customer->id)->where('type', 'auth')->latest()->first();
+            $syncLog = CrmApiLog::where('customer_id', $customer->id)->where('type', 'sync')->latest()->first();
+
+            // Fallback for older logs or if types aren't set yet
+            if (!$authLog && !$syncLog) {
+                $syncLog = CrmApiLog::where('customer_id', $customer->id)->latest()->first();
+            }
 
             return [
                 'type' => 'load_balancer',
@@ -556,7 +557,10 @@ class CustomerController extends Controller
                 'domains' => $lb->domains,
                 'status' => $lb->status,
                 'deployment_info' => $customer->deployment()->orderByDesc('created_at')->first(),
-                'api_status' => $apiStatus
+                'api_logs' => [
+                    'auth' => $authLog,
+                    'sync' => $syncLog
+                ]
             ];
         }
 

@@ -8,11 +8,12 @@ class CrmApiLog extends Model
 {
     protected $fillable = [
         'customer_id',
+        'type',
         'url',
         'method',
         'payload',
         'response',
-        'status_code'
+        'status_code',
     ];
 
     public function customer()

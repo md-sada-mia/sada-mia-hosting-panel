@@ -37,4 +37,9 @@ class Customer extends Model
     {
         return $this->hasMany(CrmApiLog::class);
     }
+
+    public function deployments()
+    {
+        return $this->hasMany(CustomerDeployment::class);
+    }
 }
