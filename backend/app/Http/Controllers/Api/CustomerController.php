@@ -132,8 +132,34 @@ class CustomerController extends Controller
 
     public function destroy(Customer $customer)
     {
+        // Cleanup associated resources if any
+        if ($customer->resource_type === 'app' && $customer->resource_id) {
+            $app = AppModel::find($customer->resource_id);
+            if ($app) {
+                $appData = $app->toArray();
+                $appData['id'] = $app->id;
+                $appData['databases'] = $app->databases->toArray();
+                $appData['services'] = $app->services->toArray();
+                \App\Jobs\DeleteApp::dispatch($appData);
+                $app->delete();
+            }
+        } elseif ($customer->resource_type === 'load_balancer' && $customer->resource_id) {
+            $lb = LoadBalancer::with('domains')->find($customer->resource_id);
+            if ($lb) {
+                $lbData = $lb->toArray();
+                $lbData['id'] = $lb->id;
+                $lbData['domains'] = $lb->domains->pluck('domain')->toArray();
+                \App\Jobs\DeleteLoadBalancer::dispatch($lbData);
+                $lb->delete();
+            }
+        }
+
+        // Also clean up related records
+        $customer->deployments()->delete();
+        $customer->crmApiLogs()->delete();
+
         $customer->delete();
-        return response()->json(['message' => 'Customer deleted']);
+        return response()->json(['message' => 'Customer and associated resources deleted']);
     }
 
     /**

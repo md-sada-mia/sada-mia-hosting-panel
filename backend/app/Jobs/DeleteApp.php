@@ -125,9 +125,22 @@ class DeleteApp implements ShouldQueue
             // 6. Filesystem Cleanup
             Log::info("Step 6: Filesystem Cleanup");
             try {
-                if (!empty($this->appData['deploy_path'])) {
+                $deployPath = $this->appData['deploy_path'] ?? null;
+                if (empty($deployPath) && !empty($this->appData['domain'])) {
+                    $basePath = config('hosting.apps_base_path', '/var/www/hosting-apps');
+                    $deployPath = "{$basePath}/{$this->appData['domain']}";
+                }
+
+                if (!empty($deployPath)) {
                     $shell = app(ShellService::class);
-                    $shell->run("sudo rm -rf " . escapeshellarg($this->appData['deploy_path']));
+                    $result = $shell->run("sudo rm -rf " . escapeshellarg($deployPath));
+                    if ($result['exit_code'] !== 0) {
+                        Log::warning("Filesystem cleanup failed for app {$app->id}: " . $result['output']);
+                    } else {
+                        Log::info("Filesystem cleanup successful for path: {$deployPath}");
+                    }
+                } else {
+                    Log::warning("Filesystem cleanup skipped: No deploy_path or domain available.");
                 }
             } catch (\Throwable $e) {
                 Log::warning("Cleanup Filesystem failed for app {$app->id}: " . $e->getMessage());
