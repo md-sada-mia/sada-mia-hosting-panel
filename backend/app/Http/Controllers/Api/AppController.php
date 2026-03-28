@@ -199,8 +199,8 @@ class AppController extends Controller
         $app->update(['status' => 'deploying']);
         $deployment = Deployment::create([
             'app_id' => $app->id,
-            'status' => 'deploying',
-            'log'    => 'Starting manual deployment...'
+            'status'     => 'deploying',
+            'log_output' => 'Starting manual deployment...'
         ]);
 
         DeployApp::dispatch($app, $deployment);
