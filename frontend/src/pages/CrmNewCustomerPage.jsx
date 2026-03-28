@@ -288,40 +288,7 @@ export default function CrmNewCustomerPage() {
   }, [appName, domainMode, defaultDomain, crmType, isEdit, isSubdomainEdited]);
 
   // ── After completion ───────────────────────────────────────────────────────
-  if (done && !isDeploying) {
-    return (
-      <div className="max-w-lg mx-auto py-16 text-center space-y-5">
-        <div className="h-16 w-16 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto">
-          <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold">{isEdit ? 'Customer Updated!' : 'Customer Created!'}</h2>
-          <p className="text-muted-foreground mt-1">
-            {deployedResource
-              ? `${form.name} ${isEdit ? 'information has been updated' : 'has been added'} and a ${deployedResource.type === 'load_balancer' ? 'load balancer domain' : 'app'} has been deployed.`
-              : `${form.name} ${isEdit ? 'information has been updated' : 'has been added'} successfully.`}
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {deployedResource && (
-            <Button 
-              variant="outline" 
-              onClick={() => deployedResource.type === 'app'
-              ? navigate(`/apps/${deployedResource.id}`)
-              : navigate(`/load-balancers/${deployedResource.id}/manage`)}>
-              Manage {deployedResource.type === 'app' ? 'App' : 'Load Balancer'}
-            </Button>
-          )}
-          <button
-            onClick={() => navigate('/crm')}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all text-sm font-medium"
-          >
-            <Users className="h-4 w-4" /> Back to CRM
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // No longer redirecting to success view. Instead, showing buttons in the sidebar.
 
   return (
     <div className="space-y-6">
@@ -909,7 +876,7 @@ export default function CrmNewCustomerPage() {
                     </>
                   )}
 
-                  {isDeploying && (
+                  {(isDeploying || (done && logs.length > 0)) && (
                     <div className="mt-6 rounded-2xl border-2 border-primary/20 bg-[#0f1115] overflow-hidden shadow-2xl">
                       <div className="px-4 py-3 border-b border-primary/10 bg-primary/5 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
@@ -961,20 +928,48 @@ export default function CrmNewCustomerPage() {
 
         {/* Sidebar Action buttons */}
         <div className="pt-2 space-y-2">
-          <button type="submit" disabled={submitting || isDeploying}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20 active:translate-y-[0px] transition-all disabled:opacity-50 disabled:translate-y-0 shadow-sm relative overflow-hidden group">
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
-            {submitting
-              ? <><RefreshCw className="h-5 w-5 animate-spin" /> {isEdit ? 'Saving...' : 'Creating...'}</>
-              : skipDeployment || (isEdit && deployedResource)
-                ? <>{isEdit ? 'Update Details' : 'Create Customer'}</>
-                : <><Zap className="h-5 w-5" /> {isEdit ? 'Save & Deploy' : 'Create & Deploy'}</>
-            }
-          </button>
-          <button type="button" onClick={() => navigate('/crm')}
-            className="w-full py-3.5 border-2 rounded-2xl text-xs font-bold hover:bg-muted/50 transition-all text-muted-foreground uppercase tracking-widest">
-            Discard Changes
-          </button>
+          {done && !isDeploying ? (
+            <>
+              {deployedResource && (
+                <button
+                  type="button"
+                  onClick={() => navigate(deployedResource.type === 'app' 
+                    ? `/apps/${deployedResource.id}` 
+                    : `/crm/load-balancer-app-detail/${deployedResource.id}`
+                  )}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-[0px] transition-all shadow-sm relative overflow-hidden group"
+                >
+                  <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
+                  <ExternalLink className="h-5 w-5" /> 
+                  Manage {deployedResource.type === 'app' ? 'App' : 'Load Balancer'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate('/crm')}
+                className="w-full py-3.5 border-2 rounded-2xl text-xs font-bold hover:bg-muted/50 transition-all text-muted-foreground uppercase tracking-widest flex items-center justify-center gap-2"
+              >
+                <Users className="h-4 w-4" /> Back to CRM
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="submit" disabled={submitting || isDeploying}
+                className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-primary/20 active:translate-y-[0px] transition-all disabled:opacity-50 disabled:translate-y-0 shadow-sm relative overflow-hidden group">
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
+                {submitting
+                  ? <><RefreshCw className="h-5 w-5 animate-spin" /> {isEdit ? 'Saving...' : 'Creating...'}</>
+                  : skipDeployment || (isEdit && deployedResource)
+                    ? <>{isEdit ? 'Update Details' : 'Create Customer'}</>
+                    : <><Zap className="h-5 w-5" /> {isEdit ? 'Save & Deploy' : 'Create & Deploy'}</>
+                }
+              </button>
+              <button type="button" onClick={() => navigate('/crm')}
+                className="w-full py-3.5 border-2 rounded-2xl text-xs font-bold hover:bg-muted/50 transition-all text-muted-foreground uppercase tracking-widest">
+                Discard Changes
+              </button>
+            </>
+          )}
         </div>
 
         {/* Support box */}
