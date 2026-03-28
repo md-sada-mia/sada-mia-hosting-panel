@@ -49,11 +49,13 @@ class CrmApiService
                     $log("Authenticating with CRM API at {$authUrl}...");
                     $payload = $this->replaceVariables($authPayloadTemplate, $customer);
                     $authPayloadArr = json_decode($payload, true) ?: [];
+                    $log("Auth Payload: " . json_encode($authPayloadArr, JSON_PRETTY_PRINT));
 
                     $authResponse = Http::post($authUrl, $authPayloadArr);
 
                     if ($authResponse->successful()) {
                         $log("Authentication successful.");
+                        $log("Auth Response: " . $authResponse->body());
                         // Log the successful auth attempt
                         CrmApiLog::create([
                             'customer_id' => $customer->id,
