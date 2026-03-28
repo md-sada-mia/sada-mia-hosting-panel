@@ -59,6 +59,9 @@ export default function CrmNewCustomerPage() {
 
   // ── Submission state ───────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
+  const [deploymentFailed, setDeploymentFailed] = useState(false);
+  const [lastDeploymentPayload, setLastDeploymentPayload] = useState(null);
+  const [lastCustomer, setLastCustomer] = useState(null);
 
   // ── Deploy logs ────────────────────────────────────────────────────────────
   const [deployingApp, setDeployingApp] = useState(null);
@@ -131,11 +134,23 @@ export default function CrmNewCustomerPage() {
     try {
       const { data } = await api.get(`/apps/${deployingApp.id}`);
       if (data.latest_deployment?.log_output) {
-        setLogs(stripAnsi(data.latest_deployment.log_output).split('\n'));
+        const rawLogs = stripAnsi(data.latest_deployment.log_output);
+        setLogs(rawLogs.split('\n'));
+        if (rawLogs.includes('[ERROR]')) {
+          setDeploymentFailed(true);
+        }
       }
-      if (data.status !== 'deploying') {
+
+      if (data.status === 'failed' || data.status === 'error' || data.latest_deployment?.status === 'failed' || deploymentFailed) {
         setIsDeploying(false);
         setDone(true);
+        setDeploymentFailed(true);
+        // Only show toast once if not already failed
+        if (!deploymentFailed) toast.error('Deployment failed. You can try redeploying.');
+      } else if (data.status !== 'deploying') {
+        setIsDeploying(false);
+        setDone(true);
+        setDeploymentFailed(false);
       }
     } catch { /* silent */ }
   };
@@ -221,15 +236,19 @@ export default function CrmNewCustomerPage() {
 
         const { data: updated } = await api.post(`/customers/${customer.id}/deploy`, payload);
         setDeployedResource(updated.resource);
+        setLastDeploymentPayload(payload);
+        setLastCustomer(customer);
 
         if (crmType === 'app' && appMode === 'new' && updated.resource?.type === 'app') {
           setDeployingApp(updated.resource);
           setIsDeploying(true);
+          setDeploymentFailed(false);
           setLogs(['App created. Triggering initial deployment...']);
           toast.success(isEdit ? 'Customer updated and app deployed!' : 'Customer created and app deployed!');
         } else {
           toast.success(isEdit ? 'Customer updated and resource deployed!' : 'Customer created and resource deployed!');
           setDone(true);
+          setDeploymentFailed(false);
         }
       } else {
         toast.success(isEdit ? 'Customer updated successfully!' : 'Customer created successfully!');
@@ -237,6 +256,33 @@ export default function CrmNewCustomerPage() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || `Failed to ${isEdit ? 'update' : 'create'} customer`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRedeploy = async () => {
+    if (!lastCustomer || !lastDeploymentPayload) return;
+    setSubmitting(true);
+    setDeploymentFailed(false);
+    setDone(false);
+    try {
+      const { data: updated } = await api.post(`/customers/${lastCustomer.id}/deploy`, lastDeploymentPayload);
+      setDeployedResource(updated.resource);
+      
+      if (crmType === 'app' && appMode === 'new' && updated.resource?.type === 'app') {
+        setDeployingApp(updated.resource);
+        setIsDeploying(true);
+        setLogs(['Redeploying app...']);
+        toast.success('Redeploy triggered!');
+      } else {
+        toast.success('Resource redeployed!');
+        setDone(true);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to redeploy resource');
+      setDone(true);
+      setDeploymentFailed(true);
     } finally {
       setSubmitting(false);
     }
@@ -930,19 +976,32 @@ export default function CrmNewCustomerPage() {
         <div className="pt-2 space-y-2">
           {done && !isDeploying ? (
             <>
-              {deployedResource && (
+              {deploymentFailed ? (
                 <button
                   type="button"
-                  onClick={() => navigate(deployedResource.type === 'app' 
-                    ? `/apps/${deployedResource.id}` 
-                    : `/crm/load-balancer-app-detail/${deployedResource.id}`
-                  )}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-[0px] transition-all shadow-sm relative overflow-hidden group"
+                  onClick={handleRedeploy}
+                  disabled={submitting}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-orange-500 text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-orange-500/20 active:translate-y-[0px] transition-all shadow-sm relative overflow-hidden group"
                 >
                   <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
-                  <ExternalLink className="h-5 w-5" /> 
-                  Manage {deployedResource.type === 'app' ? 'App' : 'Load Balancer'}
+                  <RefreshCw className={`h-5 w-5 ${submitting ? 'animate-spin' : ''}`} /> 
+                  Redeploy Resource
                 </button>
+              ) : (
+                deployedResource && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(deployedResource.type === 'app' 
+                      ? `/apps/${deployedResource.id}` 
+                      : `/crm/load-balancer-app-detail/${deployedResource.id}`
+                    )}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-[0px] transition-all shadow-sm relative overflow-hidden group"
+                  >
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-black/10 transition-all group-hover:h-2" />
+                    <ExternalLink className="h-5 w-5" /> 
+                    Manage {deployedResource.type === 'app' ? 'App' : 'Load Balancer'}
+                  </button>
+                )
               )}
               <button
                 type="button"

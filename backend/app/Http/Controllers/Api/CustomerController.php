@@ -376,10 +376,16 @@ class CustomerController extends Controller
 
         $dbInfo = [];
 
+        $app = null;
         if (!empty($validated['app_id'])) {
             // Link existing app
             $app = AppModel::findOrFail($validated['app_id']);
-        } else {
+        } elseif ($customer->resource_type === 'app' && $customer->resource_id) {
+            // Reuse already created resource for this customer (recovery/redeploy)
+            $app = AppModel::find($customer->resource_id);
+        }
+
+        if (!$app) {
             // Create new app — name derived from customer name
             $baseName = Str::slug($customer->business_name ?: $customer->name);
             $appName  = $baseName;
@@ -407,69 +413,72 @@ class CustomerController extends Controller
                 'ssl_enabled'      => true,
                 'force_https'      => true,
             ]);
+        } else {
+            // Update existing app with new parameters if provided
+            $app->update(array_filter([
+                'type'             => $validated['type'] ?? null,
+                'domain'           => $validated['domain'] ?? null,
+                'git_url'          => $validated['git_url'] ?? null,
+                'branch'           => $validated['branch'] ?? null,
+                'github_full_name' => $validated['github_full_name'] ?? null,
+                'github_id'        => $validated['github_id'] ?? null,
+                'auto_deploy'      => $validated['auto_deploy'] ?? null,
+            ]));
+        }
 
-            // Parse bulk env vars
-            if (!empty($validated['env_vars'])) {
-                foreach (explode("\n", $validated['env_vars']) as $line) {
-                    if (trim($line) && str_contains($line, '=')) {
-                        [$key, $value] = explode('=', $line, 2);
-                        $app->envVariables()->create(['key' => trim($key), 'value' => trim($value)]);
-                    }
+        // Parse bulk env vars
+        if (!empty($validated['env_vars'])) {
+            foreach (explode("\n", $validated['env_vars']) as $line) {
+                if (trim($line) && str_contains($line, '=')) {
+                    [$key, $value] = explode('=', $line, 2);
+                    $app->envVariables()->updateOrCreate(['key' => trim($key)], ['value' => trim($value)]);
                 }
             }
+        }
 
-            // Auto DB for Laravel
-            if ($app->type === 'laravel' && !empty($validated['auto_db_create'])) {
-                try {
-                    $db = $this->dbService->createForApp($app);
-                    $envs = [
-                        'DB_CONNECTION' => 'pgsql',
-                        'DB_HOST' => '127.0.0.1',
-                        'DB_PORT' => '5432',
-                        'DB_DATABASE'   => $db->db_name,
-                        'DB_USERNAME' => $db->db_user,
-                        'DB_PASSWORD' => $db->db_password,
-                    ];
-                    foreach ($envs as $k => $v) {
-                        $app->envVariables()->updateOrCreate(['key' => $k], ['value' => $v]);
-                    }
-                    $dbInfo = [
-                        'db_name' => $db->db_name,
-                        'db_user' => $db->db_user,
-                        'db_password' => $db->db_password,
-                    ];
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error("CRM Auto DB failed for app {$app->id}: " . $e->getMessage());
+        // Auto DB for Laravel
+        if ($app->type === 'laravel' && !empty($validated['auto_db_create'])) {
+            try {
+                $db = $this->dbService->createForApp($app);
+                $envs = [
+                    'DB_CONNECTION' => 'pgsql',
+                    'DB_HOST' => '127.0.0.1',
+                    'DB_PORT' => '5432',
+                    'DB_DATABASE'   => $db->db_name,
+                    'DB_USERNAME' => $db->db_user,
+                    'DB_PASSWORD' => $db->db_password,
+                ];
+                foreach ($envs as $k => $v) {
+                    $app->envVariables()->updateOrCreate(['key' => $k], ['value' => $v]);
                 }
+                $dbInfo = [
+                    'db_name' => $db->db_name,
+                    'db_user' => $db->db_user,
+                    'db_password' => $db->db_password,
+                ];
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("CRM Auto DB failed for app {$app->id}: " . $e->getMessage());
             }
+        }
 
-            // GitHub webhook
-            if ($app->webhook_secret && $app->github_full_name) {
-                $token = Setting::get('github_access_token');
-                if ($token) {
-                    $this->github->createWebhook($token, $app->github_full_name, $app->webhook_secret);
-                }
+        // GitHub webhook
+        if ($app->webhook_secret && $app->github_full_name) {
+            $token = Setting::get('github_access_token');
+            if ($token) {
+                $this->github->createWebhook($token, $app->github_full_name, $app->webhook_secret);
             }
+        }
 
-            // Auto create DNS
-            if ($app->domain) {
-                $this->dnsService->createManagedDomain($app->domain, $app->id);
+        // Auto create DNS
+        if ($app->domain) {
+            $this->dnsService->createManagedDomain($app->domain, $app->id);
+        }
 
-                // [REQUIRED] Write initial Nginx config immediately to replace placeholders
-                // try {
-                //     $this->nginxService->generate($app);
-                // } catch (\Exception $e) {
-                //     \Illuminate\Support\Facades\Log::warning("Initial Nginx gen failed for {$app->domain}: " . $e->getMessage());
-                // }
-            }
-
-
-            // Trigger deployment
-            if ($app->git_url) {
-                $app->update(['status' => 'deploying']);
-                $deployment = $this->deploymentService->createDeploymentRecord($app);
-                DeployApp::dispatch($app, $deployment);
-            }
+        // Trigger deployment
+        if ($app->git_url) {
+            $app->update(['status' => 'deploying']);
+            $deployment = $this->deploymentService->createDeploymentRecord($app);
+            DeployApp::dispatch($app, $deployment);
         }
 
         $customer->update([
