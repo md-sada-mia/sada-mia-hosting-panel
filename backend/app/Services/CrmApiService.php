@@ -10,9 +10,14 @@ use Illuminate\Support\Facades\Log;
 
 class CrmApiService
 {
-    public function execute(Customer $customer)
+    public function execute(Customer $customer, ?callable $logger = null)
     {
+        $log = function (string $line) use ($logger) {
+            if ($logger) $logger($line);
+        };
+
         if (!Setting::get('crm_api_enabled')) {
+            $log("CRM API is disabled in settings.");
             return;
         }
 
@@ -21,6 +26,7 @@ class CrmApiService
         $payloadTemplate = Setting::get('crm_api_payload_template', '');
 
         if (empty($url)) {
+            $log("[ERROR] CRM API URL is not configured.");
             return;
         }
 
@@ -36,12 +42,14 @@ class CrmApiService
                 $tokenKey = Setting::get('crm_api_auth_token_key', 'access_token');
 
                 if ($authUrl) {
+                    $log("Authenticating with CRM API at {$authUrl}...");
                     $payload = $this->replaceVariables($authPayloadTemplate, $customer);
                     $authPayloadArr = json_decode($payload, true) ?: [];
 
                     $authResponse = Http::post($authUrl, $authPayloadArr);
 
                     if ($authResponse->successful()) {
+                        $log("Authentication successful.");
                         // Log the successful auth attempt
                         CrmApiLog::create([
                             'customer_id' => $customer->id,
@@ -58,6 +66,8 @@ class CrmApiService
                             $headers['Authorization'] = $tokenType . ' ' . $token;
                         }
                     } else {
+                        $log("[ERROR] CRM API Auth failed (Status: {$authResponse->status()})");
+                        $log("Response: " . substr($authResponse->body(), 0, 500));
                         Log::error("CRM API Auth failed for customer {$customer->id}: " . $authResponse->body());
 
                         // Log the failed auth attempt
@@ -78,10 +88,17 @@ class CrmApiService
             $payload = $this->replaceVariables($payloadTemplate, $customer);
             $payloadArr = json_decode($payload, true) ?: [];
 
+            $log("Sending request to CRM API...");
+            $log("URL: [{$method}] {$url}");
+            $log("Payload: " . json_encode($payloadArr, JSON_PRETTY_PRINT));
+
             // 3. Execute Main API Call
             $response = Http::withHeaders($headers)->send($method, $url, [
                 'json' => $payloadArr
             ]);
+
+            $log("CRM API Response (Status: {$response->status()}):");
+            $log($response->body());
 
             // 4. Log the result
             CrmApiLog::create([
@@ -93,6 +110,7 @@ class CrmApiService
                 'status_code' => $response->status(),
             ]);
         } catch (\Exception $e) {
+            $log("[ERROR] CRM API Call failed: " . $e->getMessage());
             Log::error("CRM API Call failed for customer {$customer->id}: " . $e->getMessage());
 
             CrmApiLog::create([

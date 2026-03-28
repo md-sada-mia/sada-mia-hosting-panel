@@ -71,7 +71,7 @@ class DeploymentService
 
             // 4. CRM API
             $log("[4/4] Synchronizing with CRM API...");
-            $this->crmApiService->execute($customer);
+            $this->crmApiService->execute($customer, $log);
 
             $deployment->update(['status' => 'success', 'finished_at' => now()]);
             $customer->update(['status' => 'active', 'resource_type' => 'load_balancer', 'resource_id' => $lb->id]);
@@ -89,6 +89,16 @@ class DeploymentService
             $this->executeDeployment($app, $deployment);
             $deployment->update(['status' => 'success', 'finished_at' => now()]);
             $app->update(['status' => 'running']);
+
+            // Optional: Synchronization with CRM API if it's a CRM customer app
+            $customer = Customer::where('resource_type', 'app')->where('resource_id', $app->id)->first();
+            if ($customer) {
+                $crmLog = function (string $line) use ($deployment) {
+                    $deployment->appendLog($line);
+                };
+                $crmLog("\nSynchronizing with CRM API...");
+                $this->crmApiService->execute($customer, $crmLog);
+            }
         } catch (\Throwable $e) {
             $deployment->appendLog("\n[ERROR] " . $e->getMessage());
             $deployment->update(['status' => 'failed', 'finished_at' => now()]);

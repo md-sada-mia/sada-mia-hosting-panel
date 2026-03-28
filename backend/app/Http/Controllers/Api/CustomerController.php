@@ -489,8 +489,6 @@ class CustomerController extends Controller
             'status'           => 'deploying',
         ], $dbInfo));
 
-        // Trigger CRM API Call
-        $this->crmApiService->execute($customer);
 
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
