@@ -132,29 +132,47 @@ export default function CrmNewCustomerPage() {
   const pollDeployLogs = async () => {
     const poll = async () => {
       try {
-        const { data } = await api.get(`/customers/${id || lastCustomer?.id}`);
-        const resource = data.resource;
-        const deployment = resource?.deployment_info;
-
-        if (deployment?.log_output) {
-          const rawLogs = stripAnsi(deployment.log_output);
-          setLogs(rawLogs.split('\n'));
-          if (rawLogs.includes('[ERROR]')) {
-            setDeploymentFailed(true);
+        if (deployingApp?.type === 'app') {
+          // APP-specific polling (Native App logs)
+          const { data } = await api.get(`/apps/${deployingApp.id}`);
+          if (data.latest_deployment?.log_output) {
+            const rawLogs = stripAnsi(data.latest_deployment.log_output);
+            setLogs(rawLogs.split('\n'));
+            if (rawLogs.includes('[ERROR]')) setDeploymentFailed(true);
           }
-        }
+          if (data.status === 'failed' || data.status === 'error' || data.latest_deployment?.status === 'failed' || deploymentFailed) {
+            setIsDeploying(false);
+            setDone(true);
+            setDeploymentFailed(true);
+            if (!deploymentFailed) toast.error('Deployment failed.');
+          } else if (data.status !== 'deploying' && data.latest_deployment?.status !== 'running') {
+            setIsDeploying(false);
+            setDone(true);
+            setDeploymentFailed(false);
+          }
+        } else {
+          // LB-specific polling (Customer metadata logs)
+          const { data } = await api.get(`/customers/${id || lastCustomer?.id}`);
+          const resource = data.resource;
+          const deployment = resource?.deployment_info;
 
-        const status = deployment?.status || resource?.status;
+          if (deployment?.log_output) {
+            const rawLogs = stripAnsi(deployment.log_output);
+            setLogs(rawLogs.split('\n'));
+            if (rawLogs.includes('[ERROR]')) setDeploymentFailed(true);
+          }
 
-        if (status === 'failed' || status === 'error' || deploymentFailed) {
-          setIsDeploying(false);
-          setDone(true);
-          setDeploymentFailed(true);
-          if (!deploymentFailed) toast.error('Deployment failed. You can try redeploying.');
-        } else if (status === 'success' || (status !== 'deploying' && status !== 'pending')) {
-          setIsDeploying(false);
-          setDone(true);
-          setDeploymentFailed(false);
+          const status = deployment?.status || resource?.status;
+          if (status === 'failed' || status === 'error' || deploymentFailed) {
+            setIsDeploying(false);
+            setDone(true);
+            setDeploymentFailed(true);
+            if (!deploymentFailed) toast.error('Deployment failed.');
+          } else if (status === 'success' || (status !== 'deploying' && status !== 'pending')) {
+            setIsDeploying(false);
+            setDone(true);
+            setDeploymentFailed(false);
+          }
         }
       } catch (error) {
         console.error('Polling error:', error);
