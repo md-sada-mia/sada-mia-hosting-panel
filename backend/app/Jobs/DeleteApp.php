@@ -132,10 +132,10 @@ class DeleteApp implements ShouldQueue
                 }
 
                 if (!empty($deployPath)) {
-                    $shell = app(ShellService::class);
-                    $result = $shell->run("sudo rm -rf " . escapeshellarg($deployPath));
-                    if ($result['exit_code'] !== 0) {
-                        Log::warning("Filesystem cleanup failed for app {$app->id}: " . $result['output']);
+                    $fileManager = app(\App\Services\FileManagerService::class);
+                    $success = $fileManager->delete($deployPath);
+                    if (!$success) {
+                        Log::warning("Filesystem cleanup failed for app {$app->id} at path: {$deployPath}");
                     } else {
                         Log::info("Filesystem cleanup successful for path: {$deployPath}");
                     }
