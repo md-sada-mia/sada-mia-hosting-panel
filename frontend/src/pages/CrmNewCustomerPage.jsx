@@ -79,9 +79,9 @@ export default function CrmNewCustomerPage() {
 
   useEffect(() => {
     let interval;
-    if (deployingApp && isDeploying) interval = setInterval(pollDeployLogs, 3000);
+    if (isDeploying) interval = setInterval(pollDeployLogs, 3000);
     return () => clearInterval(interval);
-  }, [deployingApp, isDeploying]);
+  }, [isDeploying]);
 
   useEffect(() => {
     if (logEndRef.current) logEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -130,29 +130,37 @@ export default function CrmNewCustomerPage() {
   };
 
   const pollDeployLogs = async () => {
-    if (!deployingApp) return;
-    try {
-      const { data } = await api.get(`/apps/${deployingApp.id}`);
-      if (data.latest_deployment?.log_output) {
-        const rawLogs = stripAnsi(data.latest_deployment.log_output);
-        setLogs(rawLogs.split('\n'));
-        if (rawLogs.includes('[ERROR]')) {
-          setDeploymentFailed(true);
-        }
-      }
+    const poll = async () => {
+      try {
+        const { data } = await api.get(`/customers/${id || lastCustomer?.id}`);
+        const resource = data.resource;
+        const deployment = resource?.deployment_info;
 
-      if (data.status === 'failed' || data.status === 'error' || data.latest_deployment?.status === 'failed' || deploymentFailed) {
-        setIsDeploying(false);
-        setDone(true);
-        setDeploymentFailed(true);
-        // Only show toast once if not already failed
-        if (!deploymentFailed) toast.error('Deployment failed. You can try redeploying.');
-      } else if (data.status !== 'deploying') {
-        setIsDeploying(false);
-        setDone(true);
-        setDeploymentFailed(false);
+        if (deployment?.log_output) {
+          const rawLogs = stripAnsi(deployment.log_output);
+          setLogs(rawLogs.split('\n'));
+          if (rawLogs.includes('[ERROR]')) {
+            setDeploymentFailed(true);
+          }
+        }
+
+        const status = deployment?.status || resource?.status;
+
+        if (status === 'failed' || status === 'error' || deploymentFailed) {
+          setIsDeploying(false);
+          setDone(true);
+          setDeploymentFailed(true);
+          if (!deploymentFailed) toast.error('Deployment failed. You can try redeploying.');
+        } else if (status === 'success' || (status !== 'deploying' && status !== 'pending')) {
+          setIsDeploying(false);
+          setDone(true);
+          setDeploymentFailed(false);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
       }
-    } catch { /* silent */ }
+    };
+    poll();
   };
 
   const updateDomain = async () => {
@@ -239,16 +247,16 @@ export default function CrmNewCustomerPage() {
         setLastDeploymentPayload(payload);
         setLastCustomer(customer);
 
-        if (crmType === 'app' && appMode === 'new' && updated.resource?.type === 'app') {
+        // Handle async deployment (both App and LB now support this)
+        if (appMode === 'new' && updated.latest_deployment) {
           setDeployingApp(updated.resource);
           setIsDeploying(true);
           setDeploymentFailed(false);
-          setLogs(['App created. Triggering initial deployment...']);
-          toast.success(isEdit ? 'Customer updated and app deployed!' : 'Customer created and app deployed!');
-        } else {
+          setLogs(['Resource created. Triggering initial deployment...']);
           toast.success(isEdit ? 'Customer updated and resource deployed!' : 'Customer created and resource deployed!');
+        } else {
+          toast.success(isEdit ? 'Customer updated!' : 'Customer created!');
           setDone(true);
-          setDeploymentFailed(false);
         }
       } else {
         toast.success(isEdit ? 'Customer updated successfully!' : 'Customer created successfully!');
@@ -270,10 +278,10 @@ export default function CrmNewCustomerPage() {
       const { data: updated } = await api.post(`/customers/${lastCustomer.id}/deploy`, lastDeploymentPayload);
       setDeployedResource(updated.resource);
       
-      if (crmType === 'app' && appMode === 'new' && updated.resource?.type === 'app') {
+      if (appMode === 'new' && updated.latest_deployment) {
         setDeployingApp(updated.resource);
         setIsDeploying(true);
-        setLogs(['Redeploying app...']);
+        setLogs(['Redeploying resource...']);
         toast.success('Redeploy triggered!');
       } else {
         toast.success('Resource redeployed!');
@@ -993,7 +1001,7 @@ export default function CrmNewCustomerPage() {
                     type="button"
                     onClick={() => navigate(deployedResource.type === 'app' 
                       ? `/apps/${deployedResource.id}` 
-                      : `/crm/load-balancer-app-detail/${deployedResource.id}`
+                      : `/crm/load-balancer-app-detail/${id || lastCustomer?.id}`
                     )}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/20 active:translate-y-[0px] transition-all shadow-sm relative overflow-hidden group"
                   >

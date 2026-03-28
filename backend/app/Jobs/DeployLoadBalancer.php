@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\App;
-use App\Models\Deployment;
+use App\Models\Customer;
+use App\Models\CustomerDeployment;
 use App\Services\DeploymentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,31 +12,30 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class DeployApp implements ShouldQueue
+class DeployLoadBalancer implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 600; // 10 minutes
+    public $timeout = 600;
 
     public function __construct(
-        protected App $app,
-        protected Deployment $deployment
+        protected Customer $customer,
+        protected CustomerDeployment $deployment
     ) {}
 
     public function handle(DeploymentService $deploymentService): void
     {
         try {
-            $deploymentService->runDeployment($this->app, $this->deployment);
+            $deploymentService->runLoadBalancerDeployment($this->customer, $this->deployment);
         } catch (\Throwable $e) {
-            Log::error('Background Deployment Failed', [
-                'app_id' => $this->app->id,
+            Log::error('Background LB Deployment Failed', [
+                'customer_id' => $this->customer->id,
                 'deployment_id' => $this->deployment->id,
                 'error' => $e->getMessage()
             ]);
 
             $this->deployment->update(['status' => 'failed', 'finished_at' => now()]);
             $this->deployment->appendLog("\n[ERROR] " . $e->getMessage());
-            $this->app->update(['status' => 'error']);
 
             $this->fail($e);
         }

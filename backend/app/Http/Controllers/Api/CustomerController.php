@@ -312,25 +312,6 @@ class CustomerController extends Controller
                 $this->sslService->setupSsl($lbDomain);
             }
         } else {
-            // Create new load balancer
-            $lbName = $validated['lb_name'] ?? Str::slug($customer->business_name ?: $customer->name) . '-lb';
-            $lb = LoadBalancer::create([
-                'name'   => $lbName,
-                'method' => $validated['lb_method'] ?? 'round_robin',
-                'status' => 'pending',
-            ]);
-            $lbDomain = $lb->domains()->create([
-                'domain' => $validated['domain'],
-                'ssl_enabled' => true,
-                'force_https' => true,
-            ]);
-            $lb->load(['apps', 'domains']);
-            $this->nginxService->generateLoadBalancer($lb);
-
-            // Attempt SSL setup immediately for Load Balancer domains
-            $this->sslService->setupSsl($lbDomain);
-
-            $lb->update(['status' => 'active']);
         }
 
         $customer->update([
@@ -340,19 +321,21 @@ class CustomerController extends Controller
         ]);
 
         // Save historical deployment record
-        CustomerDeployment::create([
+        $deployment = CustomerDeployment::create([
             'customer_id'      => $customer->id,
             'resource_type'    => 'load_balancer',
             'load_balancer_id' => $lb->id,
             'domain_mode'      => $validated['domain_mode'] ?? null,
             'domain'           => $validated['domain'],
+            'status'           => 'deploying',
         ]);
 
-        // Trigger CRM API Call
-        $this->crmApiService->execute($customer);
+        // Dispatch background job for LB deployment
+        \App\Jobs\DeployLoadBalancer::dispatch($customer, $deployment);
 
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
+        $data['latest_deployment'] = $deployment;
 
         return response()->json($data);
     }
@@ -488,7 +471,7 @@ class CustomerController extends Controller
         ]);
 
         // Save historical deployment record
-        CustomerDeployment::create(array_merge([
+        $deploymentRecord = CustomerDeployment::create(array_merge([
             'customer_id'      => $customer->id,
             'resource_type'    => 'app',
             'app_id'           => $app->id,
@@ -503,6 +486,7 @@ class CustomerController extends Controller
             'auto_deploy'      => $validated['auto_deploy'] ?? false,
             'env_vars'         => $validated['env_vars'] ?? null,
             'auto_db_create'   => $validated['auto_db_create'] ?? false,
+            'status'           => 'deploying',
         ], $dbInfo));
 
         // Trigger CRM API Call
@@ -510,6 +494,7 @@ class CustomerController extends Controller
 
         $data = $customer->fresh()->toArray();
         $data['resource'] = $this->resolveResource($customer->fresh());
+        $data['latest_deployment'] = $deploymentRecord;
 
         return response()->json($data);
     }
@@ -538,7 +523,7 @@ class CustomerController extends Controller
                 'name' => $app->name,
                 'domain' => $app->domain,
                 'status' => $app->status,
-                'deployment_info' => $customer->deployment,
+                'deployment_info' => $customer->deployment()->orderByDesc('created_at')->first(),
                 'api_status' => $apiStatus
             ];
         }
@@ -562,7 +547,7 @@ class CustomerController extends Controller
                 'name' => $lb->name,
                 'domains' => $lb->domains,
                 'status' => $lb->status,
-                'deployment_info' => $customer->deployment,
+                'deployment_info' => $customer->deployment()->orderByDesc('created_at')->first(),
                 'api_status' => $apiStatus
             ];
         }

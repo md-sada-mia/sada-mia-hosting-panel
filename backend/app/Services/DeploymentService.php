@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\App;
 use App\Models\Deployment;
+use App\Models\Customer;
+use App\Models\CustomerDeployment;
+use App\Models\LoadBalancer;
 
 class DeploymentService
 {
@@ -15,6 +18,7 @@ class DeploymentService
         private DnsService $dnsService,
         private SslService $sslService,
         private BackgroundServiceManager $bgServiceManager,
+        private CrmApiService $crmApiService,
     ) {}
 
     public function createDeploymentRecord(App $app): Deployment
@@ -24,6 +28,59 @@ class DeploymentService
             'status'     => 'running',
             'started_at' => now(),
         ]);
+    }
+
+    public function runLoadBalancerDeployment(Customer $customer, CustomerDeployment $deployment): void
+    {
+        $log = function (string $line) use ($deployment) {
+            $deployment->appendLog($line);
+        };
+
+        try {
+            $deployment->update(['status' => 'deploying', 'started_at' => now()]);
+
+            // 1. DNS
+            $log("[1/4] Creating DNS records for {$deployment->domain}...");
+            $this->dnsService->createManagedDomain($deployment->domain);
+
+            // 2. Load Balancer Link/Create
+            $lb = LoadBalancer::findOrFail($deployment->load_balancer_id);
+            $log("[2/4] Configuring Load Balancer: {$lb->name}...");
+
+            $lbDomain = $lb->domains()->where('domain', $deployment->domain)->first();
+            if (!$lbDomain) {
+                $lbDomain = $lb->domains()->create([
+                    'domain' => $deployment->domain,
+                    'ssl_enabled' => true,
+                    'force_https' => true,
+                ]);
+            }
+
+            $lb->load(['apps', 'domains']);
+            $this->nginxService->generateLoadBalancer($lb);
+
+            // 3. SSL
+            $log("[3/4] Provisioning SSL certificate...");
+            try {
+                $this->sslService->setupSsl($lbDomain);
+                $log("SSL setup successful.");
+            } catch (\Exception $e) {
+                $log("[WARN] SSL setup failed: " . $e->getMessage());
+                // Don't fail the whole deployment for SSL, user can retry SSL later
+            }
+
+            // 4. CRM API
+            $log("[4/4] Synchronizing with CRM API...");
+            $this->crmApiService->execute($customer);
+
+            $deployment->update(['status' => 'success', 'finished_at' => now()]);
+            $customer->update(['status' => 'active', 'resource_type' => 'load_balancer', 'resource_id' => $lb->id]);
+            $log("✅ Load Balancer deployment complete!");
+        } catch (\Throwable $e) {
+            $log("\n[ERROR] " . $e->getMessage());
+            $deployment->update(['status' => 'failed', 'finished_at' => now()]);
+            throw $e;
+        }
     }
 
     public function runDeployment(App $app, Deployment $deployment): void

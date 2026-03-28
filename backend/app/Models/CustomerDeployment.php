@@ -27,13 +27,24 @@ class CustomerDeployment extends Model
         'db_user',
         'db_password',
         'status',
+        'log_output',
+        'started_at',
+        'finished_at',
     ];
 
     protected $casts = [
         'existing_app' => 'boolean',
         'auto_deploy' => 'boolean',
         'auto_db_create' => 'boolean',
+        'started_at' => 'datetime',
+        'finished_at' => 'datetime',
     ];
+
+    public function appendLog($line)
+    {
+        $this->log_output = ($this->log_output ?? '') . $line . "\n";
+        $this->save();
+    }
 
     public function customer()
     {
