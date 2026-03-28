@@ -267,7 +267,7 @@ export default function ManagePlansPage() {
                       <SelectContent>
                         <SelectItem value="monthly">Monthly</SelectItem>
                         <SelectItem value="yearly">Yearly</SelectItem>
-                        <SelectItem value="lifetime">Lifetime (One-time)</SelectItem>
+                        <SelectItem value="one_time">Lifetime (One-time)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

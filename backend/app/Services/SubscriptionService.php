@@ -181,7 +181,7 @@ class SubscriptionService
                 $ends = match ($plan->billing_cycle) {
                     'monthly'  => $starts->copy()->addMonth(),
                     'yearly'   => $starts->copy()->addYear(),
-                    'lifetime' => null,
+                    'one_time' => null,
                     default    => $starts->copy()->addMonth(),
                 };
             }
