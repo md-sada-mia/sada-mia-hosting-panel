@@ -138,8 +138,8 @@ class TerminalController extends Controller
         $process = proc_open($commandStr . ' 2>&1', $descriptorspec, $pipes, $cwd, $env);
 
         if (is_resource($process)) {
-            // Set a timeout of 30 seconds
-            $timeout = 30;
+            // Use configured timeout (default to 300s)
+            $timeout = config('hosting.terminal_timeout', 300);
             $start = time();
             $output = '';
 
@@ -157,7 +157,7 @@ class TerminalController extends Controller
                 }
 
                 if ((time() - $start) > $timeout) {
-                    $output .= "\n[Execution timeout - 30s limit reached]\n";
+                    $output .= "\n[Execution timeout - {$timeout}s limit reached]\n";
                     proc_terminate($process, 9);
                     break;
                 }

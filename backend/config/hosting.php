@@ -7,4 +7,5 @@ return [
     'php_fpm_sock'     => env('PHP_FPM_SOCK', '/var/run/php/php8.4-fpm.sock'),
     'admin_email'      => env('PANEL_ADMIN_EMAIL', 'admin@panel.local'),
     'admin_password'   => env('PANEL_ADMIN_PASSWORD', 'admin'),
+    'terminal_timeout' => (int) env('TERMINAL_TIMEOUT', 300),
 ];
