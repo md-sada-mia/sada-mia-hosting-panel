@@ -275,26 +275,9 @@ export default function SettingsPage() {
     setError('');
 
     try {
-      // 1. Upload logo if a new one is selected
-      if (selectedLogoFile) {
-        const formData = new FormData();
-        formData.append('logo', selectedLogoFile);
-        
-        try {
-          const { data: logoData } = await api.post('/settings/panel-logo', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          // Update the local settings state with the new URL returned from backend
-          setGithubSettings(prev => ({ ...prev, panel_logo: logoData.url }));
-        } catch (logoErr) {
-          throw new Error(logoErr.response?.data?.message || 'Failed to upload logo');
-        }
-      }
-
-      // 2. Save other system settings
+      // Save system settings
       const { data } = await api.post('/settings', {
         panel_url: githubSettings.panel_url,
-        panel_name: githubSettings.panel_name,
         server_ip: githubSettings.server_ip,
         panel_force_https: githubSettings.panel_force_https,
         subscription_enabled: githubSettings.subscription_enabled,
@@ -322,7 +305,6 @@ export default function SettingsPage() {
       setGithubSettings(prev => ({
         ...prev,
         panel_url: githubSettings.panel_url,
-        panel_name: githubSettings.panel_name,
         server_ip: githubSettings.server_ip,
         panel_force_https: githubSettings.panel_force_https,
         subscription_enabled: githubSettings.subscription_enabled,
@@ -330,7 +312,6 @@ export default function SettingsPage() {
       setInitialGithubSettings(prev => ({ 
         ...prev, 
         panel_url: githubSettings.panel_url,
-        panel_name: githubSettings.panel_name,
         server_ip: githubSettings.server_ip,
         panel_force_https: githubSettings.panel_force_https,
         subscription_enabled: githubSettings.subscription_enabled,
@@ -341,13 +322,6 @@ export default function SettingsPage() {
       
       // Perform a fresh fetch to ensure everything is perfectly in sync (handles backend mutations like appending ports)
       fetchSettings();
-
-      // If we uploaded a logo, we also refresh the global branding context
-      if (selectedLogoFile) {
-        setSelectedLogoFile(null);
-        setLogoPreviewUrl(null);
-        refreshBranding();
-      }
     } catch (err) {
       const errorMsg = err.response?.data?.errors 
         ? Object.values(err.response?.data?.errors).flat().join(', ')
@@ -373,6 +347,65 @@ export default function SettingsPage() {
       toast.success('Support contact settings saved!');
     } catch (err) {
       toast.error('Failed to save support settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleSaveBrandingTab = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    setError('');
+
+    try {
+      // 1. Upload logo if a new one is selected
+      if (selectedLogoFile) {
+        const formData = new FormData();
+        formData.append('logo', selectedLogoFile);
+        
+        try {
+          const { data: logoData } = await api.post('/settings/panel-logo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          setGithubSettings(prev => ({ ...prev, panel_logo: logoData.url }));
+        } catch (logoErr) {
+          throw new Error(logoErr.response?.data?.message || 'Failed to upload logo');
+        }
+      }
+
+      // 2. Save panel name
+      await api.post('/settings', {
+        panel_name: githubSettings.panel_name,
+      });
+
+      // Update the local state
+      setGithubSettings(prev => ({
+        ...prev,
+        panel_name: githubSettings.panel_name,
+      }));
+      setInitialGithubSettings(prev => ({ 
+        ...prev, 
+        panel_name: githubSettings.panel_name,
+      }));
+
+      toast.success('Branding settings saved successfully');
+      setMessage('Branding settings saved successfully.');
+      
+      fetchSettings();
+
+      if (selectedLogoFile) {
+        setSelectedLogoFile(null);
+        setLogoPreviewUrl(null);
+        refreshBranding();
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response?.data?.errors).flat().join(', ')
+        : (err.message || 'Failed to save branding settings');
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -449,8 +482,15 @@ export default function SettingsPage() {
               System Settings
             </TabsTrigger>
             <TabsTrigger 
+              value="branding" 
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
+            >
+              <Palette className="w-4 h-4 mr-2" />
+              Panel Branding
+            </TabsTrigger>
+            <TabsTrigger 
               value="support" 
-              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none text-primary"
+              className="justify-start px-4 py-2 hover:bg-muted data-[state=active]:bg-muted data-[state=active]:shadow-none"
             >
               <HelpCircle className="w-4 h-4 mr-2" />
               Support / Contact
@@ -1185,64 +1225,10 @@ export default function SettingsPage() {
             <Card>
               <form onSubmit={handleSaveSystemTab}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5 text-primary" />
-                    System Configuration
-                  </CardTitle>
-                  <CardDescription>
-                    Configure core panel settings and external access URLs.
-                  </CardDescription>
+                  <CardTitle>System Settings</CardTitle>
+                  <CardDescription>Configure core panel infrastructure and behavior.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-
-                  <div className="grid gap-8 md:grid-cols-2 pb-6 border-b">
-                    <div className="grid gap-3">
-                      <label className="text-sm font-semibold flex items-center gap-2">
-                        <Palette className="h-4 w-4 text-primary" />
-                        Panel Name
-                      </label>
-                      <div className="space-y-2">
-                        <Input 
-                          name="panel_name" 
-                          value={githubSettings.panel_name || ''} 
-                          onChange={handleGithubChange} 
-                          placeholder="e.g. Sada Mia Panel" 
-                        />
-                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
-                          Displayed at the top of the sidebar and on the login page.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid gap-3">
-                      <label className="text-sm font-semibold flex items-center gap-2">
-                        <UploadCloud className="h-4 w-4 text-primary" />
-                        Panel Logo
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-md border flex items-center justify-center bg-muted overflow-hidden flex-shrink-0">
-                          {logoPreviewUrl ? (
-                            <img src={logoPreviewUrl} alt="Logo Preview" className="w-full h-full object-contain p-1" />
-                          ) : githubSettings.panel_logo ? (
-                            <img src={githubSettings.panel_logo} alt="Logo" className="w-full h-full object-contain p-1" />
-                          ) : (
-                            <Palette className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="space-y-1.5 flex-1">
-                          <Input 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={handleLogoUpload}
-                            disabled={loading}
-                            className="text-xs file:h-8 file:px-2"
-                          />
-                          <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                            {loading && selectedLogoFile ? <span className="flex items-center gap-1 text-primary"><Loader2 className="h-3 w-3 animate-spin"/> Uploading...</span> : 'Best size: 200x50px. Saves when you click Save System Settings.'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                   
                   <div className="grid gap-3">
                     <label className="text-sm font-semibold flex items-center gap-2">
@@ -1339,6 +1325,77 @@ export default function SettingsPage() {
                 <CardFooter className="flex justify-end border-t pt-6 mt-2">
                   <Button type="submit" disabled={loading}>
                     {loading ? 'Saving...' : 'Save System Settings'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="branding" className="mt-0">
+            <Card>
+              <form onSubmit={handleSaveBrandingTab}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-primary" />
+                    Panel Branding
+                  </CardTitle>
+                  <CardDescription>
+                    Customize the appearance of your panel with a custom name and logo.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-8 md:grid-cols-2">
+                    <div className="grid gap-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Palette className="h-4 w-4 text-primary" />
+                        Panel Name
+                      </label>
+                      <div className="space-y-2">
+                        <Input 
+                          name="panel_name" 
+                          value={githubSettings.panel_name || ''} 
+                          onChange={handleGithubChange} 
+                          placeholder="e.g. Sada Mia Panel" 
+                        />
+                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                          Displayed at the top of the sidebar and on the login page.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <UploadCloud className="h-4 w-4 text-primary" />
+                        Panel Logo
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-md border flex items-center justify-center bg-muted overflow-hidden flex-shrink-0">
+                          {logoPreviewUrl ? (
+                            <img src={logoPreviewUrl} alt="Logo Preview" className="w-full h-full object-contain p-1" />
+                          ) : githubSettings.panel_logo ? (
+                            <img src={githubSettings.panel_logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                          ) : (
+                            <Palette className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="space-y-1.5 flex-1">
+                          <Input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleLogoUpload}
+                            disabled={loading}
+                            className="text-xs file:h-8 file:px-2"
+                          />
+                          <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                            {loading && selectedLogoFile ? <span className="flex items-center gap-1 text-primary"><Loader2 className="h-3 w-3 animate-spin"/> Uploading...</span> : 'Best size: 200x50px. Saves when you click Save Branding Settings.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end border-t pt-6 mt-2">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save Branding Settings'}
                   </Button>
                 </CardFooter>
               </form>
