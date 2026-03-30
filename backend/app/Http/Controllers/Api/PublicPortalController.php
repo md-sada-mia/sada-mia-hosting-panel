@@ -49,6 +49,11 @@ class PublicPortalController extends Controller
                 ->get();
         }
 
+        $logo = Setting::get('panel_logo');
+        if ($logo && !str_starts_with($logo, 'http')) {
+            $logo = \Illuminate\Support\Facades\Storage::disk('public')->url($logo);
+        }
+
         return response()->json([
             'plans'               => $query->get(),
             'enabled_gateways'    => $this->gatewayFactory->enabledGateways(),
@@ -56,7 +61,7 @@ class PublicPortalController extends Controller
             'current'             => $currentStatus,
             'recent_transactions' => $recentTransactions,
             'portal_name'         => Setting::get('panel_name', 'Sada Mia Hosting'),
-            'portal_logo'         => Setting::get('panel_logo', null),
+            'portal_logo'         => $logo,
         ]);
     }
 
