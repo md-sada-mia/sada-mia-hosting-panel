@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, branding } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -32,7 +32,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Sada Mia Panel</CardTitle>
+          {branding?.panel_logo && (
+            <img src={branding.panel_logo} alt="Panel Logo" className="mx-auto h-12 mb-2 object-contain" />
+          )}
+          <CardTitle className="text-2xl font-bold tracking-tight">{branding?.panel_name || 'Sada Mia Panel'}</CardTitle>
           <CardDescription>Enter your admin credentials to continue</CardDescription>
         </CardHeader>
         <CardContent>

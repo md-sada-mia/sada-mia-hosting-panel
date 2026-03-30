@@ -6,6 +6,23 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [branding, setBranding] = useState({ panel_name: 'Sada Mia Panel', panel_logo: null });
+
+  const fetchBranding = async () => {
+    try {
+      const { data } = await api.get('/public/panel/branding');
+      setBranding(data);
+      if (data.panel_name) {
+        document.title = data.panel_name;
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchBranding();
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -42,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, loading, branding, refreshBranding: fetchBranding }}>
       {!loading && children}
     </AuthContext.Provider>
   );

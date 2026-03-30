@@ -175,6 +175,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index']);
     Route::post('/settings', [SettingsController::class, 'update']);
     Route::post('/settings/logo', [SettingsController::class, 'uploadLogo']);
+    Route::post('/settings/panel-logo', [SettingsController::class, 'uploadPanelLogo']);
     Route::post('/settings/setup-payment-domain', [SettingsController::class, 'setupPaymentDomain']);
 
     // CRM Customers
@@ -347,5 +348,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::post('/github/webhook', [GitHubWebhookController::class, 'handle']);
 
 Route::get('/public/portal/info', [\App\Http\Controllers\Api\PublicPortalController::class, 'info']);
+Route::get('/public/panel/branding', [\App\Http\Controllers\Api\SettingsController::class, 'branding']);
 Route::post('/public/portal/subscribe', [\App\Http\Controllers\Api\PublicPortalController::class, 'subscribe']);
 Route::get('/public/payment/result/{txId}', [\App\Http\Controllers\Api\PublicPortalController::class, 'paymentResult']);

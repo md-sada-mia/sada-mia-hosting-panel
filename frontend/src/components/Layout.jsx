@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import PanelUrlAlert from './PanelUrlAlert';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, branding } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
@@ -40,8 +40,11 @@ export default function Layout() {
 
   const sidebarContent = (
     <>
-      <div className="h-16 flex items-center px-6 border-b flex-shrink-0">
-        <span className="font-bold text-lg tracking-tight">Sada Mia Panel</span>
+      <div className="h-16 flex items-center px-6 border-b flex-shrink-0 gap-3">
+        {branding?.panel_logo && (
+          <img src={branding.panel_logo} alt="Logo" className="h-6 w-auto object-contain flex-shrink-0" />
+        )}
+        <span className="font-bold text-lg tracking-tight truncate">{branding?.panel_name || 'Sada Mia Panel'}</span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
@@ -145,7 +148,12 @@ export default function Layout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-bold text-base tracking-tight">Sada Mia Panel</span>
+          <div className="flex items-center gap-2 overflow-hidden flex-1">
+            {branding?.panel_logo && (
+              <img src={branding.panel_logo} alt="Logo" className="h-6 w-auto object-contain flex-shrink-0" />
+            )}
+            <span className="font-bold text-base tracking-tight truncate">{branding?.panel_name || 'Sada Mia Panel'}</span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">

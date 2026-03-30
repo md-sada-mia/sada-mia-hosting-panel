@@ -5,14 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy, Palette, UploadCloud, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const { user, setUser } = useAuth();
+  const { user, setUser, refreshBranding } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -60,6 +62,7 @@ export default function SettingsPage() {
     crm_default_lb_id: '',
     crm_default_deployment_domain: '',
     panel_url: '',
+    panel_name: '',
     server_ip: '',
     ns_default_domain: '',
     crm_api_enabled: false,
@@ -127,6 +130,14 @@ export default function SettingsPage() {
     } finally {
       setProfileLoading(false);
     }
+  };
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedLogoFile(file);
+    setLogoPreviewUrl(URL.createObjectURL(file));
   };
 
   const handlePasswordChange = async (e) => {
@@ -264,8 +275,26 @@ export default function SettingsPage() {
     setError('');
 
     try {
+      // 1. Upload logo if a new one is selected
+      if (selectedLogoFile) {
+        const formData = new FormData();
+        formData.append('logo', selectedLogoFile);
+        
+        try {
+          const { data: logoData } = await api.post('/settings/panel-logo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          // Update the local settings state with the new URL returned from backend
+          setGithubSettings(prev => ({ ...prev, panel_logo: logoData.url }));
+        } catch (logoErr) {
+          throw new Error(logoErr.response?.data?.message || 'Failed to upload logo');
+        }
+      }
+
+      // 2. Save other system settings
       const { data } = await api.post('/settings', {
         panel_url: githubSettings.panel_url,
+        panel_name: githubSettings.panel_name,
         server_ip: githubSettings.server_ip,
         panel_force_https: githubSettings.panel_force_https,
         subscription_enabled: githubSettings.subscription_enabled,
@@ -289,18 +318,36 @@ export default function SettingsPage() {
         }
       }
 
+      // Update the local state with what we just saved to avoid "flicker" before fetchSettings returns
       setGithubSettings(prev => ({
         ...prev,
-        panel_url: data.panel_url,
-        server_ip: data.server_ip,
-        ns_default_domain: data.ns_default_domain,
+        panel_url: githubSettings.panel_url,
+        panel_name: githubSettings.panel_name,
+        server_ip: githubSettings.server_ip,
         panel_force_https: githubSettings.panel_force_https,
         subscription_enabled: githubSettings.subscription_enabled,
       }));
-      setInitialGithubSettings(prev => ({ ...prev, ...data, panel_force_https: githubSettings.panel_force_https, subscription_enabled: githubSettings.subscription_enabled }));
+      setInitialGithubSettings(prev => ({ 
+        ...prev, 
+        panel_url: githubSettings.panel_url,
+        panel_name: githubSettings.panel_name,
+        server_ip: githubSettings.server_ip,
+        panel_force_https: githubSettings.panel_force_https,
+        subscription_enabled: githubSettings.subscription_enabled,
+      }));
+
       toast.success('System settings saved successfully');
       setMessage('System settings saved successfully.');
+      
+      // Perform a fresh fetch to ensure everything is perfectly in sync (handles backend mutations like appending ports)
       fetchSettings();
+
+      // If we uploaded a logo, we also refresh the global branding context
+      if (selectedLogoFile) {
+        setSelectedLogoFile(null);
+        setLogoPreviewUrl(null);
+        refreshBranding();
+      }
     } catch (err) {
       const errorMsg = err.response?.data?.errors 
         ? Object.values(err.response?.data?.errors).flat().join(', ')
@@ -1147,6 +1194,55 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+
+                  <div className="grid gap-8 md:grid-cols-2 pb-6 border-b">
+                    <div className="grid gap-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <Palette className="h-4 w-4 text-primary" />
+                        Panel Name
+                      </label>
+                      <div className="space-y-2">
+                        <Input 
+                          name="panel_name" 
+                          value={githubSettings.panel_name || ''} 
+                          onChange={handleGithubChange} 
+                          placeholder="e.g. Sada Mia Panel" 
+                        />
+                        <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                          Displayed at the top of the sidebar and on the login page.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3">
+                      <label className="text-sm font-semibold flex items-center gap-2">
+                        <UploadCloud className="h-4 w-4 text-primary" />
+                        Panel Logo
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-md border flex items-center justify-center bg-muted overflow-hidden flex-shrink-0">
+                          {logoPreviewUrl ? (
+                            <img src={logoPreviewUrl} alt="Logo Preview" className="w-full h-full object-contain p-1" />
+                          ) : githubSettings.panel_logo ? (
+                            <img src={githubSettings.panel_logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                          ) : (
+                            <Palette className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="space-y-1.5 flex-1">
+                          <Input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleLogoUpload}
+                            disabled={loading}
+                            className="text-xs file:h-8 file:px-2"
+                          />
+                          <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                            {loading && selectedLogoFile ? <span className="flex items-center gap-1 text-primary"><Loader2 className="h-3 w-3 animate-spin"/> Uploading...</span> : 'Best size: 200x50px. Saves when you click Save System Settings.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="grid gap-3">
                     <label className="text-sm font-semibold flex items-center gap-2">

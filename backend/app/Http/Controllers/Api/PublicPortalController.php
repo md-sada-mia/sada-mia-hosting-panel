@@ -55,7 +55,8 @@ class PublicPortalController extends Controller
             'system_enabled'      => $this->subscriptionService->isSubscriptionSystemEnabled(),
             'current'             => $currentStatus,
             'recent_transactions' => $recentTransactions,
-            'portal_name'         => Setting::get('app_name', 'Sada Mia Hosting'),
+            'portal_name'         => Setting::get('panel_name', 'Sada Mia Hosting'),
+            'portal_logo'         => Setting::get('panel_logo', null),
         ]);
     }
 

@@ -23,6 +23,8 @@ class SettingsController extends Controller
             'crm_default_lb_id' => Setting::get('crm_default_lb_id'),
             'crm_default_deployment_domain' => Setting::get('crm_default_deployment_domain'),
             'panel_url' => Setting::get('panel_url'),
+            'panel_name' => Setting::get('panel_name'),
+            'panel_logo' => Setting::get('panel_logo') ? \Illuminate\Support\Facades\Storage::disk('public')->url(Setting::get('panel_logo')) : null,
             'server_ip' => Setting::get('server_ip'),
             'ns_default_domain' => Setting::get('ns_default_domain'),
             'panel_domain_alert_dismissed' => (bool) Setting::get('panel_domain_alert_dismissed', false),
@@ -77,6 +79,42 @@ class SettingsController extends Controller
         ]);
     }
 
+    public function branding()
+    {
+        $logo = Setting::get('panel_logo');
+        if ($logo && !str_starts_with($logo, 'http')) {
+            $logo = \Illuminate\Support\Facades\Storage::disk('public')->url($logo);
+        }
+
+        return response()->json([
+            'panel_name' => Setting::get('panel_name', 'Sada Mia Panel'),
+            'panel_logo' => $logo,
+        ]);
+    }
+
+    public function uploadPanelLogo(Request $request)
+    {
+        $request->validate([
+            'logo' => 'required|image|max:2048',
+        ]);
+
+        $file = $request->file('logo');
+        $filename = 'panel_logo_' . time() . '.' . $file->getClientOriginalExtension();
+
+        $path = $file->storeAs('logos', $filename, 'public');
+
+        if (!$path) {
+            return response()->json(['message' => 'Failed to save panel logo to storage. Check folder permissions.'], 500);
+        }
+
+        // Store only the relative path (relative to the 'public' disk root)
+        Setting::set('panel_logo', 'logos/' . $filename);
+
+        $url = \Illuminate\Support\Facades\Storage::disk('public')->url('logos/' . $filename);
+
+        return response()->json(['url' => $url, 'message' => 'Panel Logo uploaded successfully.']);
+    }
+
     public function uploadLogo(Request $request)
     {
         $request->validate([
@@ -123,6 +161,7 @@ class SettingsController extends Controller
             'crm_default_lb_id' => 'nullable|integer',
             'crm_default_deployment_domain' => 'nullable|string',
             'panel_url' => 'nullable|string',
+            'panel_name' => 'nullable|string',
             'server_ip' => 'nullable|ip',
             'ns_default_domain' => 'nullable|string',
             'panel_domain_alert_dismissed' => 'nullable|boolean',
