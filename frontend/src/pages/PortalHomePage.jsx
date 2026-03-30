@@ -29,8 +29,14 @@ export default function PortalHomePage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-xl mx-auto space-y-8">
         <div className="space-y-4">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-            <Globe className="w-8 h-8 text-primary" />
+          <div className="mx-auto mb-6 flex items-center justify-center">
+            {portalInfo?.portal_logo ? (
+              <img src={portalInfo.portal_logo} alt="Logo" className="h-16 w-auto object-contain" />
+            ) : (
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Globe className="w-8 h-8 text-primary" />
+              </div>
+            )}
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight">Welcome to {portalInfo?.portal_name || 'Hosting Portal'}</h1>
           <p className="text-xl text-muted-foreground">
