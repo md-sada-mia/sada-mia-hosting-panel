@@ -159,6 +159,26 @@ Once finished, go to `http://<YOUR_SERVER_IP>:<YOUR_PORT>` in your browser.
 
 ---
 
+## 📁 Storage & Permissions
+
+To ensure logos and other uploads work correctly, especially on remote hosts, make sure the storage directories have the correct permissions:
+
+```bash
+# From the project root
+sudo chown -R www-data:www-data backend/storage backend/public/storage
+sudo chmod -R 775 backend/storage backend/public/storage
+
+# Ensure the logos directory exists and is writable
+mkdir -p backend/storage/app/public/logos
+sudo chown -R www-data:www-data backend/storage/app/public/logos
+sudo chmod -R 775 backend/storage/app/public/logos
+```
+
+> [!TIP]
+> If your logo URLs are showing an IP address instead of your domain, update the **Panel URL** in the **Settings -> System Settings** tab. This will automatically synchronize your `.env` file's `APP_URL`.
+
+---
+
 ## 🐙 GitHub Integration
 
 1. **OAuth App:** Register a new OAuth app in GitHub Settings with the callback: `http://<IP>:<PORT>/github/callback`.

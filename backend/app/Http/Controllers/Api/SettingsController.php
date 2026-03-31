@@ -234,9 +234,36 @@ class SettingsController extends Controller
 
         foreach ($validated as $key => $value) {
             Setting::set($key, $value);
+
+            // Sync specific keys to .env
+            if ($key === 'panel_url') {
+                $this->updateEnv('APP_URL', $value);
+            }
+            if ($key === 'payment_callback_base_url') {
+                $this->updateEnv('PAYMENT_CALLBACK_BASE_URL', $value);
+            }
         }
 
         return response()->json(['message' => 'Settings updated successfully']);
+    }
+
+    private function updateEnv($key, $value)
+    {
+        $path = base_path('.env');
+        if (!file_exists($path)) return;
+
+        $content = file_get_contents($path);
+
+        // Escape value for .env (wrap in quotes if contains spaces or special chars)
+        $safeValue = strpos($value, ' ') !== false || strpos($value, '$') !== false ? "\"$value\"" : $value;
+
+        if (preg_match("/^{$key}=/m", $content)) {
+            $content = preg_replace("/^{$key}=.*/m", "{$key}={$safeValue}", $content);
+        } else {
+            $content .= "\n{$key}={$safeValue}";
+        }
+
+        file_put_contents($path, $content);
     }
 
     public function setupPaymentDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell, \App\Services\NginxConfigService $nginxService)
