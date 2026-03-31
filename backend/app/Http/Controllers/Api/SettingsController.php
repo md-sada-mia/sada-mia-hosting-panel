@@ -74,9 +74,7 @@ class SettingsController extends Controller
             'support_whatsapp'               => Setting::get('support_whatsapp'),
             'support_facebook'               => Setting::get('support_facebook'),
             'support_mobile'                 => Setting::get('support_mobile'),
-
-
-
+            'portal_welcome_html'            => Setting::get('portal_welcome_html'),
         ]);
     }
 
@@ -208,6 +206,10 @@ class SettingsController extends Controller
             'support_facebook'            => 'nullable|string',
             'support_mobile'              => 'nullable|string',
         ]);
+
+        if ($request->has('portal_welcome_html')) {
+            Setting::set('portal_welcome_html', $request->input('portal_welcome_html'));
+        }
 
 
 

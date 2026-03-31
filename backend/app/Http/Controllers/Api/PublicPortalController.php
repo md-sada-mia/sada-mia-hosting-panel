@@ -62,6 +62,7 @@ class PublicPortalController extends Controller
             'recent_transactions' => $recentTransactions,
             'portal_name'         => Setting::get('panel_name', 'Sada Mia Hosting'),
             'portal_logo'         => $logo,
+            'portal_welcome_html' => Setting::get('portal_welcome_html'),
         ]);
     }
 

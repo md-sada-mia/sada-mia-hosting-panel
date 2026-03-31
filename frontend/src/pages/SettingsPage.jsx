@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy, Palette, UploadCloud, Loader2 } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy, Palette, UploadCloud, Loader2, Monitor } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -81,6 +82,7 @@ export default function SettingsPage() {
     support_whatsapp: '',
     support_facebook: '',
     support_mobile: '',
+    portal_welcome_html: '',
   });
 
 
@@ -375,19 +377,22 @@ export default function SettingsPage() {
         }
       }
 
-      // 2. Save panel name
+      // 2. Save branding settings correctly
       await api.post('/settings', {
         panel_name: githubSettings.panel_name,
+        portal_welcome_html: githubSettings.portal_welcome_html,
       });
 
       // Update the local state
       setGithubSettings(prev => ({
         ...prev,
         panel_name: githubSettings.panel_name,
+        portal_welcome_html: githubSettings.portal_welcome_html,
       }));
       setInitialGithubSettings(prev => ({ 
         ...prev, 
         panel_name: githubSettings.panel_name,
+        portal_welcome_html: githubSettings.portal_welcome_html,
       }));
 
       toast.success('Branding settings saved successfully');
@@ -1390,6 +1395,25 @@ export default function SettingsPage() {
                           </p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 pt-6 border-t">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <Monitor className="h-4 w-4 text-primary" />
+                      Portal Welcome Content (HTML)
+                    </label>
+                    <div className="space-y-2">
+                      <Textarea 
+                        name="portal_welcome_html" 
+                        value={githubSettings.portal_welcome_html || ''} 
+                        onChange={handleGithubChange} 
+                        placeholder="Custom HTML content..." 
+                        className="min-h-[150px] font-mono text-xs"
+                      />
+                      <p className="text-[11px] text-muted-foreground leading-relaxed italic">
+                        Use <strong>{'{{logo}}'}</strong> and <strong>{'{{domain_form}}'}</strong> placeholders to inject the dynamic logo and search form.
+                      </p>
                     </div>
                   </div>
                 </CardContent>

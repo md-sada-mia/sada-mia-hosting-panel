@@ -26,46 +26,67 @@ export default function PortalHomePage() {
   };
 
   if (!domain) {
+    const logoComponent = (
+      <div key="logo" className="mx-auto mb-6 flex items-center justify-center">
+        {portalInfo?.portal_logo ? (
+          <img src={portalInfo.portal_logo} alt="Logo" className="h-16 w-auto object-contain" />
+        ) : (
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+            <Globe className="w-8 h-8 text-primary" />
+          </div>
+        )}
+      </div>
+    );
+
+    const domainFormComponent = (
+      <Card key="form" className="w-full shadow-lg border-primary/20 bg-background/50 backdrop-blur-sm mt-8">
+        <CardHeader>
+          <CardTitle>Enter your Domain</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            To view your active subscriptions or pay for a package, please enter your app or CRM domain below.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-9 h-10 w-full"
+                placeholder="e.g., crm.yourcompany.com"
+                value={inputDomain}
+                onChange={(e) => setInputDomain(e.target.value)}
+              />
+            </div>
+            <Button type="submit" className="h-10 px-6">Continue</Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
+
+    if (portalInfo?.portal_welcome_html) {
+      const parts = portalInfo.portal_welcome_html.split(/({{logo}}|{{domain_form}})/g);
+      return (
+        <>
+          {parts.map((part, index) => {
+            if (part === '{{logo}}') return logoComponent;
+            if (part === '{{domain_form}}') return domainFormComponent;
+            if (!part.trim()) return null;
+            return <div key={index} style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: part }} />;
+          })}
+        </>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-xl mx-auto space-y-8">
         <div className="space-y-4">
-          <div className="mx-auto mb-6 flex items-center justify-center">
-            {portalInfo?.portal_logo ? (
-              <img src={portalInfo.portal_logo} alt="Logo" className="h-16 w-auto object-contain" />
-            ) : (
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Globe className="w-8 h-8 text-primary" />
-              </div>
-            )}
-          </div>
+          {logoComponent}
           <h1 className="text-4xl font-extrabold tracking-tight">Welcome to {portalInfo?.portal_name || 'Hosting Portal'}</h1>
           <p className="text-xl text-muted-foreground">
             Manage your app and CRM subscriptions here.
           </p>
         </div>
-
-        <Card className="w-full shadow-lg border-primary/20 bg-background/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle>Enter your Domain</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              To view your active subscriptions or pay for a package, please enter your app or CRM domain below.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9 h-10 w-full"
-                  placeholder="e.g., crm.yourcompany.com"
-                  value={inputDomain}
-                  onChange={(e) => setInputDomain(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="h-10 px-6">Continue</Button>
-            </form>
-          </CardContent>
-        </Card>
+        {domainFormComponent}
       </div>
     );
   }
