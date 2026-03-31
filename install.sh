@@ -835,6 +835,12 @@ server {
         try_files \$uri \$uri/ /index.html;
     }
 
+    # Laravel Public Storage (Logos, Uploads)
+    location /storage {
+        root $BACKEND_DIR; 
+        try_files \$uri \$uri/ =404;
+    }
+
     # API Proxy to Laravel
     location ^~ /api {
         alias $BACKEND_DIR;
