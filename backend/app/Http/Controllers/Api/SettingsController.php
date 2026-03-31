@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
@@ -122,29 +123,28 @@ class SettingsController extends Controller
         ]);
 
         $file = $request->file('logo');
-        $filename = 'logo.' . $file->getClientOriginalExtension();
+        $filename = 'gateway_logo_' . time() . '.' . $file->getClientOriginalExtension();
 
         // Save to storage/app/public/logos (gitignored)
-        $result = $file->storeAs('logos', $filename, 'public');
+        $path = $file->storeAs('logos', $filename, 'public');
 
-        if (!$result) {
+        if (!$path) {
             return response()->json(['message' => 'Failed to save logo to storage. Check folder permissions.'], 500);
         }
 
-        // Construct a clean, port-less public URL if payment subdomain is set
+        // Get the clean public URL via Storage disk
+        $url = Storage::disk('public')->url($path);
+
+        // If a dedicated payment base URL is set, swap the host part
         $baseUrl = Setting::get('payment_callback_base_url');
         if ($baseUrl) {
-            $url = rtrim($baseUrl, '/') . '/storage/logos/' . $filename;
-        } else {
-            $url = asset('storage/logos/' . $filename);
+            $appUrl = config('app.url');
+            $url = str_replace(rtrim($appUrl, '/'), rtrim($baseUrl, '/'), $url);
         }
 
         Setting::set('gateway_logo_url', $url);
 
-        // Add cache-buster for the response so the UI refreshes
-        $urlWithCacheBuster = $url . '?t=' . time();
-
-        return response()->json(['url' => $urlWithCacheBuster, 'message' => 'Logo uploaded successfully.']);
+        return response()->json(['url' => $url, 'message' => 'Logo uploaded successfully.']);
     }
 
     public function update(Request $request)
