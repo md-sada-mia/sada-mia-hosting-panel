@@ -172,6 +172,10 @@ sudo chmod -R 775 backend/storage backend/public/storage
 mkdir -p backend/storage/app/public/logos
 sudo chown -R www-data:www-data backend/storage/app/public/logos
 sudo chmod -R 775 backend/storage/app/public/logos
+
+# Allow the web server to update the .env (for Panel URL synchronization)
+sudo chown www-data:www-data backend/.env
+sudo chmod 664 backend/.env
 ```
 
 > [!TIP]

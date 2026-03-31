@@ -249,21 +249,26 @@ class SettingsController extends Controller
 
     private function updateEnv($key, $value)
     {
-        $path = base_path('.env');
-        if (!file_exists($path)) return;
+        try {
+            $path = base_path('.env');
+            if (!file_exists($path)) return;
 
-        $content = file_get_contents($path);
+            $content = file_get_contents($path);
 
-        // Escape value for .env (wrap in quotes if contains spaces or special chars)
-        $safeValue = strpos($value, ' ') !== false || strpos($value, '$') !== false ? "\"$value\"" : $value;
+            // Escape value for .env (wrap in quotes if contains spaces or special chars)
+            $safeValue = strpos($value, ' ') !== false || strpos($value, '$') !== false ? "\"$value\"" : $value;
 
-        if (preg_match("/^{$key}=/m", $content)) {
-            $content = preg_replace("/^{$key}=.*/m", "{$key}={$safeValue}", $content);
-        } else {
-            $content .= "\n{$key}={$safeValue}";
+            if (preg_match("/^{$key}=/m", $content)) {
+                $content = preg_replace("/^{$key}=.*/m", "{$key}={$safeValue}", $content);
+            } else {
+                $content .= "\n{$key}={$safeValue}";
+            }
+
+            @file_put_contents($path, $content);
+        } catch (\Exception $e) {
+            // Log or ignore - if permission denied, settings still save to DB
+            \Illuminate\Support\Facades\Log::warning("Failed to update .env key {$key}: " . $e->getMessage());
         }
-
-        file_put_contents($path, $content);
     }
 
     public function setupPaymentDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell, \App\Services\NginxConfigService $nginxService)
