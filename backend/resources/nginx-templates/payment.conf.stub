@@ -20,6 +20,12 @@ server {
         }
     }
 
+    # Laravel Public Storage (Logos, Uploads)
+    location /storage {
+        root {{backend_public}};
+        try_files $uri $uri/ =404;
+    }
+
     # Payment gateway callbacks → Laravel backend (web.php routes, no /api/ prefix)
     location ^~ /payment/bkash/ {
         try_files $uri $uri/ @laravel_payment;
