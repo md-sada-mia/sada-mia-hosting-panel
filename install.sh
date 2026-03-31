@@ -749,8 +749,18 @@ php artisan optimize:clear
 chown -R www-data:www-data storage bootstrap/cache database public
 chmod -R 775 storage bootstrap/cache public
 
-# Ensure database and file are owned by www-data for SQLite write access
+# Ensure logos directory exists for branding customization
+mkdir -p storage/app/public/logos
+chown -R www-data:www-data storage/app/public/logos
+chmod -R 775 storage/app/public/logos
 
+# Ensure .env is writable by the panel for URL synchronization
+if [ -f .env ]; then
+    chown www-data:www-data .env
+    chmod 664 .env
+fi
+
+# Ensure database and file are owned by www-data for SQLite write access
 touch database/database.sqlite
 chown www-data:www-data database/database.sqlite
 chmod 664 database/database.sqlite
