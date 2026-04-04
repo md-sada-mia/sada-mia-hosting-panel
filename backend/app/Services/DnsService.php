@@ -76,6 +76,53 @@ class DnsService
     }
 
     /**
+     * Centralized method to remove a domain from DNS, handling both full zones
+     * and specific A-records in parent zones.
+     */
+    public function removeDomain(string $domainName): void
+    {
+        // 1. Check if it's a dedicated managed zone
+        $managedDomain = Domain::where('domain', $domainName)->where('dns_managed', true)->first();
+        if ($managedDomain) {
+            // If it has no app_id, it might be a zone created by LB or manual. 
+            // We'll remove it if it's only serving LB records (which we are about to clear)
+            // For simplicity and safety, we remove the zone if app_id is null.
+            if ($managedDomain->app_id === null) {
+                $this->removeZone($managedDomain);
+                $managedDomain->delete();
+                return;
+            }
+        }
+
+        // 2. If it's a record within a parent zone, remove the specific record
+        $parts = explode('.', $domainName);
+        if (count($parts) < 2) return;
+
+        for ($i = 1; $i < count($parts); $i++) {
+            $subdomainParts = array_slice($parts, 0, $i);
+            $parentParts = array_slice($parts, $i);
+
+            $subdomain = implode('.', $subdomainParts);
+            $parentDomainName = implode('.', $parentParts);
+
+            $parentDomain = Domain::where('domain', $parentDomainName)
+                ->where('dns_managed', true)
+                ->first();
+
+            if ($parentDomain) {
+                // Delete matching records for this name
+                DnsRecord::where('domain_id', $parentDomain->id)
+                    ->whereIn('type', ['A', 'AAAA', 'CNAME'])
+                    ->where('name', $subdomain)
+                    ->delete();
+
+                $this->syncRecords($parentDomain);
+                break;
+            }
+        }
+    }
+
+    /**
      * Re-run default record creation and regenerate zone file.
      * Useful when new infra-level records (like DKIM) are generated.
      */

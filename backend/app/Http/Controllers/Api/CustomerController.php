@@ -146,11 +146,28 @@ class CustomerController extends Controller
         } elseif ($customer->resource_type === 'load_balancer' && $customer->resource_id) {
             $lb = LoadBalancer::with('domains')->find($customer->resource_id);
             if ($lb) {
-                $lbData = $lb->toArray();
-                $lbData['id'] = $lb->id;
-                $lbData['domains'] = $lb->domains->pluck('domain')->toArray();
-                \App\Jobs\DeleteLoadBalancer::dispatch($lbData);
-                $lb->delete();
+                // Find all domains associated with this customer's deployments on this LB
+                $domains = $customer->deployments()
+                    ->where('resource_type', 'load_balancer')
+                    ->where('load_balancer_id', $lb->id)
+                    ->pluck('domain')
+                    ->filter()
+                    ->unique();
+
+                foreach ($domains as $domainName) {
+                    // 1. Remove Nginx configuration for the domain
+                    $this->nginxService->removeLoadBalancerDomain($domainName);
+                    
+                    // 2. Remove DNS records for the domain
+                    $this->dnsService->removeDomain($domainName);
+
+                    // 3. Delete the LoadBalancerDomain record
+                    $lb->domains()->where('domain', $domainName)->delete();
+                }
+
+                // 4. Refresh the Load Balancer upstream in case it needs adjustment
+                $lb->load(['apps', 'domains']);
+                $this->nginxService->generateLoadBalancerUpstream($lb);
             }
         }
 
@@ -199,7 +216,7 @@ class CustomerController extends Controller
             ->where('domain', $domain)
             ->orderByDesc('created_at')
             ->get()
-            ->map(function ($sub) {
+            ->map(function (\App\Models\Subscription $sub) {
                 return [
                     'id'             => $sub->id,
                     'plan'           => $sub->plan,
