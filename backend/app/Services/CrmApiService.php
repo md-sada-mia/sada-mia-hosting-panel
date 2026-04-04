@@ -51,7 +51,7 @@ class CrmApiService
                     $authPayloadArr = json_decode($payload, true) ?: [];
                     $log("Auth Payload: " . json_encode($authPayloadArr, JSON_PRETTY_PRINT));
 
-                    $authResponse = Http::post($authUrl, $authPayloadArr);
+                    $authResponse = Http::timeout(120)->post($authUrl, $authPayloadArr);
 
                     if ($authResponse->successful()) {
                         $log("Authentication successful.");
@@ -102,7 +102,7 @@ class CrmApiService
             $log("Payload: " . json_encode($payloadArr, JSON_PRETTY_PRINT));
 
             // 3. Execute Main API Call
-            $response = Http::withHeaders($headers)->send($method, $url, [
+            $response = Http::timeout(280)->withHeaders($headers)->send($method, $url, [
                 'json' => $payloadArr
             ]);
 
