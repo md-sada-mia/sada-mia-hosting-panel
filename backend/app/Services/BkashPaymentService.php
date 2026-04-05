@@ -136,4 +136,31 @@ class BkashPaymentService
 
         return $response->json();
     }
+
+    /**
+     * Refund a completed bKash payment.
+     */
+    public function refund(string $paymentId, string $trxId, float $amount, string $reason = 'Customer request'): array
+    {
+        $token = $this->getToken();
+
+        $response = Http::withHeaders([
+            'Authorization' => $token,
+            'X-APP-Key'     => $this->cfg('app_key'),
+            'Content-Type'  => 'application/json',
+        ])->post($this->baseUrl() . '/tokenized/checkout/payment/refund', [
+            'paymentID'       => $paymentId,
+            'amount'          => number_format($amount, 2, '.', ''),
+            'trxID'           => $trxId,
+            'sku'             => 'subscription',
+            'reason'          => $reason,
+        ]);
+
+        if (!$response->successful()) {
+            Log::error('bKash refund failed', ['body' => $response->body()]);
+            throw new \RuntimeException('bKash refund failed: ' . $response->body());
+        }
+
+        return $response->json();
+    }
 }

@@ -112,4 +112,27 @@ class SslCommercePaymentService
 
         return $response->json();
     }
+
+    /**
+     * Refund a completed SSL Commerce payment.
+     */
+    public function refund(string $bankTranId, float $amount, string $reason = 'Customer request'): array
+    {
+        $response = Http::get($this->baseUrl() . '/validator/api/merchantTransIDvalidationAPI.php', [
+            'refund_payment' => 1,
+            'store_id'       => $this->cfg('store_id'),
+            'store_passwd'   => $this->cfg('store_password'),
+            'bank_tran_id'   => $bankTranId,
+            'refund_amount'  => number_format($amount, 2, '.', ''),
+            'refund_remarks' => $reason,
+            'format'         => 'json',
+        ]);
+
+        if (!$response->successful()) {
+            Log::error('SSL Commerce refund failed', ['bank_tran_id' => $bankTranId]);
+            throw new \RuntimeException('SSL Commerce refund failed');
+        }
+
+        return $response->json();
+    }
 }

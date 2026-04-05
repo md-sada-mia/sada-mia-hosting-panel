@@ -224,11 +224,11 @@ class SubscriptionController extends Controller
             $callbackUrl = "{$baseUrl}/payment/{$gateway}/callback?tx_id={$transaction->id}{$domainParam}";
 
             $result = match ($gateway) {
-                'bkash'      => $svc->createPayment($txRef, $plan->price, $callbackUrl),
-                'nagad'      => $svc->initiatePayment($txRef, $plan->price, $callbackUrl),
+                'bkash'      => $svc->createPayment($txRef, (float)$plan->price, $callbackUrl),
+                'nagad'      => $svc->initiatePayment($txRef, (float)$plan->price, $callbackUrl),
                 'sslcommerz' => $svc->initiatePayment(
                     $txRef,
-                    $plan->price,
+                    (float)$plan->price,
                     "{$baseUrl}/payment/sslcommerz/success?tx_id={$transaction->id}{$domainParam}",
                     "{$baseUrl}/payment/sslcommerz/fail?tx_id={$transaction->id}{$domainParam}",
                     "{$baseUrl}/payment/sslcommerz/cancel?tx_id={$transaction->id}{$domainParam}",
@@ -314,5 +314,63 @@ class SubscriptionController extends Controller
         \Illuminate\Support\Facades\Artisan::call('app:nginx-ssl-sync');
 
         return response()->json(['message' => 'Subscription validation regenerated. Nginx configs synced successfully.']);
+    }
+
+    /**
+     * Admin: Refund a completed transaction.
+     */
+    public function refundTransaction(Request $request, PaymentTransaction $transaction)
+    {
+        if ($transaction->status !== 'completed') {
+            return response()->json(['message' => 'Only completed transactions can be refunded.'], 422);
+        }
+
+        $reason = $request->input('reason', 'Admin refund');
+
+        try {
+            $gateway = $transaction->gateway;
+            $svc = $this->gatewayFactory->make($gateway);
+
+            $refundResult = match ($gateway) {
+                'bkash' => $svc->refund(
+                    $transaction->gateway_ref,
+                    $transaction->transaction_id,
+                    (float)$transaction->amount,
+                    $reason
+                ),
+                'nagad' => $svc->refund(
+                    $transaction->gateway_ref,
+                    (float)$transaction->amount,
+                    $transaction->transaction_id ?: $transaction->gateway_ref
+                ),
+                'sslcommerz' => $svc->refund(
+                    $transaction->transaction_id,
+                    (float)$transaction->amount,
+                    $reason
+                ),
+            };
+
+            // Update transaction state
+            $transaction->update([
+                'status'        => 'refunded',
+                'refund_id'     => $refundResult['refundTrxID'] ?? $refundResult['refund_id'] ?? $refundResult['bank_tran_id'] ?? null,
+                'refund_reason' => $reason,
+                'refunded_at'   => now(),
+            ]);
+
+            // Revert subscription benefits
+            $this->subscriptionService->refundSubscription($transaction, $reason);
+
+            return response()->json([
+                'message' => 'Transaction refunded successfully.',
+                'transaction' => $transaction->fresh()
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Refund failed: ' . $e->getMessage(), [
+                'tx_id' => $transaction->id,
+                'exception' => $e
+            ]);
+            return response()->json(['message' => 'Refund failed: ' . $e->getMessage()], 500);
+        }
     }
 }

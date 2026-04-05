@@ -8,6 +8,7 @@ use App\Models\SubscriptionPlan;
 use App\Models\PaymentTransaction;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class SubscriptionService
@@ -242,5 +243,41 @@ class SubscriptionService
                 ->orderBy('created_at', 'desc')
                 ->get(),
         ];
+    }
+
+    /**
+     * Revert or deactivate a subscription when a refund is processed.
+     */
+    public function refundSubscription(PaymentTransaction $transaction, string $reason = 'Refunded'): void
+    {
+        $subscription = $transaction->subscription;
+        if (!$subscription) {
+            return;
+        }
+
+        $plan = $transaction->plan;
+        if ($plan->isFlatRate()) {
+            // Flat rate: simply mark the subscription as refunded (deactivates it)
+            $subscription->update(['status' => 'refunded']);
+        } else {
+            // Request credit: deduct the added credits
+            $creditsToDeduct = $plan->credit_amount ?? 0;
+            $currentBalance = $subscription->credit_balance;
+
+            // Log if we're deducting more than they have (they spent some)
+            if ($currentBalance < $creditsToDeduct) {
+                Log::warning("Refunding metered subscription for domain {$subscription->domain}. " .
+                    "Deducting {$creditsToDeduct} credits, but current balance is {$currentBalance}. Setting to 0.");
+                $subscription->update([
+                    'credit_balance' => 0,
+                    'status' => 'refunded'
+                ]);
+            } else {
+                $subscription->decrement('credit_balance', $creditsToDeduct);
+                $subscription->update(['status' => 'refunded']);
+            }
+        }
+
+        $this->invalidateCache($subscription->domain);
     }
 }

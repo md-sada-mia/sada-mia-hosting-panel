@@ -7,12 +7,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { History, Search, FilterX, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { History, Search, FilterX, ChevronLeft, ChevronRight, Loader2, RefreshCcw, AlertTriangle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refunding, setRefunding] = useState(false);
+  const [selectedTx, setSelectedTx] = useState(null);
+  const [refundReason, setRefundReason] = useState('Admin refund');
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
 
   // Read URL params
   const page = parseInt(searchParams.get('page')) || 1;
@@ -57,6 +70,32 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [page, search, status, gateway]);
 
+  const handleRefund = async () => {
+    if (!selectedTx) return;
+    setRefunding(true);
+    try {
+      const res = await api.post(`/subscription/transactions/${selectedTx.id}/refund`, {
+        reason: refundReason
+      });
+      toast.success('Transaction refunded successfully');
+      
+      // Update local state
+      setData(prev => ({
+        ...prev,
+        data: prev.data.map(tx => tx.id === selectedTx.id ? res.data.transaction : tx)
+      }));
+      
+      setIsRefundModalOpen(false);
+      setSelectedTx(null);
+      setRefundReason('Admin refund');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to process refund');
+      console.error(err);
+    } finally {
+      setRefunding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -95,6 +134,7 @@ export default function TransactionsPage() {
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
             <Select value={gateway} onValueChange={(val) => updateParam('gateway', val === 'all' ? '' : val)}>
@@ -127,6 +167,7 @@ export default function TransactionsPage() {
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y relative min-h-[200px]">
@@ -158,7 +199,7 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge 
-                        variant={tx.status === 'completed' ? 'success' : tx.status === 'pending' ? 'secondary' : 'destructive'}
+                        variant={tx.status === 'completed' ? 'success' : tx.status === 'refunded' ? 'warning' : tx.status === 'pending' ? 'secondary' : 'destructive'}
                         className="text-[10px]"
                       >
                         {tx.status}
@@ -166,6 +207,22 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground shrink-0 text-xs">
                       {new Date(tx.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {tx.status === 'completed' && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                          title="Issue Refund"
+                          onClick={() => {
+                            setSelectedTx(tx);
+                            setIsRefundModalOpen(true);
+                          }}
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -204,6 +261,66 @@ export default function TransactionsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isRefundModalOpen} onOpenChange={setIsRefundModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Refund
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to refund this transaction? This will:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Transaction ID:</span>
+                <span className="font-mono">{selectedTx?.transaction_id || selectedTx?.gateway_ref}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-bold">{selectedTx?.currency} {selectedTx?.amount}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 border-dashed">
+                <span className="text-muted-foreground">Effect:</span>
+                <span className="text-orange-600 font-medium">Deactivate subscription / Deduct credits</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Reason for refund</label>
+              <Textarea 
+                placeholder="Enter reason..." 
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setIsRefundModalOpen(false)} disabled={refunding}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleRefund} 
+              disabled={refunding}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {refunding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : 'Confirm Refund'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

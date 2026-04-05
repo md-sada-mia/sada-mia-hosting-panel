@@ -326,6 +326,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin Plan Management
     Route::get('subscription/stats', [SubscriptionController::class, 'adminStats']);
     Route::get('subscription/transactions', [SubscriptionController::class, 'transactions']);
+    Route::post('subscription/transactions/{transaction}/refund', [SubscriptionController::class, 'refundTransaction']);
     Route::get('subscription/admin-plans', [SubscriptionController::class, 'indexPlansAdmin']);
     Route::post('subscription/admin-plans', [SubscriptionController::class, 'storePlan']);
     Route::put('subscription/admin-plans/{plan}', [SubscriptionController::class, 'updatePlan']);

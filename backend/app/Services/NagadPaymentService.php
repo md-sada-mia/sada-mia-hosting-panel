@@ -140,4 +140,34 @@ class NagadPaymentService
 
         return $response->json();
     }
+
+    /**
+     * Refund a completed Nagad payment.
+     */
+    public function refund(string $paymentRefId, float $amount, string $orderId): array
+    {
+        $merchantId = $this->cfg('merchant_id');
+
+        $sensitiveData = json_encode([
+            'merchantId'       => $merchantId,
+            'paymentReferenceId' => $paymentRefId,
+            'refundAmount'     => number_format($amount, 2, '.', ''),
+            'orderId'          => $orderId,
+        ]);
+
+        $response = Http::post(
+            $this->baseUrl() . "/api/dfs/check-out/refund/{$merchantId}",
+            [
+                'sensitiveData' => $this->encrypt($sensitiveData),
+                'signature'     => $this->sign($sensitiveData),
+            ]
+        );
+
+        if (!$response->successful()) {
+            Log::error('Nagad refund failed', ['body' => $response->body()]);
+            throw new \RuntimeException('Nagad refund failed: ' . $response->body());
+        }
+
+        return $response->json();
+    }
 }
