@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Zap, ArrowLeft, RefreshCw, Upload, Copy, AlertTriangle } from 'lucide-react';
+import { Zap, ArrowLeft, RefreshCw, Upload, Copy, AlertTriangle, Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -46,6 +46,24 @@ export default function PaymentGatewaysPage() {
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
+
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [cachedToken, setCachedToken] = useState('');
+  const [tokenLoading, setTokenLoading] = useState(false);
+
+  const fetchBkashToken = async () => {
+    setTokenLoading(true);
+    setTokenDialogOpen(true);
+    try {
+      const { data } = await api.get('/subscription/bkash-token');
+      setCachedToken(data.token || 'No token currently cached.');
+    } catch (err) {
+      toast.error('Failed to fetch bKash token');
+      setTokenDialogOpen(false);
+    } finally {
+      setTokenLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -151,6 +169,10 @@ export default function PaymentGatewaysPage() {
             <p className="text-muted-foreground mt-1">Configure credentials for automated plan and credit purchases.</p>
           </div>
         </div>
+        <Button variant="outline" size="sm" onClick={fetchBkashToken}>
+          <Fingerprint className="h-4 w-4 mr-2" />
+          View bKash Token
+        </Button>
       </div>
 
       <Card>
@@ -381,6 +403,55 @@ export default function PaymentGatewaysPage() {
           </CardFooter>
         </form>
       </Card>
+
+      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Fingerprint className="h-5 w-5 text-[#E2136E]" />
+              Cached bKash Access Token
+            </DialogTitle>
+            <DialogDescription>
+              This is the currently valid token used for bKash API requests.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {tokenLoading ? (
+              <div className="h-32 flex items-center justify-center">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="relative group">
+                   <textarea
+                    readOnly
+                    value={cachedToken}
+                    className="w-full h-48 p-4 text-xs font-mono bg-muted/50 rounded-lg border outline-none resize-none focus:ring-1 focus:ring-ring"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      navigator.clipboard.writeText(cachedToken);
+                      toast.success('Token copied to clipboard');
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Note: Tokens typically expire after 60 minutes. If empty, a new one will be fetched automatically on the next payment request.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTokenDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -52,6 +52,14 @@ class BkashPaymentService
     }
 
     /**
+     * Get the currently cached token (raw).
+     */
+    public function getCachedToken(): ?string
+    {
+        return Cache::get('bkash_access_token');
+    }
+
+    /**
      * Bust the cached token and request a new one.
      */
     private function refreshToken(): string

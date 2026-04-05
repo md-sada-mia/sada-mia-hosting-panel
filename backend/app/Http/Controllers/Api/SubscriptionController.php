@@ -373,4 +373,23 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Refund failed: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Admin: Get currently cached bKash token.
+     */
+    public function getBkashToken()
+    {
+        try {
+            $svc = $this->gatewayFactory->make('bkash');
+            if (!method_exists($svc, 'getCachedToken')) {
+                return response()->json(['message' => 'bKash service does not support token caching inspection.'], 400);
+            }
+
+            return response()->json([
+                'token' => $svc->getCachedToken()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to resolve bKash service: ' . $e->getMessage()], 500);
+        }
+    }
 }
