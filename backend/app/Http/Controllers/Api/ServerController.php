@@ -456,7 +456,13 @@ class ServerController extends Controller
         $this->shell->run($cmd);
         $this->shell->run("sudo nginx -t && sudo nginx -s reload");
 
-        return response()->json(['message' => "PHP {$version} activated for panel successfully."]);
+        // Sync CLI versions to match the panel version
+        $this->shell->run("sudo update-alternatives --set php /usr/bin/php{$version}");
+        if (file_exists("/usr/bin/phar{$version}")) {
+            $this->shell->run("sudo update-alternatives --set phar /usr/bin/phar{$version}");
+        }
+
+        return response()->json(['message' => "PHP {$version} activated for panel and CLI successfully."]);
     }
 
     public function uninstallPhpVersion(\Illuminate\Http\Request $request)
