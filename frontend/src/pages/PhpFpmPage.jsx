@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Layers, Terminal as TerminalIcon, Database } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,7 +40,14 @@ export default function PhpFpmPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">PHP 8.4 FPM</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">PHP 8.4 FPM</h2>
+            {data?.version && (
+              <Badge variant="secondary" className="bg-sky-500/10 text-sky-500 border-sky-500/20">
+                {data.version}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">Status and logs for the PHP-FPM service.</p>
         </div>
         <Button onClick={fetchStatus} disabled={refreshing} variant="outline">

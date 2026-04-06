@@ -28,6 +28,15 @@ class ServerController extends Controller
 
         $statusResult = $this->shell->run($cmd);
         
+        // Get Version
+        $versionCmd = match ($type) {
+            'nginx' => 'nginx -v 2>&1',
+            'php' => 'php -v | head -n 1',
+            'pm2', 'pm2_service' => 'pm2 -v',
+            default => '',
+        };
+        $versionResult = $versionCmd ? $this->shell->run($versionCmd) : ['output' => ''];
+
         // Get logs
         $logCmd = match ($type) {
             'nginx' => 'sudo tail -n 50 /var/log/nginx/error.log',
@@ -42,6 +51,7 @@ class ServerController extends Controller
 
         return response()->json([
             'service' => $type,
+            'version' => trim($versionResult['output'] ?? ''),
             'status'  => $statusResult['output'],
             'logs'    => $logsResult['output'],
             'exit_code' => $statusResult['exit_code']

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Activity, Terminal as TerminalIcon, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,7 +40,14 @@ export default function Pm2ServicePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">PM2 Host Service</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">PM2 Host Service</h2>
+            {data?.version && (
+              <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                v{data.version}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1">Detailed status for the system-wide PM2 process manager.</p>
         </div>
         <Button onClick={fetchStatus} disabled={refreshing} variant="outline">
