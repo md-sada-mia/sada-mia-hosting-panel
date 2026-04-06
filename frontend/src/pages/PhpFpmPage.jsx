@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save } from 'lucide-react';
+import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PhpFpmPage() {
   const [data, setData] = useState(null);
+  const [extensions, setExtensions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [config, setConfig] = useState({
     memory_limit: '',
     upload_max_filesize: '',
@@ -31,7 +33,8 @@ export default function PhpFpmPage() {
         api.get('/server/php-config')
       ]);
       setData(statusRes.data);
-      setConfig(configRes.data);
+      setConfig(configRes.data.settings);
+      setExtensions(configRes.data.extensions || []);
     } catch (err) {
       toast.error('Failed to load PHP data');
     } finally {
@@ -46,7 +49,7 @@ export default function PhpFpmPage() {
     try {
       await api.post('/server/php-config', config);
       toast.success('PHP configuration updated and service restarted');
-      fetchData(); // Refresh to show new status/uptime
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update configuration');
     } finally {
@@ -57,6 +60,10 @@ export default function PhpFpmPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const filteredExtensions = extensions.filter(ext => 
+    ext.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -103,6 +110,37 @@ export default function PhpFpmPage() {
           </Card>
 
           <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-sky-400">
+                <Puzzle className="h-4 w-4" />
+                PHP Extensions ({extensions.length})
+              </CardTitle>
+              <div className="relative w-48">
+                <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input 
+                  placeholder="Search..." 
+                  className="pl-8 h-8 text-xs" 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-1.5 max-h-[300px] overflow-y-auto p-1">
+                {filteredExtensions.length > 0 ? (
+                  filteredExtensions.map(ext => (
+                    <Badge key={ext} variant="secondary" className="font-mono text-[10px] px-1.5 py-0 bg-white/5 hover:bg-white/10 border-white/5">
+                      {ext}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground py-4 w-full text-center">No extensions found matching "{searchQuery}"</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2 text-sky-400">
                 <Database className="h-4 w-4" />
@@ -118,11 +156,11 @@ export default function PhpFpmPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-primary/20 shadow-lg">
+          <Card className="border-primary/20 shadow-lg sticky top-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings2 className="h-5 w-5 text-primary" />
-                PHP Configuration
+                PHP Settings
               </CardTitle>
               <CardDescription>
                 Manage common php.ini settings. Saving will restart the service.

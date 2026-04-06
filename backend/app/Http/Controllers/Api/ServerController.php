@@ -76,7 +76,62 @@ class ServerController extends Controller
             'display_errors' => $this->getIniValue($content, 'display_errors'),
         ];
 
-        return response()->json($settings);
+        // Get Enabled PHP Extensions from conf.d
+        $confDResult = $this->shell->run("ls -1 /etc/php/8.4/fpm/conf.d/");
+        $enabledInConfD = [];
+        if ($confDResult['exit_code'] === 0) {
+            $files = explode("\n", $confDResult['output']);
+            foreach ($files as $file) {
+                $file = trim($file);
+                if (empty($file)) continue;
+                
+                // Extract extension name (e.g., 20-curl.ini -> curl)
+                $name = preg_replace('/^\d+-/', '', $file);
+                $name = str_replace('.ini', '', $name);
+                $enabledInConfD[] = strtolower($name);
+            }
+        }
+
+        // Get all loaded PHP Modules
+        $extResult = $this->shell->run("php -m");
+        $extensions = [];
+        if ($extResult['exit_code'] === 0) {
+            $lines = explode("\n", $extResult['output']);
+            $isModuleSection = false;
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '[PHP Modules]') {
+                    $isModuleSection = true;
+                    continue;
+                }
+                if ($line === '[Zend Modules]') {
+                    $isModuleSection = false;
+                    break;
+                }
+                if ($isModuleSection && !empty($line)) {
+                    $lowerLine = strtolower($line);
+                    // Only include if found in conf.d (handles modular ones)
+                    // Or if it's a known non-core but compiled-in module if necessary
+                    // But usually, common ones like mysqli, pdo, etc are in conf.d
+                    if (in_array($lowerLine, $enabledInConfD)) {
+                        $extensions[] = $line;
+                    }
+                }
+            }
+        }
+
+        // Add Zend OPcache separately if enabled in conf.d
+        if (in_array('opcache', $enabledInConfD)) {
+            $extensions[] = 'Zend OPcache';
+        }
+
+        // Sort for cleaner UI
+        sort($extensions);
+
+        return response()->json([
+            'settings' => $settings,
+            'extensions' => $extensions
+        ]);
     }
 
     private function getIniValue(string $content, string $key): string
