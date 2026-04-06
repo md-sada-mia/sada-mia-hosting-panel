@@ -148,6 +148,11 @@ export default function AppDetailPage() {
   const [visiblePlanIds, setVisiblePlanIds] = useState([]);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
   const [isVisibilityDialogOpen, setIsVisibilityDialogOpen] = useState(false);
+  
+  // PHP Versions state
+  const [phpVersions, setPhpVersions] = useState({ active: '', installed: [] });
+  const [loadingPhpVersions, setLoadingPhpVersions] = useState(false);
+  const [updatingPhpVersion, setUpdatingPhpVersion] = useState(false);
 
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
@@ -234,6 +239,9 @@ export default function AppDetailPage() {
     }
     if (activeTab === 'subscription' && !subData) {
       fetchSubscriptions();
+    }
+    if (activeTab === 'overview') {
+      fetchPhpVersions();
     }
     if (activeTab === 'subscription') {
       fetchPlans();
@@ -439,6 +447,31 @@ export default function AppDetailPage() {
       toast.error('Failed to save environment variables.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const fetchPhpVersions = async () => {
+    setLoadingPhpVersions(true);
+    try {
+      const { data } = await api.get('/server/php-versions');
+      setPhpVersions(data);
+    } catch {
+      toast.error('Failed to fetch installed PHP versions');
+    } finally {
+      setLoadingPhpVersions(false);
+    }
+  };
+
+  const handleUpdatePhpVersion = async (version) => {
+    setUpdatingPhpVersion(true);
+    try {
+      const { data } = await api.post(`/apps/${id}/php-version`, { version });
+      toast.success(data.message);
+      fetchApp();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update PHP version');
+    } finally {
+      setUpdatingPhpVersion(false);
     }
   };
 
@@ -876,7 +909,101 @@ export default function AppDetailPage() {
             </div>
           </div>
 
-          <Card>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* PHP Runtime Card */}
+            <div className="lg:col-span-4">
+              <Card className="h-full border-primary/20 bg-primary/5 shadow-lg shadow-primary/5 group relative overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" /> PHP Runtime
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-bold h-5 bg-background shadow-xs border-primary/20 text-primary">
+                      FPM
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs leading-relaxed">
+                    Switch between installed PHP versions for this specific application.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">Active Runtime</span>
+                      <Badge variant="secondary" className="font-mono text-xs font-bold px-2 py-0.5 bg-background shadow-sm border-white/5">
+                        v{app.php_version || phpVersions.active || '...'}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Select 
+                        value={app.php_version || 'default'} 
+                        onValueChange={(val) => handleUpdatePhpVersion(val === 'default' ? null : val)}
+                        disabled={updatingPhpVersion || loadingPhpVersions}
+                      >
+                        <SelectTrigger className="w-full h-11 text-sm font-medium bg-background border-primary/30 shadow-sm hover:border-primary/50 transition-all focus:ring-primary/20">
+                          <div className="flex items-center gap-2.5">
+                            {updatingPhpVersion || loadingPhpVersions ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            ) : (
+                              <Server className="h-4 w-4 text-primary" />
+                            )}
+                            <SelectValue placeholder="Select version" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent className="border-primary/20 bg-card/95 backdrop-blur-md">
+                          <SelectItem value="default" className="text-xs font-semibold py-2.5">
+                            <div className="flex items-center gap-2">
+                              System Default <span className="text-[10px] opacity-70 font-mono">(v{phpVersions.active || '...'})</span>
+                            </div>
+                          </SelectItem>
+                          <div className="h-px bg-white/5 my-1" />
+                          {phpVersions.installed?.map(v => (
+                            <SelectItem key={v} value={v} className="text-xs font-semibold py-2.5">
+                              PHP v{v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <div className={`mt-3 p-3 rounded-xl border transition-all duration-300 ${!app.php_version ? 'bg-amber-500/5 border-amber-500/10' : 'bg-emerald-500/5 border-emerald-500/10'}`}>
+                        <div className="flex gap-3">
+                          {!app.php_version ? (
+                            <>
+                              <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                              <div className="space-y-1">
+                                <p className="text-[11px] font-bold text-amber-400/90 uppercase tracking-wide">Dynamic Resolution</p>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                  This app automatically follows the control panel's global PHP version updates.
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                              <div className="space-y-1">
+                                <p className="text-[11px] font-bold text-emerald-400/90 uppercase tracking-wide">Version Locked</p>
+                                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                  Configured to use specific PHP <strong>v{app.php_version}</strong> environment.
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-24 h-24 bg-primary/5 rounded-full blur-2xl opacity-50 group-hover:bg-primary/10 transition-colors" />
+                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-primary/5 rounded-full blur-2xl opacity-50 group-hover:bg-primary/10 transition-colors" />
+              </Card>
+            </div>
+
+            {/* Repository Details (moved into 8 col span) */}
+            <div className="lg:col-span-8">
+              <Card className="h-full border-white/10 bg-white/[0.02] shadow-sm">
             <CardHeader>
               <CardTitle>Repository Details</CardTitle>
             </CardHeader>
@@ -948,7 +1075,9 @@ export default function AppDetailPage() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      </div>
+    </TabsContent>
 
         {/* ── Deployments ──────────────────────────────────────── */}
         <TabsContent value="deployments" className="mt-6">

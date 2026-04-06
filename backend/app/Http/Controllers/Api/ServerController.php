@@ -13,7 +13,7 @@ class ServerController extends Controller
     public function serviceDetail(\Illuminate\Http\Request $request)
     {
         $type = $request->get('type');
-        $activePhp = $this->getActivePhpVersion();
+        $activePhp = self::getActivePhpVersion();
         $cmd = match ($type) {
             'nginx' => 'sudo systemctl status nginx',
             'php' => "sudo systemctl status php{$activePhp}-fpm",
@@ -59,7 +59,10 @@ class ServerController extends Controller
         ]);
     }
 
-    private function getActivePhpVersion(): string
+    /**
+     * Get the active PHP version for the panel.
+     */
+    public static function getActivePhpVersion(): string
     {
         $panelNginx = '/etc/nginx/sites-available/sada-mia-panel';
         if (!file_exists($panelNginx)) return '8.4';
@@ -73,7 +76,7 @@ class ServerController extends Controller
 
     public function getPhpConfig()
     {
-        $version = $this->getActivePhpVersion();
+        $version = self::getActivePhpVersion();
         $iniPath = "/etc/php/{$version}/fpm/php.ini";
         if (!file_exists($iniPath)) {
             return response()->json(['error' => "php.ini not found for version {$version}"], 404);
@@ -145,7 +148,7 @@ class ServerController extends Controller
 
     public function getPhpModules()
     {
-        $version = $this->getActivePhpVersion();
+        $version = self::getActivePhpVersion();
         $modsAvailableDir = "/etc/php/{$version}/mods-available/";
         $confDDir = "/etc/php/{$version}/fpm/conf.d/";
 
@@ -198,7 +201,7 @@ class ServerController extends Controller
             'enabled' => 'required|boolean'
         ]);
 
-        $version = $this->getActivePhpVersion();
+        $version = self::getActivePhpVersion();
         $module = $validated['module'];
         $action = $validated['enabled'] ? 'phpenmod' : 'phpdismod';
 
@@ -233,7 +236,7 @@ class ServerController extends Controller
             'display_errors' => 'required|string|in:On,Off',
         ]);
 
-        $version = $this->getActivePhpVersion();
+        $version = self::getActivePhpVersion();
         $iniPath = "/etc/php/{$version}/fpm/php.ini";
         
         foreach ($validated as $key => $value) {
@@ -335,7 +338,7 @@ class ServerController extends Controller
                 ]);
 
             case 'php':
-                $activePhp = $this->getActivePhpVersion();
+                $activePhp = self::getActivePhpVersion();
                 $this->runAfterResponse("sudo systemctl restart php{$activePhp}-fpm");
                 return response()->json([
                     'message' => "PHP-FPM ({$activePhp}) is restarting in the background.",
@@ -391,7 +394,7 @@ class ServerController extends Controller
 
     public function getPhpVersions()
     {
-        $active = $this->getActivePhpVersion();
+        $active = self::getActivePhpVersion();
         
         $installedResult = $this->shell->run("ls -1 /etc/php/");
         $installed = [];
@@ -472,7 +475,7 @@ class ServerController extends Controller
         ]);
 
         $version = $validated['version'];
-        $active = $this->getActivePhpVersion();
+        $active = self::getActivePhpVersion();
 
         if ($version === $active) {
             return response()->json(['message' => 'Cannot uninstall the currently active PHP version.'], 422);

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\App;
+use App\Http\Controllers\Api\ServerController;
 
 class NginxConfigService
 {
@@ -293,6 +294,8 @@ class NginxConfigService
     private function replacePlaceholders(string $stub, App $app, ?int $internalPort = null): string
     {
         $subBlocks = $this->getSubscriptionCheckBlocks();
+        $v = $app->php_version ?: ServerController::getActivePhpVersion();
+        $phpFpmSock = "/var/run/php/php{$v}-fpm.sock";
 
         return str_replace(
             ['{{domain}}', '{{port}}', '{{deploy_path}}', '{{php_fpm_sock}}', '{{internal_port}}', '{{subscription_check_auth}}', '{{subscription_check_locations}}'],
@@ -300,7 +303,7 @@ class NginxConfigService
                 $app->domain,
                 $app->port ?: '80',
                 $app->deploy_path,
-                config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock'),
+                $phpFpmSock,
                 $internalPort ?? '',
                 $subBlocks['auth'],
                 $subBlocks['locations']

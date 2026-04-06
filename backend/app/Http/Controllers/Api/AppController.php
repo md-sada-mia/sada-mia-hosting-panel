@@ -469,4 +469,32 @@ class AppController extends Controller
             return response()->json(['message' => 'Service suspended.', 'status' => 'stopped']);
         }
     }
+
+    public function updatePhpVersion(AppModel $app, Request $request)
+    {
+        $validated = $request->validate([
+            'version' => 'required|string|regex:/^\d+\.\d+$/'
+        ]);
+
+        $version = $validated['version'];
+
+        // Verify version exists
+        if (!file_exists("/usr/sbin/php-fpm{$version}")) {
+            return response()->json(['error' => "PHP version {$version} is not installed on this server."], 422);
+        }
+
+        $app->update(['php_version' => $version]);
+
+        // Regenerate Nginx config
+        try {
+            $this->nginxService->generate($app);
+            if ($app->ssl_enabled) {
+                $this->nginxService->generateSsl($app);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to regenerate Nginx config: ' . $e->getMessage()], 500);
+        }
+
+        return response()->json(['message' => "Successfully switched to PHP {$version} for {$app->name}."]);
+    }
 }
