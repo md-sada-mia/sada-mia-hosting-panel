@@ -29,6 +29,9 @@ import CrmLoadBalancerDetailPage from './pages/CrmLoadBalancerDetailPage';
 import TerminalPage from './pages/TerminalPage';
 import GuidelinePage from './pages/GuidelinePage';
 import QueueMonitorPage from './pages/QueueMonitorPage';
+import NginxPage from './pages/NginxPage';
+import PhpFpmPage from './pages/PhpFpmPage';
+import Pm2ServicePage from './pages/Pm2ServicePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import PaymentPage from './pages/PaymentPage';
 import PaymentResultPage from './pages/PaymentResultPage';
@@ -86,6 +89,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/files" element={<FileManagerPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/queue" element={<QueueMonitorPage />} />
+              <Route path="/server/nginx" element={<NginxPage />} />
+              <Route path="/server/php" element={<PhpFpmPage />} />
+              <Route path="/server/pm2-service" element={<Pm2ServicePage />} />
               <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/payment/result" element={<PaymentResultPage />} />

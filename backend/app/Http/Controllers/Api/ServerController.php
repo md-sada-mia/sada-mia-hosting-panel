@@ -10,6 +10,44 @@ class ServerController extends Controller
 {
     public function __construct(private ShellService $shell) {}
 
+    public function serviceDetail(\Illuminate\Http\Request $request)
+    {
+        $type = $request->get('type');
+        $cmd = match ($type) {
+            'nginx' => 'sudo systemctl status nginx',
+            'php' => 'sudo systemctl status php8.4-fpm',
+            'pm2' => 'pm2 status',
+            'pm2_service' => 'sudo systemctl status pm2-root.service',
+            'queue' => 'sudo systemctl status sada-mia-queue.service',
+            default => null,
+        };
+
+        if (!$cmd) {
+            return response()->json(['error' => 'Invalid service type'], 400);
+        }
+
+        $statusResult = $this->shell->run($cmd);
+        
+        // Get logs
+        $logCmd = match ($type) {
+            'nginx' => 'sudo tail -n 50 /var/log/nginx/error.log',
+            'php' => 'sudo journalctl -u php8.4-fpm -n 50 --no-pager',
+            'pm2' => 'pm2 logs --lines 50 --no-colors --nostream',
+            'pm2_service' => 'sudo journalctl -u pm2-root.service -n 50 --no-pager',
+            'queue' => 'sudo journalctl -u sada-mia-queue.service -n 50 --no-pager',
+            default => '',
+        };
+
+        $logsResult = $logCmd ? $this->shell->run($logCmd) : ['output' => ''];
+
+        return response()->json([
+            'service' => $type,
+            'status'  => $statusResult['output'],
+            'logs'    => $logsResult['output'],
+            'exit_code' => $statusResult['exit_code']
+        ]);
+    }
+
     public function stats()
     {
         // RAM usage

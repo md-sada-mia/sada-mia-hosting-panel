@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Server, Database, Layers, MemoryStick, Cpu, Clock } from 'lucide-react';
+import { Activity, Server, Database, Layers, MemoryStick, Cpu, Clock, Info, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
@@ -145,61 +145,123 @@ export default function DashboardPage() {
           <CardTitle>Server Management</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start cursor-pointer"
-              onClick={() => handleRestart('nginx')}
-              disabled={restarting['nginx']}
-            >
-              <Layers className={`mr-2 h-4 w-4 ${restarting['nginx'] ? 'animate-spin' : ''}`} />
-              {restarting['nginx'] ? 'Restarting...' : 'Restart Nginx'}
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start cursor-pointer"
-              onClick={() => handleRestart('php')}
-              disabled={restarting['php']}
-            >
-              <Database className={`mr-2 h-4 w-4 ${restarting['php'] ? 'animate-spin' : ''}`} />
-              {restarting['php'] ? 'Restarting...' : 'Restart PHP-FPM'}
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start cursor-pointer"
-              onClick={() => handleRestart('pm2')}
-              disabled={restarting['pm2']}
-            >
-              <Activity className={`mr-2 h-4 w-4 ${restarting['pm2'] ? 'animate-spin' : ''}`} />
-              {restarting['pm2'] ? 'Restarting...' : 'Restart All Apps'}
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start cursor-pointer"
-              onClick={() => handleRestart('pm2_service')}
-              disabled={restarting['pm2_service']}
-            >
-              <Activity className={`mr-2 h-4 w-4 ${restarting['pm2_service'] ? 'animate-spin' : ''}`} />
-              {restarting['pm2_service'] ? 'Restarting...' : 'Restart PM2 Service'}
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start cursor-pointer"
-              onClick={() => handleRestart('queue')}
-              disabled={restarting['queue']}
-            >
-              <Clock className={`mr-2 h-4 w-4 ${restarting['queue'] ? 'animate-spin' : ''}`} />
-              {restarting['queue'] ? 'Restarting...' : 'Restart Queue'}
-            </Button>
-            <Button 
-              variant="destructive" 
-              className="w-full justify-start cursor-pointer"
-              disabled={restarting['reboot']}
-              onClick={() => setShowRebootConfirm(true)}
-            >
-              <Activity className={`mr-2 h-4 w-4 ${restarting['reboot'] ? 'animate-spin' : ''}`} />
-              {restarting['reboot'] ? 'Rebooting...' : 'System Reboot'}
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start cursor-pointer"
+                onClick={() => handleRestart('nginx')}
+                disabled={restarting['nginx']}
+              >
+                <Layers className={`mr-2 h-4 w-4 ${restarting['nginx'] ? 'animate-spin' : ''}`} />
+                {restarting['nginx'] ? 'Restarting...' : 'Restart Nginx'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="shrink-0" 
+                title="View Nginx Details"
+                onClick={() => navigate('/server/nginx')}
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start cursor-pointer"
+                onClick={() => handleRestart('php')}
+                disabled={restarting['php']}
+              >
+                <Database className={`mr-2 h-4 w-4 ${restarting['php'] ? 'animate-spin' : ''}`} />
+                {restarting['php'] ? 'Restarting...' : 'Restart PHP-FPM'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="shrink-0" 
+                title="View PHP-FPM Details"
+                onClick={() => navigate('/server/php')}
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start cursor-pointer"
+                onClick={() => handleRestart('pm2')}
+                disabled={restarting['pm2']}
+              >
+                <Activity className={`mr-2 h-4 w-4 ${restarting['pm2'] ? 'animate-spin' : ''}`} />
+                {restarting['pm2'] ? 'Restarting...' : 'Restart All Apps'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="shrink-0" 
+                title="View PM2 Status"
+                onClick={() => navigate('/apps')}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start cursor-pointer"
+                onClick={() => handleRestart('pm2_service')}
+                disabled={restarting['pm2_service']}
+              >
+                <Activity className={`mr-2 h-4 w-4 ${restarting['pm2_service'] ? 'animate-spin' : ''}`} />
+                {restarting['pm2_service'] ? 'Restarting...' : 'Restart PM2 Service'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="shrink-0" 
+                title="View PM2 Service Details"
+                onClick={() => navigate('/server/pm2-service')}
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1 justify-start cursor-pointer"
+                onClick={() => handleRestart('queue')}
+                disabled={restarting['queue']}
+              >
+                <Clock className={`mr-2 h-4 w-4 ${restarting['queue'] ? 'animate-spin' : ''}`} />
+                {restarting['queue'] ? 'Restarting...' : 'Restart Queue'}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="shrink-0" 
+                title="View Queue Details"
+                onClick={() => navigate('/queue')}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="destructive" 
+                className="flex-1 justify-start cursor-pointer"
+                disabled={restarting['reboot']}
+                onClick={() => setShowRebootConfirm(true)}
+              >
+                <Activity className={`mr-2 h-4 w-4 ${restarting['reboot'] ? 'animate-spin' : ''}`} />
+                {restarting['reboot'] ? 'Rebooting...' : 'System Reboot'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
