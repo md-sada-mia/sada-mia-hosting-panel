@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert, PackagePlus, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert, PackagePlus, CheckCircle2, AlertCircle, Trash2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 
@@ -30,6 +31,13 @@ export default function PhpFpmPage() {
     max_input_time: '',
     display_errors: 'Off'
   });
+  
+  // Operation Log State
+  const [activeOp, setActiveOp] = useState(null); // { type, version }
+  const [opLog, setOpLog] = useState('');
+  const [isLogVisible, setIsLogVisible] = useState(false);
+  const logEndRef = useRef(null);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -105,8 +113,9 @@ export default function PhpFpmPage() {
     try {
       const { data } = await api.post('/server/php-install', { version });
       toast.success(data.message);
-      // Wait a bit then refresh list
-      setTimeout(fetchData, 5000);
+      setOpLog('');
+      setActiveOp({ type: 'install', version });
+      setIsLogVisible(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to start installation');
     } finally {
@@ -138,8 +147,9 @@ export default function PhpFpmPage() {
     try {
       const { data } = await api.post('/server/php-uninstall', { version });
       toast.success(data.message);
-      // Wait a bit then refresh list
-      setTimeout(fetchData, 5000);
+      setOpLog('');
+      setActiveOp({ type: 'uninstall', version });
+      setIsLogVisible(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to start uninstallation');
     } finally {
@@ -147,6 +157,34 @@ export default function PhpFpmPage() {
       setVersionToUninstall(null);
     }
   };
+
+  // Operation Log Polling
+  useEffect(() => {
+    let interval;
+    if (activeOp) {
+      interval = setInterval(async () => {
+        try {
+          const { data } = await api.get('/server/php-operation-log', {
+            params: { type: activeOp.type, version: activeOp.version }
+          });
+          setOpLog(data.log);
+          if (data.completed) {
+            clearInterval(interval);
+            setActiveOp(null);
+            fetchData();
+          }
+        } catch (err) {
+          console.error('Failed to poll logs', err);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [activeOp]);
+
+  // Auto-scroll logs
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [opLog]);
 
   useEffect(() => {
     fetchData();
@@ -348,13 +386,13 @@ export default function PhpFpmPage() {
                             variant="ghost" 
                             size="icon" 
                             className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                            disabled={uninstalling === version}
+                            disabled={uninstalling === version || activeOp?.version === version}
                             onClick={() => {
                               setVersionToUninstall(version);
                               setShowUninstallConfirm(true);
                             }}
                           >
-                            {uninstalling === version ? (
+                            {uninstalling === version || (activeOp?.type === 'uninstall' && activeOp?.version === version) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <Trash2 className="h-4 w-4" />
@@ -446,10 +484,10 @@ export default function PhpFpmPage() {
 
                   <Button 
                     className="w-full" 
-                    disabled={installing || (!isCustomVersion && phpVersions.installed.includes(newVersion))} 
+                    disabled={installing || activeOp?.type === 'install' || (!isCustomVersion && phpVersions.installed.includes(newVersion))} 
                     onClick={handleInstallVersion}
                   >
-                    {installing ? (
+                    {installing || activeOp?.type === 'install' ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <PackagePlus className="mr-2 h-4 w-4" />
@@ -460,11 +498,57 @@ export default function PhpFpmPage() {
               </CardContent>
               <CardFooter className="bg-white/[0.01] border-t border-white/5 py-4">
                 <p className="text-[10px] text-center w-full text-muted-foreground italic">
-                  Installation runs in background. Please check /tmp/php_install_{newVersion}.log on the server for details.
+                  Installation runs in background. Terminal log available below when active.
                 </p>
               </CardFooter>
             </Card>
           </div>
+
+          {/* Live Operation Log Modal */}
+          <Dialog open={isLogVisible} onOpenChange={setIsLogVisible}>
+            <DialogContent className="max-w-4xl bg-[#0c0c0c] border-white/10 p-0 overflow-hidden shadow-2xl">
+              <DialogHeader className="p-4 border-b border-white/10 bg-white/[0.02]">
+                <DialogTitle className="text-xs font-mono flex items-center gap-2 text-sky-400 uppercase tracking-widest">
+                  <TerminalIcon className="h-3.5 w-3.5" />
+                  Operation: {activeOp?.version} {activeOp?.type}
+                  {activeOp && <Loader2 className="h-3 w-3 animate-spin inline ml-2" />}
+                </DialogTitle>
+                <DialogDescription className="text-[10px] text-zinc-500 font-mono mt-1">
+                   Streaming from /tmp/php_{activeOp?.type || '...'}_{activeOp?.version || '...'}.log
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="h-[500px] overflow-y-auto p-4 custom-scrollbar font-mono text-[11px] leading-relaxed">
+                <div className="space-y-1">
+                  {opLog ? opLog.split('\n').map((line, i) => (
+                    <div key={i} className="flex gap-4">
+                      <span className="text-zinc-700 select-none min-w-[20px]">{i + 1}</span>
+                      <span className={line.toLowerCase().includes('error') ? 'text-red-400' : 'text-zinc-300'}>
+                        {line || '\u00A0'}
+                      </span>
+                    </div>
+                  )) : (
+                    <div className="flex items-center justify-center h-full text-zinc-500 italic">
+                      Initializing sequence...
+                    </div>
+                  )}
+                  <div ref={logEndRef} />
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 py-3 bg-white/[0.02] flex justify-between items-center px-4">
+                <span className="text-[10px] text-zinc-500 flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${activeOp ? 'bg-sky-500 animate-pulse' : 'bg-green-500'}`} />
+                  {activeOp ? 'Status: Processing...' : 'Status: Operation Complete'}
+                </span>
+                {!activeOp && (
+                  <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => setIsLogVisible(false)}>
+                    Close Terminal
+                  </Button>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="config">
