@@ -13,7 +13,7 @@ import {
   RefreshCw, Globe, Plus, Server, Copy, Check, Database, Network,
   AlertTriangle, Shield, Loader2, FolderOpen, ChevronRight, Clock, Zap,
   Mail, Info, Terminal, FileText, Cpu, Activity, XCircle, ScrollText,
-  CreditCard, Star, TrendingUp, Coins, Calendar, Package, Settings
+  CreditCard, Star, TrendingUp, Coins, Calendar, Package, Settings, Save
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -153,6 +153,7 @@ export default function AppDetailPage() {
   const [phpVersions, setPhpVersions] = useState({ active: '', installed: [] });
   const [loadingPhpVersions, setLoadingPhpVersions] = useState(false);
   const [updatingPhpVersion, setUpdatingPhpVersion] = useState(false);
+  const [pendingPhpVersion, setPendingPhpVersion] = useState(null);
 
   const logEndRef = useRef(null);
   const deploymentsTopRef = useRef(null);
@@ -462,11 +463,13 @@ export default function AppDetailPage() {
     }
   };
 
-  const handleUpdatePhpVersion = async (version) => {
+  const handleUpdatePhpVersion = async () => {
+    const version = pendingPhpVersion === 'default' ? null : pendingPhpVersion;
     setUpdatingPhpVersion(true);
     try {
       const { data } = await api.post(`/apps/${id}/php-version`, { version });
       toast.success(data.message);
+      setPendingPhpVersion(null);
       fetchApp();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to update PHP version');
@@ -935,10 +938,10 @@ export default function AppDetailPage() {
                       </Badge>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Select 
-                        value={app.php_version || 'default'} 
-                        onValueChange={(val) => handleUpdatePhpVersion(val === 'default' ? null : val)}
+                        value={pendingPhpVersion || app.php_version || 'default'} 
+                        onValueChange={(val) => setPendingPhpVersion(val)}
                         disabled={updatingPhpVersion || loadingPhpVersions}
                       >
                         <SelectTrigger className="w-full h-11 text-sm font-medium bg-background border-primary/30 shadow-sm hover:border-primary/50 transition-all focus:ring-primary/20">
@@ -965,6 +968,17 @@ export default function AppDetailPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      
+                      {pendingPhpVersion && pendingPhpVersion !== (app.php_version || 'default') && (
+                        <Button 
+                          className="w-full h-9 text-xs font-bold gap-2 shadow-lg shadow-primary/20 animate-in fade-in slide-in-from-top-2"
+                          onClick={handleUpdatePhpVersion}
+                          disabled={updatingPhpVersion}
+                        >
+                          {updatingPhpVersion ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                          Save Configuration
+                        </Button>
+                      )}
                       
                       <div className={`mt-3 p-3 rounded-xl border transition-all duration-300 ${!app.php_version ? 'bg-amber-500/5 border-amber-500/10' : 'bg-emerald-500/5 border-emerald-500/10'}`}>
                         <div className="flex gap-3">
