@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft } from 'lucide-react';
+import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PhpFpmPage() {
@@ -168,6 +168,47 @@ export default function PhpFpmPage() {
             </div>
 
             <div className="space-y-6">
+              <Card className="border-white/5 bg-white/[0.02]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-primary">
+                    <Settings2 className="h-4 w-4" />
+                    Active Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between text-sm py-1 border-b border-white/5">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Cpu className="h-3.5 w-3.5" />
+                      Memory Limit
+                    </div>
+                    <span className="font-mono text-xs">{config.memory_limit}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1 border-b border-white/5">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <HardDrive className="h-3.5 w-3.5" />
+                      Post / Upload Max
+                    </div>
+                    <span className="font-mono text-xs">{config.post_max_size} / {config.upload_max_filesize}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1 border-b border-white/5">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      Exec / Input Time
+                    </div>
+                    <span className="font-mono text-xs">{config.max_execution_time}s / {config.max_input_time}s</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm py-1">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      Display Errors
+                    </div>
+                    <Badge variant={config.display_errors === 'On' ? 'destructive' : 'secondary'} className="text-[10px] px-1 py-0 h-4">
+                      {config.display_errors}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2 text-sky-400">
