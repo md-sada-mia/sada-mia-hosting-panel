@@ -400,10 +400,20 @@ class ServerController extends Controller
             foreach ($dirs as $dir) {
                 $dir = trim($dir);
                 if (preg_match('/^\d+\.\d+$/', $dir)) {
-                    $installed[] = $dir;
+                    // Double check if fpm binary exists to avoid ghost directories
+                    if (file_exists("/usr/sbin/php-fpm{$dir}")) {
+                        $installed[] = $dir;
+                    }
                 }
             }
         }
+
+        // Always include active version even if binary check fails (unlikely)
+        if (!empty($active) && !in_array($active, $installed)) {
+            $installed[] = $active;
+        }
+
+        sort($installed);
 
         return response()->json([
             'active' => $active,
@@ -463,7 +473,7 @@ class ServerController extends Controller
         }
 
         // Purge the PHP version packages
-        $uninstallCmd = "sudo apt-get purge -y php{$version}* && sudo apt-get autoremove -y";
+        $uninstallCmd = "sudo apt-get purge -y php{$version}* && sudo apt-get autoremove -y && sudo rm -rf /etc/php/{$version}";
         $cmd = "({$uninstallCmd}) && echo 'PHP_OPERATION_SUCCESS' || echo 'PHP_OPERATION_FAILED'";
         $bgCmd = "nohup bash -c '{$cmd}' > /tmp/php_uninstall_{$version}.log 2>&1 &";
         shell_exec($bgCmd);
