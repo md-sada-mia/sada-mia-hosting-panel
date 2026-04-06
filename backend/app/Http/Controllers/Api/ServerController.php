@@ -58,6 +58,63 @@ class ServerController extends Controller
         ]);
     }
 
+    public function getPhpConfig()
+    {
+        $iniPath = '/etc/php/8.4/fpm/php.ini';
+        if (!file_exists($iniPath)) {
+            return response()->json(['error' => 'php.ini not found'], 404);
+        }
+
+        $content = file_get_contents($iniPath);
+        
+        $settings = [
+            'memory_limit' => $this->getIniValue($content, 'memory_limit'),
+            'upload_max_filesize' => $this->getIniValue($content, 'upload_max_filesize'),
+            'post_max_size' => $this->getIniValue($content, 'post_max_size'),
+            'max_execution_time' => $this->getIniValue($content, 'max_execution_time'),
+            'max_input_time' => $this->getIniValue($content, 'max_input_time'),
+            'display_errors' => $this->getIniValue($content, 'display_errors'),
+        ];
+
+        return response()->json($settings);
+    }
+
+    private function getIniValue(string $content, string $key): string
+    {
+        preg_match("/^{$key}\s*=\s*(.*)$/m", $content, $matches);
+        return trim($matches[1] ?? '');
+    }
+
+    public function updatePhpConfig(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'memory_limit' => 'required|string',
+            'upload_max_filesize' => 'required|string',
+            'post_max_size' => 'required|string',
+            'max_execution_time' => 'required|numeric',
+            'max_input_time' => 'required|numeric',
+            'display_errors' => 'required|string|in:On,Off',
+        ]);
+
+        $iniPath = '/etc/php/8.4/fpm/php.ini';
+        
+        foreach ($validated as $key => $value) {
+            $escapedValue = escapeshellarg($value);
+            // Replace key = anything with key = value
+            $cmd = "sudo sed -i \"s/^{$key}\s*=.*/{$key} = {$value}/\" {$iniPath}"; 
+            // We use the value directly in the sed command, so we must be careful. 
+            // Better to escape the value for sed.
+            $sedValue = str_replace('/', '\/', $value);
+            $cmd = "sudo sed -i \"s/^{$key}\s*=.*/{$key} = {$sedValue}/\" {$iniPath}";
+            $this->shell->run($cmd);
+        }
+
+        // Restart PHP-FPM
+        $this->shell->run("sudo systemctl restart php8.4-fpm");
+
+        return response()->json(['message' => 'PHP Configuration updated successfully.']);
+    }
+
     public function stats()
     {
         // RAM usage
