@@ -166,6 +166,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/server/service-detail', [ServerController::class, 'serviceDetail']);
     Route::get('/server/php-config', [ServerController::class, 'getPhpConfig']);
     Route::post('/server/php-config', [ServerController::class, 'updatePhpConfig']);
+    Route::get('/server/php-modules', [ServerController::class, 'getPhpModules']);
+    Route::post('/server/php-modules/toggle', [ServerController::class, 'togglePhpModule']);
     Route::post('/server/restart', [ServerController::class, 'restart']);
 
     // GitHub OAuth

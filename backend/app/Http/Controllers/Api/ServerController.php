@@ -134,6 +134,77 @@ class ServerController extends Controller
         ]);
     }
 
+    public function getPhpModules()
+    {
+        $modsAvailableDir = '/etc/php/8.4/mods-available/';
+        $confDDir = '/etc/php/8.4/fpm/conf.d/';
+
+        $availableResult = $this->shell->run("ls -1 {$modsAvailableDir}");
+        $enabledResult = $this->shell->run("ls -1 {$confDDir}");
+
+        $availableFiles = $availableResult['exit_code'] === 0 ? explode("\n", trim($availableResult['output'])) : [];
+        $enabledFiles = $enabledResult['exit_code'] === 0 ? explode("\n", trim($enabledResult['output'])) : [];
+
+        // Clean available names (e.g. curl.ini -> curl)
+        $availableModules = [];
+        foreach ($availableFiles as $file) {
+            $file = trim($file);
+            if (empty($file)) continue;
+            $name = str_replace('.ini', '', $file);
+            $availableModules[$name] = false;
+        }
+
+        // Check which ones are enabled
+        foreach ($enabledFiles as $file) {
+            $file = trim($file);
+            if (empty($file)) continue;
+            $name = preg_replace('/^\d+-/', '', $file);
+            $name = str_replace('.ini', '', $name);
+            if (isset($availableModules[$name])) {
+                $availableModules[$name] = true;
+            }
+        }
+
+        $result = [];
+        foreach ($availableModules as $name => $enabled) {
+            $result[] = [
+                'name' => $name,
+                'enabled' => $enabled
+            ];
+        }
+
+        // Sort by name
+        usort($result, function($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+
+        return response()->json($result);
+    }
+
+    public function togglePhpModule(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'module' => 'required|string',
+            'enabled' => 'required|boolean'
+        ]);
+
+        $module = $validated['module'];
+        $action = $validated['enabled'] ? 'phpenmod' : 'phpdismod';
+
+        // Run the command
+        $cmd = "sudo {$action} -v 8.4 -s fpm {$module}";
+        $result = $this->shell->run($cmd);
+
+        if ($result['exit_code'] !== 0) {
+            return response()->json(['message' => 'Failed to toggle module: ' . $result['output']], 500);
+        }
+
+        // Restart PHP-FPM
+        $this->shell->run("sudo systemctl restart php8.4-fpm");
+
+        return response()->json(['message' => "Module {$module} " . ($validated['enabled'] ? 'enabled' : 'disabled') . " successfully."]);
+    }
+
     private function getIniValue(string $content, string $key): string
     {
         preg_match("/^{$key}\s*=\s*(.*)$/m", $content, $matches);
