@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert, PackagePlus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert, PackagePlus, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 
@@ -35,9 +35,12 @@ export default function PhpFpmPage() {
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(null);
   const [installing, setInstalling] = useState(false);
+  const [uninstalling, setUninstalling] = useState(null);
   const [activatingVersion, setActivatingVersion] = useState(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
   const [versionToSwitch, setVersionToSwitch] = useState(null);
+  const [versionToUninstall, setVersionToUninstall] = useState(null);
 
   const fetchData = async () => {
     setRefreshing(true);
@@ -125,6 +128,23 @@ export default function PhpFpmPage() {
     } finally {
       setActivatingVersion(null);
       setVersionToSwitch(null);
+    }
+  };
+
+  const handleUninstallVersion = async () => {
+    const version = versionToUninstall;
+    setUninstalling(version);
+    setShowUninstallConfirm(false);
+    try {
+      const { data } = await api.post('/server/php-uninstall', { version });
+      toast.success(data.message);
+      // Wait a bit then refresh list
+      setTimeout(fetchData, 5000);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to start uninstallation');
+    } finally {
+      setUninstalling(null);
+      setVersionToUninstall(null);
     }
   };
 
@@ -322,23 +342,44 @@ export default function PhpFpmPage() {
                           </Badge>
                         )}
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant={version === phpVersions.active ? "secondary" : "outline"} 
-                        disabled={version === phpVersions.active || activatingVersion === version}
-                        onClick={() => {
-                          setVersionToSwitch(version);
-                          setShowSwitchConfirm(true);
-                        }}
-                      >
-                        {activatingVersion === version ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : version === phpVersions.active ? (
-                          'Active'
-                        ) : (
-                          'Activate for Panel'
+                      <div className="flex items-center gap-2">
+                        {version !== phpVersions.active && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                            disabled={uninstalling === version}
+                            onClick={() => {
+                              setVersionToUninstall(version);
+                              setShowUninstallConfirm(true);
+                            }}
+                          >
+                            {uninstalling === version ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
                         )}
-                      </Button>
+
+                        <Button 
+                          size="sm" 
+                          variant={version === phpVersions.active ? "secondary" : "outline"} 
+                          disabled={version === phpVersions.active || activatingVersion === version}
+                          onClick={() => {
+                            setVersionToSwitch(version);
+                            setShowSwitchConfirm(true);
+                          }}
+                        >
+                          {activatingVersion === version ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : version === phpVersions.active ? (
+                            'Active'
+                          ) : (
+                            'Activate for Panel'
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -577,6 +618,16 @@ export default function PhpFpmPage() {
         confirmText="Confirm Activation"
         variant="default"
         onConfirm={handleSwitchVersion}
+      />
+
+      <ConfirmationDialog
+        open={showUninstallConfirm}
+        onOpenChange={setShowUninstallConfirm}
+        title={`Uninstall PHP ${versionToUninstall}?`}
+        description={`This will completely purge PHP ${versionToUninstall} and all its extensions from the system. This action cannot be undone.`}
+        confirmText="Uninstall Now"
+        variant="destructive"
+        onConfirm={handleUninstallVersion}
       />
     </div>
   );

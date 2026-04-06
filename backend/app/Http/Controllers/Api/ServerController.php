@@ -447,4 +447,49 @@ class ServerController extends Controller
 
         return response()->json(['message' => "PHP {$version} activated for panel successfully."]);
     }
+
+    public function uninstallPhpVersion(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'version' => 'required|string|regex:/^\d+\.\d+$/'
+        ]);
+
+        $version = $validated['version'];
+        $active = $this->getActivePhpVersion();
+
+        if ($version === $active) {
+            return response()->json(['message' => 'Cannot uninstall the currently active PHP version.'], 422);
+        }
+
+        // Purge the PHP version packages
+        $cmd = "sudo apt-get purge -y php{$version}* && sudo apt-get autoremove -y";
+        $bgCmd = "nohup bash -c '{$cmd}' > /tmp/php_uninstall_{$version}.log 2>&1 &";
+        shell_exec($bgCmd);
+
+        return response()->json(['message' => "Uninstallation of PHP {$version} started in background. Logs: /tmp/php_uninstall_{$version}.log"]);
+    }
+
+    public function getPhpOperationLog(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:install,uninstall',
+            'version' => 'required|string|regex:/^\d+\.\d+$/'
+        ]);
+
+        $type = $validated['type'];
+        $version = $validated['version'];
+        $logFile = "/tmp/php_{$type}_{$version}.log";
+
+        if (!file_exists($logFile)) {
+            return response()->json(['log' => 'Waiting for log file to be created...', 'exists' => false]);
+        }
+
+        $result = $this->shell->run("tail -n 200 {$logFile}");
+        
+        return response()->json([
+            'log' => $result['output'],
+            'exists' => true,
+            'completed' => strpos($result['output'], "successfully " . ($type === 'install' ? 'installed' : 'removed')) !== false
+        ]);
+    }
 }

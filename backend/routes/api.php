@@ -171,6 +171,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/server/php-versions', [ServerController::class, 'getPhpVersions']);
     Route::post('/server/php-install', [ServerController::class, 'installPhpVersion']);
     Route::post('/server/php-activate', [ServerController::class, 'activatePhpVersion']);
+    Route::post('/server/php-uninstall', [ServerController::class, 'uninstallPhpVersion']);
     Route::post('/server/restart', [ServerController::class, 'restart']);
 
     // GitHub OAuth
