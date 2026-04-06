@@ -20,6 +20,8 @@ export default function PhpFpmPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [moduleSearchQuery, setModuleSearchQuery] = useState('');
   const [newVersion, setNewVersion] = useState('8.4');
+  const [isCustomVersion, setIsCustomVersion] = useState(false);
+  const [customVersion, setCustomVersion] = useState('');
   const [config, setConfig] = useState({
     memory_limit: '',
     upload_max_filesize: '',
@@ -90,9 +92,15 @@ export default function PhpFpmPage() {
   };
 
   const handleInstallVersion = async () => {
+    const version = isCustomVersion ? customVersion : newVersion;
+    if (!version || !/^\d+\.\d+$/.test(version)) {
+      toast.error('Please enter a valid PHP version (e.g. 8.2)');
+      return;
+    }
+    
     setInstalling(true);
     try {
-      const { data } = await api.post('/server/php-install', { version: newVersion });
+      const { data } = await api.post('/server/php-install', { version });
       toast.success(data.message);
       // Wait a bit then refresh list
       setTimeout(fetchData, 5000);
@@ -349,21 +357,41 @@ export default function PhpFpmPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Select Version</Label>
-                    <Select value={newVersion} onValueChange={setNewVersion}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a version" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {predefinedVersions.map(v => (
-                          <SelectItem key={v} value={v} disabled={phpVersions.installed.includes(v)}>
-                            PHP {v} {phpVersions.installed.includes(v) ? '(Already Installed)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Select from list</Label>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] text-muted-foreground">Custom Version</span>
+                       <Switch checked={isCustomVersion} onCheckedChange={setIsCustomVersion} className="scale-75" />
+                    </div>
                   </div>
+
+                  {isCustomVersion ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom_version">Official Version Name</Label>
+                      <Input 
+                        id="custom_version" 
+                        placeholder="e.g. 8.2" 
+                        value={customVersion}
+                        onChange={e => setCustomVersion(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Predefined Versions</Label>
+                      <Select value={newVersion} onValueChange={setNewVersion}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a version" />
+                        </SelectTrigger>
+                        <SelectContent shadow="lg">
+                          {predefinedVersions.map(v => (
+                            <SelectItem key={v} value={v}>
+                              PHP {v} {phpVersions.installed.includes(v) ? '(Already Installed)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="p-4 rounded-lg bg-sky-500/5 border border-sky-500/10 space-y-2">
                     <h4 className="text-sm font-medium flex items-center gap-2 text-sky-400">
@@ -371,17 +399,21 @@ export default function PhpFpmPage() {
                       Installation Includes:
                     </h4>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Core CLI, FPM Service, MySQL/MariaDB driver, Curl, GD Graphics, MBString, XML, Zip, BCMath, and Intl extensions.
+                      Core CLI, FPM Service, MySQL/MariaDB, Curl, GD, MBString, XML, Zip, BCMath, and Intl.
                     </p>
                   </div>
 
-                  <Button className="w-full" disabled={installing || phpVersions.installed.includes(newVersion)} onClick={handleInstallVersion}>
+                  <Button 
+                    className="w-full" 
+                    disabled={installing || (!isCustomVersion && phpVersions.installed.includes(newVersion))} 
+                    onClick={handleInstallVersion}
+                  >
                     {installing ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <PackagePlus className="mr-2 h-4 w-4" />
                     )}
-                    Begin Background Installation
+                    {isCustomVersion ? 'Install Custom Version' : 'Install Selected Version'}
                   </Button>
                 </div>
               </CardContent>
