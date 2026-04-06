@@ -420,7 +420,8 @@ class ServerController extends Controller
         $version = $validated['version'];
         
         // Background command using nohup to prevent timeout
-        $cmd = "sudo apt-get update && sudo apt-get install -y php{$version}-fpm php{$version}-cli php{$version}-mysql php{$version}-curl php{$version}-gd php{$version}-mbstring php{$version}-xml php{$version}-zip php{$version}-bcmath php{$version}-intl";
+        $installCmd = "sudo apt-get update && sudo apt-get install -y php{$version}-fpm php{$version}-cli php{$version}-mysql php{$version}-curl php{$version}-gd php{$version}-mbstring php{$version}-xml php{$version}-zip php{$version}-bcmath php{$version}-intl";
+        $cmd = "({$installCmd}) && echo 'PHP_OPERATION_SUCCESS' || echo 'PHP_OPERATION_FAILED'";
         $bgCmd = "nohup bash -c '{$cmd}' > /tmp/php_install_{$version}.log 2>&1 &";
         shell_exec($bgCmd);
 
@@ -462,7 +463,8 @@ class ServerController extends Controller
         }
 
         // Purge the PHP version packages
-        $cmd = "sudo apt-get purge -y php{$version}* && sudo apt-get autoremove -y";
+        $uninstallCmd = "sudo apt-get purge -y php{$version}* && sudo apt-get autoremove -y";
+        $cmd = "({$uninstallCmd}) && echo 'PHP_OPERATION_SUCCESS' || echo 'PHP_OPERATION_FAILED'";
         $bgCmd = "nohup bash -c '{$cmd}' > /tmp/php_uninstall_{$version}.log 2>&1 &";
         shell_exec($bgCmd);
 
@@ -485,11 +487,13 @@ class ServerController extends Controller
         }
 
         $result = $this->shell->run("tail -n 200 {$logFile}");
+        $output = $result['output'];
         
         return response()->json([
-            'log' => $result['output'],
+            'log' => $output,
             'exists' => true,
-            'completed' => strpos($result['output'], "successfully " . ($type === 'install' ? 'installed' : 'removed')) !== false
+            'completed' => strpos($output, 'PHP_OPERATION_SUCCESS') !== false || strpos($output, 'PHP_OPERATION_FAILED') !== false,
+            'status' => strpos($output, 'PHP_OPERATION_SUCCESS') !== false ? 'success' : (strpos($output, 'PHP_OPERATION_FAILED') !== false ? 'failed' : 'running')
         ]);
     }
 }
