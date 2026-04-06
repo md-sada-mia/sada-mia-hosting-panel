@@ -7,15 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, RefreshCw, Terminal as TerminalIcon, Database, Settings2, Save, Search, Puzzle, Activity, ToggleLeft, Cpu, HardDrive, Clock, ShieldAlert, PackagePlus, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 
 export default function PhpFpmPage() {
   const [data, setData] = useState(null);
   const [extensions, setExtensions] = useState([]);
   const [modules, setModules] = useState([]);
+  const [phpVersions, setPhpVersions] = useState({ active: '', installed: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [moduleSearchQuery, setModuleSearchQuery] = useState('');
+  const [newVersion, setNewVersion] = useState('8.4');
   const [config, setConfig] = useState({
     memory_limit: '',
     upload_max_filesize: '',
@@ -28,19 +32,25 @@ export default function PhpFpmPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(null);
+  const [installing, setInstalling] = useState(false);
+  const [activatingVersion, setActivatingVersion] = useState(null);
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [versionToSwitch, setVersionToSwitch] = useState(null);
 
   const fetchData = async () => {
     setRefreshing(true);
     try {
-      const [statusRes, configRes, modulesRes] = await Promise.all([
+      const [statusRes, configRes, modulesRes, versionsRes] = await Promise.all([
         api.get('/server/service-detail', { params: { type: 'php' } }),
         api.get('/server/php-config'),
-        api.get('/server/php-modules')
+        api.get('/server/php-modules'),
+        api.get('/server/php-versions')
       ]);
       setData(statusRes.data);
       setConfig(configRes.data.settings);
       setExtensions(configRes.data.extensions || []);
       setModules(modulesRes.data);
+      setPhpVersions(versionsRes.data);
     } catch (err) {
       toast.error('Failed to load PHP data');
     } finally {
@@ -79,6 +89,37 @@ export default function PhpFpmPage() {
     }
   };
 
+  const handleInstallVersion = async () => {
+    setInstalling(true);
+    try {
+      const { data } = await api.post('/server/php-install', { version: newVersion });
+      toast.success(data.message);
+      // Wait a bit then refresh list
+      setTimeout(fetchData, 5000);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to start installation');
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const handleSwitchVersion = async () => {
+    const version = versionToSwitch;
+    setActivatingVersion(version);
+    setShowSwitchConfirm(false);
+    try {
+      await api.post('/server/php-activate', { version });
+      toast.success(`PHP ${version} activated for panel successfully!`);
+      // Reload everything
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to switch PHP version');
+    } finally {
+      setActivatingVersion(null);
+      setVersionToSwitch(null);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -90,6 +131,8 @@ export default function PhpFpmPage() {
   const filteredModules = modules.filter(mod => 
     mod.name.toLowerCase().includes(moduleSearchQuery.toLowerCase())
   );
+
+  const predefinedVersions = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4'];
 
   if (loading) {
     return (
@@ -104,14 +147,13 @@ export default function PhpFpmPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-bold tracking-tight">PHP 8.4 FPM</h2>
-            {data?.version && (
-              <Badge variant="secondary" className="bg-sky-500/10 text-sky-500 border-sky-500/20">
-                {data.version}
-              </Badge>
-            )}
+            <h2 className="text-3xl font-bold tracking-tight">PHP Management</h2>
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 flex items-center gap-1.5 px-3">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Active: {phpVersions.active}
+            </Badge>
           </div>
-          <p className="text-muted-foreground mt-1">Status, logs, and configuration for the PHP-FPM service.</p>
+          <p className="text-muted-foreground mt-1">Manage multiple PHP versions, configurations, and extensions.</p>
         </div>
         <Button onClick={fetchData} disabled={refreshing} variant="outline">
           <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -124,6 +166,10 @@ export default function PhpFpmPage() {
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="management" className="flex items-center gap-2">
+            <PackagePlus className="h-4 w-4" />
+            Manage Versions
           </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-2">
             <Settings2 className="h-4 w-4" />
@@ -142,11 +188,11 @@ export default function PhpFpmPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <TerminalIcon className="h-4 w-4 text-sky-400" />
-                    Service Status
+                    Service Status: php{phpVersions.active}-fpm
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre className="bg-[#0c0c0c] text-sky-400/90 p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap border border-white/10 shadow-inner max-h-[400px] overflow-y-auto">
+                  <pre className="bg-[#0c0c0c] text-sky-400/90 p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap border border-white/10 shadow-inner max-h-[400px] overflow-y-auto custom-scrollbar">
                     {data?.status || 'No status information available.'}
                   </pre>
                 </CardContent>
@@ -160,7 +206,7 @@ export default function PhpFpmPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <pre className="bg-[#0c0c0c] text-sky-300/80 p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap border border-white/10 shadow-inner max-h-[500px] overflow-y-auto">
+                  <pre className="bg-[#0c0c0c] text-sky-300/80 p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap border border-white/10 shadow-inner max-h-[500px] overflow-y-auto custom-scrollbar">
                     {data?.logs || 'No log entries found.'}
                   </pre>
                 </CardContent>
@@ -172,7 +218,7 @@ export default function PhpFpmPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2 text-primary">
                     <Settings2 className="h-4 w-4" />
-                    Active Settings
+                    Active Settings ({phpVersions.active})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -243,16 +289,121 @@ export default function PhpFpmPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="management" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-white/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5 text-primary" />
+                  Installed Versions
+                </CardTitle>
+                <CardDescription>
+                  Switch your control panel to any installed PHP version.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {phpVersions.installed.map(version => (
+                    <div key={version} className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-2 h-2 rounded-full ${version === phpVersions.active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-muted'}`} />
+                        <span className="text-lg font-semibold font-mono">PHP {version}</span>
+                        {version === phpVersions.active && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20">
+                            Active for Panel
+                          </Badge>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant={version === phpVersions.active ? "secondary" : "outline"} 
+                        disabled={version === phpVersions.active || activatingVersion === version}
+                        onClick={() => {
+                          setVersionToSwitch(version);
+                          setShowSwitchConfirm(true);
+                        }}
+                      >
+                        {activatingVersion === version ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : version === phpVersions.active ? (
+                          'Active'
+                        ) : (
+                          'Activate for Panel'
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-white/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PackagePlus className="h-5 w-5 text-sky-400" />
+                  Install New PHP
+                </CardTitle>
+                <CardDescription>
+                  Download and install additional PHP versions from official repositories.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Select Version</Label>
+                    <Select value={newVersion} onValueChange={setNewVersion}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a version" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {predefinedVersions.map(v => (
+                          <SelectItem key={v} value={v} disabled={phpVersions.installed.includes(v)}>
+                            PHP {v} {phpVersions.installed.includes(v) ? '(Already Installed)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="p-4 rounded-lg bg-sky-500/5 border border-sky-500/10 space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2 text-sky-400">
+                      <AlertCircle className="h-4 w-4" />
+                      Installation Includes:
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Core CLI, FPM Service, MySQL/MariaDB driver, Curl, GD Graphics, MBString, XML, Zip, BCMath, and Intl extensions.
+                    </p>
+                  </div>
+
+                  <Button className="w-full" disabled={installing || phpVersions.installed.includes(newVersion)} onClick={handleInstallVersion}>
+                    {installing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <PackagePlus className="mr-2 h-4 w-4" />
+                    )}
+                    Begin Background Installation
+                  </Button>
+                </div>
+              </CardContent>
+              <CardFooter className="bg-white/[0.01] border-t border-white/5 py-4">
+                <p className="text-[10px] text-center w-full text-muted-foreground italic">
+                  Installation runs in background. Please check /tmp/php_install_{newVersion}.log on the server for details.
+                </p>
+              </CardFooter>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="config">
           <div className="max-w-2xl mx-auto">
             <Card className="border-primary/20 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings2 className="h-5 w-5 text-primary" />
-                  PHP Global Settings
+                  PHP Global Settings ({phpVersions.active})
                 </CardTitle>
                 <CardDescription>
-                  Manage common php.ini settings. Saving will restart the service.
+                  Manage php.ini for the active panel version. Saving will restart the service.
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleSaveConfig}>
@@ -342,10 +493,10 @@ export default function PhpFpmPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Puzzle className="h-5 w-5 text-sky-400" />
-                  Extensions Management
+                  Extensions Management ({phpVersions.active})
                 </CardTitle>
                 <CardDescription>
-                  Enable or disable modular PHP extensions. Changes restart PHP-FPM.
+                  Enable or disable modular extensions for the active version.
                 </CardDescription>
               </div>
               <div className="relative w-72">
@@ -385,6 +536,16 @@ export default function PhpFpmPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ConfirmationDialog
+        open={showSwitchConfirm}
+        onOpenChange={setShowSwitchConfirm}
+        title={`Activate PHP ${versionToSwitch}?`}
+        description={`This will update the control panel's Nginx configuration to point to PHP ${versionToSwitch}. The panel will briefly lose connection during the Nginx reload.`}
+        confirmText="Confirm Activation"
+        variant="default"
+        onConfirm={handleSwitchVersion}
+      />
     </div>
   );
 }

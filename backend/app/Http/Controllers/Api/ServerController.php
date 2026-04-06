@@ -13,9 +13,10 @@ class ServerController extends Controller
     public function serviceDetail(\Illuminate\Http\Request $request)
     {
         $type = $request->get('type');
+        $activePhp = $this->getActivePhpVersion();
         $cmd = match ($type) {
             'nginx' => 'sudo systemctl status nginx',
-            'php' => 'sudo systemctl status php8.4-fpm',
+            'php' => "sudo systemctl status php{$activePhp}-fpm",
             'pm2' => 'pm2 status',
             'pm2_service' => 'sudo systemctl status pm2-root.service',
             'queue' => 'sudo systemctl status sada-mia-queue.service',
@@ -40,7 +41,7 @@ class ServerController extends Controller
         // Get logs
         $logCmd = match ($type) {
             'nginx' => 'sudo tail -n 50 /var/log/nginx/error.log',
-            'php' => 'sudo journalctl -u php8.4-fpm -n 50 --no-pager',
+            'php' => "sudo journalctl -u php{$activePhp}-fpm -n 50 --no-pager",
             'pm2' => 'pm2 logs --lines 50 --no-colors --nostream',
             'pm2_service' => 'sudo journalctl -u pm2-root.service -n 50 --no-pager',
             'queue' => 'sudo journalctl -u sada-mia-queue.service -n 50 --no-pager',
@@ -58,11 +59,24 @@ class ServerController extends Controller
         ]);
     }
 
+    private function getActivePhpVersion(): string
+    {
+        $panelNginx = '/etc/nginx/sites-available/sada-mia-panel';
+        if (!file_exists($panelNginx)) return '8.4';
+
+        $content = @file_get_contents($panelNginx);
+        if (preg_match('/php(\d+\.\d+)-fpm.sock/', $content, $matches)) {
+            return $matches[1];
+        }
+        return '8.4';
+    }
+
     public function getPhpConfig()
     {
-        $iniPath = '/etc/php/8.4/fpm/php.ini';
+        $version = $this->getActivePhpVersion();
+        $iniPath = "/etc/php/{$version}/fpm/php.ini";
         if (!file_exists($iniPath)) {
-            return response()->json(['error' => 'php.ini not found'], 404);
+            return response()->json(['error' => "php.ini not found for version {$version}"], 404);
         }
 
         $content = file_get_contents($iniPath);
@@ -77,7 +91,7 @@ class ServerController extends Controller
         ];
 
         // Get Enabled PHP Extensions from conf.d
-        $confDResult = $this->shell->run("ls -1 /etc/php/8.4/fpm/conf.d/");
+        $confDResult = $this->shell->run("ls -1 /etc/php/{$version}/fpm/conf.d/");
         $enabledInConfD = [];
         if ($confDResult['exit_code'] === 0) {
             $files = explode("\n", $confDResult['output']);
@@ -93,7 +107,7 @@ class ServerController extends Controller
         }
 
         // Get all loaded PHP Modules
-        $extResult = $this->shell->run("php -m");
+        $extResult = $this->shell->run("php{$version} -m");
         $extensions = [];
         if ($extResult['exit_code'] === 0) {
             $lines = explode("\n", $extResult['output']);
@@ -110,9 +124,6 @@ class ServerController extends Controller
                 }
                 if ($isModuleSection && !empty($line)) {
                     $lowerLine = strtolower($line);
-                    // Only include if found in conf.d (handles modular ones)
-                    // Or if it's a known non-core but compiled-in module if necessary
-                    // But usually, common ones like mysqli, pdo, etc are in conf.d
                     if (in_array($lowerLine, $enabledInConfD)) {
                         $extensions[] = $line;
                     }
@@ -120,24 +131,23 @@ class ServerController extends Controller
             }
         }
 
-        // Add Zend OPcache separately if enabled in conf.d
         if (in_array('opcache', $enabledInConfD)) {
             $extensions[] = 'Zend OPcache';
         }
-
-        // Sort for cleaner UI
         sort($extensions);
 
         return response()->json([
             'settings' => $settings,
-            'extensions' => $extensions
+            'extensions' => $extensions,
+            'active_version' => $version
         ]);
     }
 
     public function getPhpModules()
     {
-        $modsAvailableDir = '/etc/php/8.4/mods-available/';
-        $confDDir = '/etc/php/8.4/fpm/conf.d/';
+        $version = $this->getActivePhpVersion();
+        $modsAvailableDir = "/etc/php/{$version}/mods-available/";
+        $confDDir = "/etc/php/{$version}/fpm/conf.d/";
 
         $availableResult = $this->shell->run("ls -1 {$modsAvailableDir}");
         $enabledResult = $this->shell->run("ls -1 {$confDDir}");
@@ -188,11 +198,12 @@ class ServerController extends Controller
             'enabled' => 'required|boolean'
         ]);
 
+        $version = $this->getActivePhpVersion();
         $module = $validated['module'];
         $action = $validated['enabled'] ? 'phpenmod' : 'phpdismod';
 
         // Run the command
-        $cmd = "sudo {$action} -v 8.4 -s fpm {$module}";
+        $cmd = "sudo {$action} -v {$version} -s fpm {$module}";
         $result = $this->shell->run($cmd);
 
         if ($result['exit_code'] !== 0) {
@@ -200,7 +211,7 @@ class ServerController extends Controller
         }
 
         // Restart PHP-FPM
-        $this->shell->run("sudo systemctl restart php8.4-fpm");
+        $this->shell->run("sudo systemctl restart php{$version}-fpm");
 
         return response()->json(['message' => "Module {$module} " . ($validated['enabled'] ? 'enabled' : 'disabled') . " successfully."]);
     }
@@ -222,7 +233,8 @@ class ServerController extends Controller
             'display_errors' => 'required|string|in:On,Off',
         ]);
 
-        $iniPath = '/etc/php/8.4/fpm/php.ini';
+        $version = $this->getActivePhpVersion();
+        $iniPath = "/etc/php/{$version}/fpm/php.ini";
         
         foreach ($validated as $key => $value) {
             $escapedValue = escapeshellarg($value);
@@ -236,7 +248,7 @@ class ServerController extends Controller
         }
 
         // Restart PHP-FPM
-        $this->shell->run("sudo systemctl restart php8.4-fpm");
+        $this->shell->run("sudo systemctl restart php{$version}-fpm");
 
         return response()->json(['message' => 'PHP Configuration updated successfully.']);
     }
@@ -323,9 +335,10 @@ class ServerController extends Controller
                 ]);
 
             case 'php':
-                $this->runAfterResponse("sudo systemctl restart php8.4-fpm");
+                $activePhp = $this->getActivePhpVersion();
+                $this->runAfterResponse("sudo systemctl restart php{$activePhp}-fpm");
                 return response()->json([
-                    'message' => 'PHP-FPM is restarting in the background.',
+                    'message' => "PHP-FPM ({$activePhp}) is restarting in the background.",
                     'status'  => 'success'
                 ]);
 
@@ -374,5 +387,64 @@ class ServerController extends Controller
         $escaped = escapeshellarg($command);
         $bgCmd   = "nohup bash -c 'sleep 2 && {$command}' > /dev/null 2>&1 &";
         shell_exec($bgCmd);
+    }
+
+    public function getPhpVersions()
+    {
+        $active = $this->getActivePhpVersion();
+        
+        $installedResult = $this->shell->run("ls -1 /etc/php/");
+        $installed = [];
+        if ($installedResult['exit_code'] === 0) {
+            $dirs = explode("\n", trim($installedResult['output']));
+            foreach ($dirs as $dir) {
+                $dir = trim($dir);
+                if (preg_match('/^\d+\.\d+$/', $dir)) {
+                    $installed[] = $dir;
+                }
+            }
+        }
+
+        return response()->json([
+            'active' => $active,
+            'installed' => $installed
+        ]);
+    }
+
+    public function installPhpVersion(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'version' => 'required|string|regex:/^\d+\.\d+$/'
+        ]);
+
+        $version = $validated['version'];
+        
+        // Background command using nohup to prevent timeout
+        $cmd = "sudo apt-get update && sudo apt-get install -y php{$version}-fpm php{$version}-cli php{$version}-mysql php{$version}-curl php{$version}-gd php{$version}-mbstring php{$version}-xml php{$version}-zip php{$version}-bcmath php{$version}-intl";
+        $bgCmd = "nohup bash -c '{$cmd}' > /tmp/php_install_{$version}.log 2>&1 &";
+        shell_exec($bgCmd);
+
+        return response()->json(['message' => "Installation of PHP {$version} started in background. Logs: /tmp/php_install_{$version}.log"]);
+    }
+
+    public function activatePhpVersion(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'version' => 'required|string|regex:/^\d+\.\d+$/'
+        ]);
+
+        $version = $validated['version'];
+        $panelNginx = '/etc/nginx/sites-available/sada-mia-panel';
+
+        if (!file_exists($panelNginx)) {
+            return response()->json(['message' => 'Panel Nginx config not found.'], 404);
+        }
+
+        // Rewrite Nginx config and reload
+        $cmd = "sudo sed -i \"s/php[0-9.]\+-fpm.sock/php{$version}-fpm.sock/g\" {$panelNginx}";
+        $this->shell->run($cmd);
+        $this->shell->run("sudo nginx -t && sudo nginx -s reload");
+
+        return response()->json(['message' => "PHP {$version} activated for panel successfully."]);
     }
 }
