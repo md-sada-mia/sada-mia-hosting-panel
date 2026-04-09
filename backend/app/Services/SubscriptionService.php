@@ -238,6 +238,7 @@ class SubscriptionService
             'flat_rate_active'   => $systemEnabled ? $this->isActive($domain) : null,
             'credit_balance'     => $this->getCredits($domain),
             'expire_date'        => $flatSubs->first()?->ends_at?->toIso8601String(),
+            'notification_html'  => $systemEnabled ? $this->generateNotificationHtml($domain) : '',
             'flat_subscriptions' => $flatSubs,
             'credit_subscriptions' => Subscription::with('plan')
                 ->where('domain', $domain)
@@ -246,6 +247,58 @@ class SubscriptionService
                 ->orderBy('created_at', 'desc')
                 ->get(),
         ];
+    }
+
+    /**
+     * Generate a styled HTML notification banner for the domain's subscription status.
+     */
+    public function generateNotificationHtml(string $domain, bool $isDeactivated = false): string
+    {
+        if (!$this->isSubscriptionSystemEnabled()) {
+            return '';
+        }
+
+        $latestSub = Subscription::where('domain', $domain)
+            ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
+            ->orderByDesc('ends_at')
+            ->first();
+
+        $isActive = $this->isActive($domain);
+        $expireDate = $latestSub?->ends_at;
+
+        // Default colors (Success/Active)
+        $bgColor = '#064e3b';
+        $borderColor = '#059669';
+        $textColor = '#d1fae5';
+
+        if ($isDeactivated) {
+            $bgColor = '#450a0a';
+            $borderColor = '#dc2626';
+            $textColor = '#fee2e2';
+            $message = "Domain <strong>{$domain}</strong> has been deactivated. Please contact support.";
+        } elseif (!$isActive) {
+            $bgColor = '#450a0a';
+            $borderColor = '#dc2626';
+            $textColor = '#fee2e2';
+            if ($expireDate) {
+                $message = "Your subscription for <strong>{$domain}</strong> expired on <strong>" . $expireDate->format('M d, Y') . "</strong>. Please renew to avoid service interruption.";
+            } else {
+                $message = "No active subscription found for <strong>{$domain}</strong>.";
+            }
+        } else {
+            $message = "Your subscription for <strong>{$domain}</strong> is active until <strong>" . ($expireDate ? $expireDate->format('M d, Y') : 'N/A') . "</strong>.";
+        }
+
+        return <<<HTML
+<div class="subscription-notification" style="padding: 12px 16px; background-color: {$bgColor}; border: 1px solid {$borderColor}; color: {$textColor}; border-radius: 8px; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;">
+    <div style="flex-shrink: 0;">
+        <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+    </div>
+    <div>{$message}</div>
+</div>
+HTML;
     }
 
     /**
