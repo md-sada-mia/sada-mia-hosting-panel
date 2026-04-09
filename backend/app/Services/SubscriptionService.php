@@ -226,16 +226,19 @@ class SubscriptionService
     {
         $systemEnabled = $this->isSubscriptionSystemEnabled();
 
+        $flatSubs = Subscription::with('plan')
+            ->where('domain', $domain)
+            ->where('status', 'active')
+            ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
+            ->orderBy('ends_at', 'desc')
+            ->get();
+
         return [
             'system_enabled'     => $systemEnabled,
             'flat_rate_active'   => $systemEnabled ? $this->isActive($domain) : null,
             'credit_balance'     => $this->getCredits($domain),
-            'flat_subscriptions' => Subscription::with('plan')
-                ->where('domain', $domain)
-                ->where('status', 'active')
-                ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
-                ->orderBy('ends_at', 'desc')
-                ->get(),
+            'expire_date'        => $flatSubs->first()?->ends_at?->toIso8601String(),
+            'flat_subscriptions' => $flatSubs,
             'credit_subscriptions' => Subscription::with('plan')
                 ->where('domain', $domain)
                 ->where('status', 'active')

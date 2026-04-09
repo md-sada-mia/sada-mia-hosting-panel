@@ -99,6 +99,11 @@ class SubscriptionCheckController extends Controller
             $isDeactivated = true;
         }
 
+        $latestSub = \App\Models\Subscription::where('domain', $domainStr)
+            ->whereHas('plan', fn($q) => $q->where('type', 'flat_rate'))
+            ->orderByDesc('ends_at')
+            ->first();
+
         $data = [
             'domain' => $domainStr,
             'customer' => $customer ? [
@@ -108,6 +113,7 @@ class SubscriptionCheckController extends Controller
             ] : null,
             'is_deactivated' => $isDeactivated,
             'is_expired' => !$this->subscriptionService->isActive($domainStr) && !$isDeactivated,
+            'expire_date' => $latestSub?->ends_at?->toIso8601String(),
             'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
             'support' => [
                 'email' => \App\Models\Setting::get('support_email'),
