@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy, Palette, UploadCloud, Loader2, Monitor } from 'lucide-react';
+import { User, Github, Lock, Settings, Globe, Network, ShieldCheck, Eye, EyeOff, Users, Layers, HelpCircle, ChevronRight, Info, ExternalLink, CheckCircle2, XCircle, Zap, Key, Link, Copy, Palette, UploadCloud, Loader2, Monitor, BookOpen } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [selectedLogoFile, setSelectedLogoFile] = useState(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [apiDomainLoading, setApiDomainLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   
@@ -431,6 +432,19 @@ export default function SettingsPage() {
       window.location.href = data.url;
     } catch (err) {
       setError('Failed to initiate GitHub connection');
+    }
+  };
+
+  const handleSetupApiDomain = async () => {
+    setApiDomainLoading(true);
+    try {
+      const { data } = await api.post('/settings/setup-api-domain');
+      toast.success(data.message);
+      fetchSettings();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to setup API domain');
+    } finally {
+      setApiDomainLoading(false);
     }
   };
 
@@ -1312,6 +1326,30 @@ export default function SettingsPage() {
                               setGithubSettings(s => ({ ...s, subscription_enabled: checked }));
                             }}
                           />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 pt-4 border-t">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <label className="text-sm font-semibold flex items-center gap-2">
+                            <BookOpen className="h-4 w-4 text-primary" />
+                            Public API Documentation Domain
+                          </label>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed italic mt-1 max-w-xl">
+                            Automatically provision a DNS record and SSL certificate for `api.yourprimarydomain.com` to serve the API documentation securely.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={handleSetupApiDomain}
+                            disabled={apiDomainLoading || !githubSettings.ns_default_domain}
+                          >
+                            {apiDomainLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Setup in Progress...</> : 'Setup API Docs Domain'}
+                          </Button>
                         </div>
                       </div>
                     </div>

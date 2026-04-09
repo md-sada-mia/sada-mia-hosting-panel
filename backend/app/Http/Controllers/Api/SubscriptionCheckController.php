@@ -45,6 +45,82 @@ class SubscriptionCheckController extends Controller
             return response()->noContent(200);
         }
 
-        return response()->noContent(403);
+        return response()->noContent(402); // Change 403 to 402 for "Payment Required"
+    }
+
+    public function expirationInfo(Request $request)
+    {
+        $domainStr = $request->get('domain', $request->getHost());
+        
+        // Strip port if present
+        $domainStr = strtolower(trim(explode(':', $domainStr)[0]));
+
+        $customer = null;
+
+        // Try App
+        $app = \App\Models\App::where('domain', $domainStr)->first();
+        if ($app) {
+            $customer = \App\Models\Customer::where('resource_type', 'app')
+                ->where('resource_id', $app->id)
+                ->first();
+        }
+
+        // Try Load Balancer if no customer yet
+        if (!$customer) {
+            $lb = \App\Models\LoadBalancer::where('domain', $domainStr)->first();
+            if ($lb) {
+                $customer = \App\Models\Customer::where('resource_type', 'load_balancer')
+                    ->where('resource_id', $lb->id)
+                    ->first();
+            }
+        }
+
+        // Try Customer Deployment (CRM) if no customer yet
+        if (!$customer) {
+            $deployment = \App\Models\CustomerDeployment::where('domain', $domainStr)
+                ->orWhere('subdomain', $domainStr)
+                ->first();
+            if ($deployment) {
+                $customer = $deployment->customer;
+            }
+        }
+
+        // Try LoadBalancerDomain directly if still no customer
+        if (!$customer) {
+            $lbDomain = \App\Models\LoadBalancerDomain::where('domain', $domainStr)->first();
+        }
+
+        $isDeactivated = false;
+        if (isset($app) && $app->status === 'deactivated') {
+            $isDeactivated = true;
+        } elseif (isset($deployment) && $deployment->status === 'deactivated') {
+            $isDeactivated = true;
+        } elseif (isset($lbDomain) && $lbDomain->status === 'deactivated') {
+            $isDeactivated = true;
+        }
+
+        $data = [
+            'domain' => $domainStr,
+            'customer' => $customer ? [
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'business_name' => $customer->business_name,
+            ] : null,
+            'is_deactivated' => $isDeactivated,
+            'is_expired' => !$this->subscriptionService->isActive($domainStr) && !$isDeactivated,
+            'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
+            'support' => [
+                'email' => \App\Models\Setting::get('support_email'),
+                'whatsapp' => \App\Models\Setting::get('support_whatsapp'),
+                'facebook' => \App\Models\Setting::get('support_facebook'),
+                'mobile' => \App\Models\Setting::get('support_mobile'),
+            ]
+        ];
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json($data);
+        }
+
+        return view('subscription-expired', $data);
     }
 }

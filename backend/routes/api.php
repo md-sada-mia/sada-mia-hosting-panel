@@ -30,69 +30,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // ── Public: Nginx subscription gate (called internally via auth_request) ──────
 Route::get('/subscription-check', [SubscriptionCheckController::class, 'check']);
-Route::get('/subscription-expired', function (Illuminate\Http\Request $request) {
-    $domainStr = $request->get('domain', $request->getHost());
-    $customer = null;
-
-    // Try App
-    $app = \App\Models\App::where('domain', $domainStr)->first();
-    if ($app) {
-        $customer = \App\Models\Customer::where('resource_type', 'app')
-            ->where('resource_id', $app->id)
-            ->first();
-    }
-
-    // Try Load Balancer if no customer yet
-    if (!$customer) {
-        $lb = \App\Models\LoadBalancer::where('domain', $domainStr)->first();
-        if ($lb) {
-            $customer = \App\Models\Customer::where('resource_type', 'load_balancer')
-                ->where('resource_id', $lb->id)
-                ->first();
-        }
-    }
-
-    // Try Customer Deployment (CRM) if no customer yet
-    if (!$customer) {
-        $deployment = \App\Models\CustomerDeployment::where('domain', $domainStr)
-            ->orWhere('subdomain', $domainStr)
-            ->first();
-        if ($deployment) {
-            $customer = $deployment->customer;
-        }
-    }
-
-    // Try LoadBalancerDomain directly if still no customer
-    if (!$customer) {
-        $lbDomain = \App\Models\LoadBalancerDomain::where('domain', $domainStr)->first();
-        if ($lbDomain) {
-            // Find customer via LB if possible? 
-            // Load Balancers aren't currently linked to customers in a direct way in the model
-            // But we can check status
-        }
-    }
-
-    $isDeactivated = false;
-    if (isset($app) && $app->status === 'deactivated') {
-        $isDeactivated = true;
-    } elseif (isset($deployment) && $deployment->status === 'deactivated') {
-        $isDeactivated = true;
-    } elseif (isset($lbDomain) && $lbDomain->status === 'deactivated') {
-        $isDeactivated = true;
-    }
-
-    return view('subscription-expired', [
-        'domain' => $domainStr,
-        'customer' => $customer,
-        'is_deactivated' => $isDeactivated,
-
-        'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
-        'support_email' => \App\Models\Setting::get('support_email'),
-        'support_whatsapp' => \App\Models\Setting::get('support_whatsapp'),
-        'support_facebook' => \App\Models\Setting::get('support_facebook'),
-        'support_mobile' => \App\Models\Setting::get('support_mobile'),
-    ]);
-});
+Route::get('/subscription-expired', [SubscriptionCheckController::class, 'expirationInfo']);
+Route::get('/public/subscription/status', [SubscriptionCheckController::class, 'expirationInfo']);
 
 
 
@@ -188,6 +127,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/settings/logo', [SettingsController::class, 'uploadLogo']);
     Route::post('/settings/panel-logo', [SettingsController::class, 'uploadPanelLogo']);
     Route::post('/settings/setup-payment-domain', [SettingsController::class, 'setupPaymentDomain']);
+    Route::post('/settings/setup-api-domain', [SettingsController::class, 'setupApiDomain']);
 
     // CRM Customers
     Route::apiResource('customers', CustomerController::class);
@@ -364,3 +304,4 @@ Route::get('/public/portal/info', [\App\Http\Controllers\Api\PublicPortalControl
 Route::get('/public/panel/branding', [\App\Http\Controllers\Api\SettingsController::class, 'branding']);
 Route::post('/public/portal/subscribe', [\App\Http\Controllers\Api\PublicPortalController::class, 'subscribe']);
 Route::get('/public/payment/result/{txId}', [\App\Http\Controllers\Api\PublicPortalController::class, 'paymentResult']);
+Route::get('/public/docs/json', [\App\Http\Controllers\Api\ApiDocsController::class, 'index']);

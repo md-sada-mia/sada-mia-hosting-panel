@@ -23,7 +23,8 @@ api.interceptors.response.use(
       localStorage.removeItem('panel_token');
       // Only redirect if not already on login and not on payment domain
       const isPaymentDomain = window.location.hostname.startsWith('payment.');
-      if (!isPaymentDomain && window.location.pathname !== '/login') {
+      const isApiDomain = window.location.hostname.startsWith('api.');
+      if (!isPaymentDomain && !isApiDomain && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }

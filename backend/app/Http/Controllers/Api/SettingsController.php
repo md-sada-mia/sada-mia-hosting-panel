@@ -356,4 +356,90 @@ class SettingsController extends Controller
             'url' => $url
         ]);
     }
+
+    public function setupApiDomain(Request $request, \App\Services\DnsService $dnsService, \App\Services\ShellService $shell, \App\Services\NginxConfigService $nginxService)
+    {
+        $primaryDomain = Setting::get('ns_default_domain');
+        if (empty($primaryDomain)) {
+            return response()->json(['message' => 'Primary domain (ns_default_domain) is not configured.'], 400);
+        }
+        $primaryDomain = rtrim($primaryDomain, '.');
+        $apiDomain = "api.{$primaryDomain}";
+        $serverIp = Setting::get('server_ip', '127.0.0.1');
+
+        // 1. Setup DNS A record
+        $domainRecord = \App\Models\Domain::where('domain', $primaryDomain)->first();
+        if ($domainRecord) {
+            \App\Models\DnsRecord::firstOrCreate([
+                'domain_id' => $domainRecord->id,
+                'type' => 'A',
+                'name' => 'api',
+                'value' => $serverIp
+            ], [
+                'ttl' => 3600
+            ]);
+            $dnsService->syncRecords($domainRecord);
+        }
+
+        // 2. Setup Nginx block using stub template
+        $baseDir = realpath(base_path('..'));
+        $frontendDist = "{$baseDir}/frontend/dist";
+        $backendPublic = "{$baseDir}/backend/public";
+        $phpFpmSock = config('hosting.php_fpm_sock', '/var/run/php/php8.4-fpm.sock');
+
+        $sitesAvailable = '/etc/nginx/sites-available';
+        $sitesEnabled   = '/etc/nginx/sites-enabled';
+        $configFile     = "{$sitesAvailable}/{$apiDomain}";
+        $symlinkFile    = "{$sitesEnabled}/{$apiDomain}";
+
+        // Read base HTTP stub
+        $httpStubPath = resource_path('nginx-templates/api-docs.conf.stub');
+        $httpStub = file_get_contents($httpStubPath);
+
+        $placeholders = ['{{domain}}', '{{frontend_dist}}', '{{backend_public}}', '{{php_fpm_sock}}'];
+        $replacements = [$apiDomain, $frontendDist, $backendPublic, $phpFpmSock];
+        $httpConfig = str_replace($placeholders, $replacements, $httpStub);
+
+        $escapedConfig = escapeshellarg($httpConfig);
+        $shell->run("echo {$escapedConfig} | sudo tee {$configFile} > /dev/null");
+        $shell->run("sudo ln -sf {$configFile} {$symlinkFile}");
+        $shell->run("sudo nginx -t && sudo nginx -s reload");
+
+        // 3. Procure SSL via certbot directly
+        $shell->run("sudo certbot certonly --nginx -d {$apiDomain} --non-interactive --agree-tos --register-unsafely-without-email");
+
+        // 4. Generate SSL specific config if certificate was procured
+        if ($nginxService->hasCertificate($apiDomain)) {
+            // Overwrite HTTP config with redirect
+            $redirectConfig = "server {\n" .
+                "    listen 80;\n" .
+                "    listen [::]:80;\n" .
+                "    server_name {$apiDomain};\n" .
+                "    return 301 https://\$host\$request_uri;\n" .
+                "}\n";
+            $escapedRedirect = escapeshellarg($redirectConfig);
+            $shell->run("echo {$escapedRedirect} | sudo tee {$configFile} > /dev/null");
+
+            // Generate SSL config
+            $sslStubPath = resource_path('nginx-templates/api-docs-ssl.conf.stub');
+            $sslStub = file_get_contents($sslStubPath);
+            $sslConfig = str_replace($placeholders, $replacements, $sslStub);
+
+            $sslConfigFile = "{$sitesAvailable}/{$apiDomain}-ssl";
+            $sslSymlinkFile = "{$sitesEnabled}/{$apiDomain}-ssl";
+            $escapedSslConfig = escapeshellarg($sslConfig);
+
+            $shell->run("echo {$escapedSslConfig} | sudo tee {$sslConfigFile} > /dev/null");
+            $shell->run("sudo ln -sf {$sslConfigFile} {$sslSymlinkFile}");
+            $shell->run("sudo nginx -t && sudo nginx -s reload");
+        }
+
+        $url = "https://{$apiDomain}";
+        Setting::set('api_docs_url', $url);
+
+        return response()->json([
+            'message' => "API domain {$apiDomain} configured successfully.",
+            'url' => $url
+        ]);
+    }
 }
