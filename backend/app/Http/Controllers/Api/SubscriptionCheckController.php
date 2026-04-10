@@ -45,7 +45,7 @@ class SubscriptionCheckController extends Controller
             return response()->noContent(200);
         }
 
-        return response()->noContent(402); // Change 403 to 402 for "Payment Required"
+        return response()->noContent(403); // Change 403  for "Payment Required"
     }
 
     public function expirationInfo(Request $request)
