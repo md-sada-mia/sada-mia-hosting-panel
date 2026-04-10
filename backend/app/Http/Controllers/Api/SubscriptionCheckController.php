@@ -126,7 +126,7 @@ class SubscriptionCheckController extends Controller
             ]
         ];
 
-        if ($request->is('api/*')) {
+        if (str_starts_with($request->getHost(), 'api.')) {
             return response()->json($data);
         }
 
