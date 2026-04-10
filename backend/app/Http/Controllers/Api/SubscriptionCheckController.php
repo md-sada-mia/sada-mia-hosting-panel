@@ -126,7 +126,7 @@ class SubscriptionCheckController extends Controller
             ]
         ];
 
-        if ($request->expectsJson() || $request->is('api/*')) {
+        if ($request->is('api/*')) {
             return response()->json($data);
         }
 
