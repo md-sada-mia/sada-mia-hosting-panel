@@ -100,21 +100,21 @@ class ApiDocsController extends Controller
                     'parameters' => [],
                     'response' => [
                         'status' => 200,
-                        'body' => '{"is_active": true, "plan": "Pro Plan", "credit_balance": 100, "status": "active"}'
+                        'body' => '{"system_enabled": true, "flat_rate_active": true, "credit_balance": 100, "expire_date": "2024-05-09T00:00:00Z", "notification_html": "<div class=\"subscription-notification\">...</div>", "flat_subscriptions": [], "credit_subscriptions": []}'
                     ]
                 ],
                 [
                     'method' => 'GET',
                     'path' => '/api/public/subscription/status',
                     'title' => 'Public Subscription Status',
-                    'description' => 'Get expiration info and payment redirection URL for a specific domain.',
+                    'description' => 'Get detailed expiration info, customer data, and payment redirection for a specific domain. Used by external apps to check if they should show a payment block.',
                     'auth' => 'Public',
                     'parameters' => [
                         ['name' => 'domain', 'type' => 'string', 'required' => false, 'description' => 'The domain to check. Defaults to the requesting host if omitted.']
                     ],
                     'response' => [
                         'status' => 200,
-                        'body' => '{"domain": "example.com", "is_expired": true, "payment_url": "https://pay.domain.com", "support": {"email": "support@domain.com"}}'
+                        'body' => '{"domain": "example.com", "customer": {"name": "John Doe", "email": "john@example.com", "business_name": "John Corp"}, "is_deactivated": false, "is_expired": true, "expire_date": "2024-04-01T12:00:00Z", "notification_html": "<div class=\"subscription-notification\">...</div>", "payment_url": "https://pay.example.com", "support": {"email": "support@example.com", "whatsapp": "+123456789", "facebook": "fb.com/support", "mobile": "+123456789"}}'
                     ]
                 ]
             ]

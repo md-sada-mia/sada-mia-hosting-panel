@@ -30,6 +30,21 @@
         .method-DELETE { background-color: rgba(244, 63, 94, 0.1); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.2); }
     </style>
     <script>
+        function copyToClipboard(elementId, buttonId) {
+            const text = document.getElementById(elementId).innerText;
+            const btn = document.getElementById(buttonId);
+            const originalHtml = btn.innerHTML;
+
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> <span class="text-emerald-400">Copied!</span>';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
         function toggleEndpoint(index) {
             const el = document.getElementById('endpoint-body-' + index);
             const icon = document.getElementById('endpoint-icon-' + index);
@@ -143,20 +158,58 @@
 
                             <!-- Response -->
                             <div>
-                                <h4 class="text-sm font-bold uppercase tracking-wider text-white mb-3 flex items-center gap-2">
-                                    Response Example 
-                                    <span class="text-emerald-400 font-mono text-xs ml-2 bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-800/50">
-                                        {{ $endpoint['response']['status'] }}
-                                    </span>
-                                </h4>
-                                <div class="bg-black rounded-lg p-4 overflow-x-auto border border-stone-800 shadow-inner">
-                                    <pre class="text-xs md:text-sm font-mono text-stone-300"><code>{{ json_encode(json_decode($endpoint['response']['body']), JSON_PRETTY_PRINT) }}</code></pre>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                                        Response Example 
+                                        <span class="text-emerald-400 font-mono text-xs ml-2 bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-800/50">
+                                            {{ $endpoint['response']['status'] }}
+                                        </span>
+                                    </h4>
+                                    <button 
+                                        id="copy-btn-{{ $index }}"
+                                        onclick="copyToClipboard('response-{{ $index }}', 'copy-btn-{{ $index }}')"
+                                        class="text-xs font-medium text-stone-500 hover:text-white transition-colors flex items-center gap-1.5"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                        Copy
+                                    </button>
+                                </div>
+                                <div class="bg-black rounded-lg p-4 overflow-x-auto border border-stone-800 shadow-inner group relative">
+                                    <pre id="response-{{ $index }}" class="text-xs md:text-sm font-mono text-stone-300"><code>{{ json_encode(json_decode($endpoint['response']['body']), JSON_PRETTY_PRINT) }}</code></pre>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             @endforeach
+        </div>
+
+        <!-- Common Error Codes -->
+        <div class="mt-20 pt-10 border-t border-stone-800">
+            <h3 class="text-xl font-bold text-white mb-6">Common Status Codes</h3>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="p-4 rounded-xl glass-card">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-800/50 text-xs font-mono font-bold">200</span>
+                        <span class="text-sm font-semibold">Success</span>
+                    </div>
+                    <p class="text-xs text-stone-400 leading-relaxed">The request was successful and the response contains the requested data.</p>
+                </div>
+                <div class="p-4 rounded-xl glass-card">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-800/50 text-xs font-mono font-bold">402</span>
+                        <span class="text-sm font-semibold">Payment Required</span>
+                    </div>
+                    <p class="text-xs text-stone-400 leading-relaxed">Specifically used for domain subscription status when the subscription is expired or inactive.</p>
+                </div>
+                <div class="p-4 rounded-xl glass-card">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-800/50 text-xs font-mono font-bold">401</span>
+                        <span class="text-sm font-semibold">Unauthorized</span>
+                    </div>
+                    <p class="text-xs text-stone-400 leading-relaxed">Missing or invalid Bearer Token. Ensure you include the Authorization header.</p>
+                </div>
+            </div>
         </div>
     </main>
 </body>
