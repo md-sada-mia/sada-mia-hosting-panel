@@ -53,7 +53,7 @@ class SubscriptionCheckController extends Controller
         $domainStr = $request->get('domain', $request->getHost());
         
         // Strip port if present
-        $domainStr = strtolower(trim(explode(':', $domainStr)[0]));
+        // $domainStr = strtolower(trim(explode(':', $domainStr)[0]));
 
         $customer = null;
 
@@ -108,22 +108,16 @@ class SubscriptionCheckController extends Controller
 
         $data = [
             'domain' => $domainStr,
-            'customer' => $customer ? [
-                'name' => $customer->name,
-                'email' => $customer->email,
-                'business_name' => $customer->business_name,
-            ] : null,
+            'customer' => $customer,
             'is_deactivated' => $isDeactivated,
             'is_expired' => !$this->subscriptionService->isActive($domainStr) && !$isDeactivated,
             'expire_date' => $latestSub?->ends_at?->toIso8601String(),
             'notification_htmls' => $this->subscriptionService->generateNotificationHtml($domainStr, $isDeactivated, $paymentUrl),
             'payment_url' => $paymentUrl,
-            'support' => [
-                'email' => \App\Models\Setting::get('support_email'),
-                'whatsapp' => \App\Models\Setting::get('support_whatsapp'),
-                'facebook' => \App\Models\Setting::get('support_facebook'),
-                'mobile' => \App\Models\Setting::get('support_mobile'),
-            ]
+            'support_email' => \App\Models\Setting::get('support_email'),
+            'support_whatsapp' => \App\Models\Setting::get('support_whatsapp'),
+            'support_facebook' => \App\Models\Setting::get('support_facebook'),
+            'support_mobile' => \App\Models\Setting::get('support_mobile'),
         ];
 
         if (str_starts_with($request->getHost(), 'api.')) {
