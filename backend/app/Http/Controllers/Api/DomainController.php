@@ -117,7 +117,31 @@ class DomainController extends Controller
     public function sync(Domain $domain): JsonResponse
     {
         if (!$domain->dns_managed) {
-            return response()->json(['message' => 'DNS management is not enabled for this domain.'], 400);
+            $parent = $this->dnsService->findParentDomain($domain->domain);
+            if (!$parent) {
+                return response()->json(['message' => 'DNS management is not enabled for this domain.'], 400);
+            }
+            
+            $hostname = str_replace('.' . $parent->domain, '', $domain->domain);
+            $serverIp = \App\Models\Setting::get('server_ip', '127.0.0.1');
+            
+            // Re-create the A record in parent if it does not exist
+            \App\Models\DnsRecord::firstOrCreate([
+                'domain_id' => $parent->id,
+                'name'      => $hostname,
+                'type'      => 'A',
+            ], [
+                'value'     => $serverIp,
+                'ttl'       => 3600,
+                'app_id'    => $domain->app_id,
+            ]);
+            
+            $this->dnsService->syncRecords($parent);
+            
+            return response()->json([
+                'message' => 'Subdomain synced successfully. A record created in parent zone.',
+                'records' => []
+            ]);
         }
 
         $this->dnsService->syncRecords($domain);

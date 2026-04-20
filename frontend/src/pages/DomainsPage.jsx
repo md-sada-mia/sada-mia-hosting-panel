@@ -467,7 +467,7 @@ export default function DomainsPage() {
                       </span>
                     ))}
                   </div>
-                  {selected.dns_managed && (
+                  {selected.dns_managed ? (
                     <>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground mr-1" onClick={() => fetchRecords(selected.id)}>
                         <RefreshCw className={`h-3.5 w-3.5 ${loadingRecs ? 'animate-spin' : ''}`} />
@@ -481,6 +481,11 @@ export default function DomainsPage() {
                         <Plus className="h-3.5 w-3.5" /> Add Record
                       </Button>
                     </>
+                  ) : parentDomain && (
+                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-primary/20 hover:bg-primary/5 mr-2" 
+                      onClick={handleSyncZone} disabled={syncing}>
+                      {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Sync Subdomain
+                    </Button>
                   )}
                 </div>
               </div>
