@@ -133,12 +133,10 @@ class DomainController extends Controller
      */
     public function destroy(Domain $domain): JsonResponse
     {
-        if ($domain->dns_managed) {
-            try {
-                $this->dnsService->removeZone($domain);
-            } catch (\Throwable $e) {
-                Log::warning("Could not remove DNS zone for {$domain->domain}: " . $e->getMessage());
-            }
+        try {
+            $this->dnsService->removeZone($domain);
+        } catch (\Throwable $e) {
+            Log::warning("Could not remove DNS zone for {$domain->domain}: " . $e->getMessage());
         }
 
         $domain->delete();

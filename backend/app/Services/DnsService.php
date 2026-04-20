@@ -50,9 +50,12 @@ class DnsService
         $parent = $this->findParentDomain($domain->domain);
 
         if ($parent && !$domain->dns_managed) {
-            // It was a subdomain managed via parent's A records
+            $hostname = str_replace('.' . $parent->domain, '', $domain->domain);
+            
+            // It was a subdomain managed via parent's DNS records, delete its specific records directly
             DnsRecord::where('domain_id', $parent->id)
-                ->where('app_id', $domain->app_id)
+                ->where('name', $hostname)
+                ->whereIn('type', ['A', 'AAAA', 'CNAME'])
                 ->delete();
 
             $output = $this->generateZone($parent->fresh()->load('dnsRecords'));
