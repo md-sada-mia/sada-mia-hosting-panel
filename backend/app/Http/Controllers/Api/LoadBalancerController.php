@@ -172,6 +172,7 @@ class LoadBalancerController extends Controller
 
         $domain = $validated['domain'];
         $loadBalancer->domains()->where('domain', $domain)->delete();
+        $this->dnsService->removeDomain($domain);
         $this->nginxService->removeLoadBalancerDomain($domain);
 
         $loaded = $loadBalancer->fresh()->load(['apps:id,name', 'domains']);

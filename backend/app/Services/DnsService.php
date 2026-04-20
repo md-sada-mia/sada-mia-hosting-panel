@@ -120,9 +120,12 @@ class DnsService
                     ->delete();
 
                 $this->syncRecords($parentDomain);
-                break;
             }
         }
+
+        // 3. Finally, ensure the Domain Eloquent model is removed from database if it exists
+        // (This cleanup was previously missing for subdomains, which was causing them to persist in the UI)
+        Domain::where('domain', $domainName)->delete();
     }
 
     /**

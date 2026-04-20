@@ -188,6 +188,10 @@ class AppController extends Controller
         $appData['databases'] = $app->databases->toArray();
         $appData['services'] = $app->services->toArray();
 
+        // [CRITICAL] Find domain ID before app is deleted, because app_id is nulled on delete
+        $domain = \App\Models\Domain::where('app_id', $app->id)->first();
+        $appData['domain_id'] = $domain?->id;
+
         DeleteApp::dispatch($appData);
 
         $app->delete();

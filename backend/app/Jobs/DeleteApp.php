@@ -90,17 +90,28 @@ class DeleteApp implements ShouldQueue
             // 5. DNS & Email Cleanup
             Log::info("Step 5: DNS & Email Cleanup (Target domain: " . ($this->appData['domain'] ?? 'none') . ")");
             try {
-                $domain = Domain::where('app_id', $app->id)->first();
+                // First try to find by snapshotted ID (most reliable as app_id might be nulled)
+                $domain = null;
+                if (!empty($this->appData['domain_id'])) {
+                    $domain = Domain::find($this->appData['domain_id']);
+                }
+
                 if ($domain) {
-                    Log::info("Found domain by app_id: {$domain->domain}");
+                    Log::info("Found domain by snapshotted ID: {$domain->domain}");
                 } else {
-                    Log::info("Domain not found by app_id, using fallback search by name: " . ($this->appData['domain'] ?? 'N/A'));
-                    if (!empty($this->appData['domain'])) {
-                        $domain = Domain::where('domain', $this->appData['domain'])->first();
-                        if ($domain) {
-                            Log::info("Found domain by name: {$domain->domain} (ID: {$domain->id})");
-                        } else {
-                            Log::warning("Domain record NOT found by name in database.");
+                    // Fallback to app_id (just in case)
+                    $domain = Domain::where('app_id', $app->id)->first();
+                    if ($domain) {
+                        Log::info("Found domain by app_id: {$domain->domain}");
+                    } else {
+                        Log::info("Domain not found by snapshotted ID or app_id, using fallback search by name: " . ($this->appData['domain'] ?? 'N/A'));
+                        if (!empty($this->appData['domain'])) {
+                            $domain = Domain::where('domain', $this->appData['domain'])->first();
+                            if ($domain) {
+                                Log::info("Found domain by name: {$domain->domain} (ID: {$domain->id})");
+                            } else {
+                                Log::warning("Domain record NOT found by name in database.");
+                            }
                         }
                     }
                 }
