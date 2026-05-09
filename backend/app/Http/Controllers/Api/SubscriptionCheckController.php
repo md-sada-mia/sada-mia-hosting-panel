@@ -116,7 +116,7 @@ class SubscriptionCheckController extends Controller
             'is_deactivated' => $isDeactivated,
             'is_expired' => !$this->subscriptionService->isActive($domainStr) && !$isDeactivated,
             'expire_date' => $latestSub?->ends_at?->toIso8601String(),
-            'notification_html' => $this->subscriptionService->generateNotificationHtml($domainStr, $isDeactivated, $paymentUrl),
+            'notification_htmls' => $this->subscriptionService->generateNotificationHtml($domainStr, $isDeactivated, $paymentUrl),
             'payment_url' => $paymentUrl,
             'support' => [
                 'email' => \App\Models\Setting::get('support_email'),

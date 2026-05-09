@@ -272,7 +272,7 @@ class SubscriptionService
         $textColor = '#d1fae5';
 
         $subLink = $paymentUrl 
-            ? "<a href=\"{$paymentUrl}\" style=\"color: inherit; text-decoration: underline; font-weight: bold;\">subscription</a>"
+            ? "<a href=\"{$paymentUrl}?domain={$domain}\" target=\"_blank\" style=\"color: inherit; text-decoration: underline; font-weight: bold;\">subscription</a>"
             : "subscription";
 
         if ($isDeactivated) {
