@@ -104,6 +104,8 @@ class SubscriptionCheckController extends Controller
             ->orderByDesc('ends_at')
             ->first();
 
+        $paymentUrl = \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083');
+
         $data = [
             'domain' => $domainStr,
             'customer' => $customer ? [
@@ -114,8 +116,8 @@ class SubscriptionCheckController extends Controller
             'is_deactivated' => $isDeactivated,
             'is_expired' => !$this->subscriptionService->isActive($domainStr) && !$isDeactivated,
             'expire_date' => $latestSub?->ends_at?->toIso8601String(),
-            'notification_html' => $this->subscriptionService->generateNotificationHtml($domainStr, $isDeactivated),
-            'payment_url' => \App\Models\Setting::get('payment_callback_base_url') ?: \App\Models\Setting::get('panel_url', 'http://127.0.0.1:8083'),
+            'notification_html' => $this->subscriptionService->generateNotificationHtml($domainStr, $isDeactivated, $paymentUrl),
+            'payment_url' => $paymentUrl,
             'support' => [
                 'email' => \App\Models\Setting::get('support_email'),
                 'whatsapp' => \App\Models\Setting::get('support_whatsapp'),

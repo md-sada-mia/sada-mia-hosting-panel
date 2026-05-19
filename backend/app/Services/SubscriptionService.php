@@ -252,7 +252,7 @@ class SubscriptionService
     /**
      * Generate a styled HTML notification banner for the domain's subscription status.
      */
-    public function generateNotificationHtml(string $domain, bool $isDeactivated = false): string
+    public function generateNotificationHtml(string $domain, bool $isDeactivated = false, ?string $paymentUrl = null): string
     {
         if (!$this->isSubscriptionSystemEnabled()) {
             return '';
@@ -271,22 +271,27 @@ class SubscriptionService
         $borderColor = '#059669';
         $textColor = '#d1fae5';
 
+        $subLink = $paymentUrl 
+            ? "<a href=\"{$paymentUrl}\" style=\"color: inherit; text-decoration: underline; font-weight: bold;\">subscription</a>"
+            : "subscription";
+
         if ($isDeactivated) {
             $bgColor = '#450a0a';
             $borderColor = '#dc2626';
             $textColor = '#fee2e2';
-            $message = "Domain <strong>{$domain}</strong> has been deactivated. Please contact support.";
+            $message = "Domain <strong>{$domain}</strong> has been deactivated. Please check your {$subLink} or contact support.";
         } elseif (!$isActive) {
             $bgColor = '#450a0a';
             $borderColor = '#dc2626';
             $textColor = '#fee2e2';
+            
             if ($expireDate) {
-                $message = "Your subscription for <strong>{$domain}</strong> expired on <strong>" . $expireDate->format('M d, Y') . "</strong>. Please renew to avoid service interruption.";
+                $message = "Your {$subLink} for <strong>{$domain}</strong> expired on <strong>" . $expireDate->format('M d, Y') . "</strong>. Please renew to avoid service interruption.";
             } else {
-                $message = "No active subscription found for <strong>{$domain}</strong>.";
+                $message = "No active {$subLink} found for <strong>{$domain}</strong>.";
             }
         } else {
-            $message = "Your subscription for <strong>{$domain}</strong> is active until <strong>" . ($expireDate ? $expireDate->format('M d, Y') : 'N/A') . "</strong>.";
+            $message = "Your {$subLink} for <strong>{$domain}</strong> is active until <strong>" . ($expireDate ? $expireDate->format('M d, Y') : 'N/A') . "</strong>.";
         }
 
         return <<<HTML
